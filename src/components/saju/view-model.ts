@@ -1,9 +1,16 @@
 import { getEarthlyBranchByKorean, extractJiJangGan } from "@/data/earthly_branches";
 import { getHeavenlyStemByKorean } from "@/data/heavenly_stems";
+import { getLongitudeOffsetMinutesForSaju } from "@/data/longitude_table";
 import { SIN_SAL_DATA } from "@/lib/sin_sal";
 import type { DaeUnPeriod } from "@/lib/dae_un";
 import type { EarthlyBranch, Gender, Pillar, SajuData, TenGod, WuXing } from "@/types";
 import { ELEMENTS, elementColor, elementIndex, josa, mod, rgba } from "./constants";
+
+/** 진태양시 보정값(분)을 "−32분" 형태로 표기. 마이너스는 하이픈이 아닌 U+2212(음수 기호) 사용. */
+function formatLongitudeOffset(offsetMinutes: number): string {
+  if (offsetMinutes === 0) return "0분";
+  return offsetMinutes < 0 ? `−${Math.abs(offsetMinutes)}분` : `+${offsetMinutes}분`;
+}
 
 export interface PillarCellVM {
   ch: string;
@@ -341,7 +348,7 @@ export function buildSajuViewModel({
     }.`,
     birthLine: `${saju.calendar === "lunar" ? `음력${saju.isLeapMonth ? "(윤)" : ""}` : "양력"} ${saju.birthDate.replace(/-/g, ".")}${
       hasHour ? " " + saju.birthTime : " 시간 미상"
-    } · ${gender === "male" ? "남" : "여"}`,
+    } · ${saju.birthCity}(${formatLongitudeOffset(getLongitudeOffsetMinutesForSaju(saju.birthCity))}) · ${gender === "male" ? "남" : "여"}`,
     godsNote: gods.length ? `${josa(gods[0]!.name, "이", "가")} 가장 강하게 작동합니다.` : "",
     yong: saju.yongSin
       ? {

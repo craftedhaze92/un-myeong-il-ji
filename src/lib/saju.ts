@@ -7,7 +7,12 @@ import { formatInTimeZone, toDate } from 'date-fns-tz';
 import type { SajuData, Pillar, Gender, CalendarType, WuXing } from '../types/index';
 import { getHeavenlyStemByIndex } from '../data/heavenly_stems';
 import { getEarthlyBranchByIndex, analyzeBranchRelations, checkWolRyeong, calculateJiJangGanStrength } from '../data/earthly_branches';
-import { getCurrentSolarTerm, getSolarTermMonthIndex } from '../data/solar_terms';
+import {
+  getCurrentSolarTerm,
+  getSolarTermMonthIndex,
+  getSolarTermsForYear,
+  getPreviousJieSolarTermByInstant,
+} from '../data/solar_terms';
 import { WUXING_DATA } from '../data/wuxing';
 import { convertCalendar } from './calendar';
 import { getAdjustedBirthInstantForSaju } from '../utils/date';
@@ -126,9 +131,8 @@ export function calculateSaju(
   const branches = [yearPillar.branch, monthPillar.branch, dayPillar.branch, hourPillar.branch];
   sajuData.branchRelations = analyzeBranchRelations(branches);
 
-  // 지장간 세력 계산
-  const currentSolarTerm = getCurrentSolarTerm(adjustedDate);
-  const monthIndex = getSolarTermMonthIndex(currentSolarTerm);
+  // 지장간 세력 계산 (월주와 동일한 정밀 절기 기준)
+  const monthIndex = getPreciseSolarTermMonthIndex(adjustedDate);
   sajuData.jiJangGan = {
     year: calculateJiJangGanStrength(yearPillar.branch, monthIndex),
     month: calculateJiJangGanStrength(monthPillar.branch, monthIndex),
@@ -169,17 +173,23 @@ export function calculateSaju(
  * 연주(年柱) 계산
  */
 function calculateYearPillar(date: Date): Pillar {
-  const year = date.getFullYear();
+  // 입춘 순간(정밀 절기 데이터) 기준으로 연주를 나눈다. 입춘 이전이면 전년도.
+  const seoulYear = parseInt(formatInTimeZone(date, SEOUL_TZ, 'yyyy'), 10);
+  const ipchun = getSolarTermsForYear(seoulYear).find((t) => t.term === '입춘');
+  let sajuYear = seoulYear;
 
-  // 입춘 이전이면 전년도로 계산
-  const solarTerm = getCurrentSolarTerm(date);
-  const month = date.getMonth() + 1;
-  let sajuYear = year;
-
-  // 1월이나 2월 초에 입춘 이전이면 전년도
-  // 입춘 이전 절기: 동지, 소한, 대한
-  if (month <= 2 && (solarTerm === '동지' || solarTerm === '소한' || solarTerm === '대한')) {
-    sajuYear = year - 1;
+  if (ipchun) {
+    if (date.getTime() < ipchun.timestamp) {
+      sajuYear = seoulYear - 1;
+    }
+  } else {
+    // 정밀 절기 데이터 범위 밖(1900년 이전 등) - 근사 함수로 폴백
+    const solarTerm = getCurrentSolarTerm(date);
+    const month = date.getMonth() + 1;
+    // 1월이나 2월 초에 입춘 이전이면 전년도 (입춘 이전 절기: 동지, 소한, 대한)
+    if (month <= 2 && (solarTerm === '동지' || solarTerm === '소한' || solarTerm === '대한')) {
+      sajuYear = seoulYear - 1;
+    }
   }
 
   // 갑자(甲子)년 기준: 1984년, 1924년, 1864년...
@@ -202,9 +212,18 @@ function calculateYearPillar(date: Date): Pillar {
 /**
  * 월주(月柱) 계산
  */
+/**
+ * 출생 시각 직전의 절(節, 12개 - 우수·춘분 등 기(氣)는 제외)로 월건 인덱스를 정밀 판정한다.
+ * 월주 계산과 지장간 세력 계산이 같은 기준을 쓰도록 공유한다.
+ */
+function getPreciseSolarTermMonthIndex(date: Date): number {
+  const prevJie = getPreviousJieSolarTermByInstant(date);
+  const solarTerm = prevJie ? prevJie.term : getCurrentSolarTerm(date); // 폴백(1900년 이전 등)
+  return getSolarTermMonthIndex(solarTerm);
+}
+
 function calculateMonthPillar(date: Date, yearPillar: Pillar): Pillar {
-  const solarTerm = getCurrentSolarTerm(date);
-  const monthIndex = getSolarTermMonthIndex(solarTerm);
+  const monthIndex = getPreciseSolarTermMonthIndex(date);
 
   // 월지 계산: 인월부터 시작 (입춘)
   const branchIndex = (monthIndex + 2) % 12; // 인(寅)월부터

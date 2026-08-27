@@ -150,8 +150,8 @@ export const SOLAR_TERMS_JIE: SolarTerm[] = [
   '백로',
   '한로',
   '입동',
-  '소설',
   '대설',
+  '소한',
 ];
 
 const JIE_SET = new Set<SolarTerm>(SOLAR_TERMS_JIE);

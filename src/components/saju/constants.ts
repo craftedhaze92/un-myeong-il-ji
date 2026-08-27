@@ -1,5 +1,3 @@
-import { getEarthlyBranchByKorean } from "@/data/earthly_branches";
-import { HOUR_BRANCHES } from "@/lib/si_un";
 import type { WuXing } from "@/types";
 
 /** design 파일의 오행 순서(목화토금수)를 그대로 따르는 인덱스 기준 */
@@ -72,26 +70,3 @@ export function josa(word: string, withFinal: string, withoutFinal: string): str
   return word + (hasFinal ? withFinal : withoutFinal);
 }
 
-const fmtClock = (totalMinutes: number): string => {
-  const h = Math.floor(mod(totalMinutes, 1440) / 60);
-  const m = mod(totalMinutes, 1440) % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-};
-
-export interface TimeOption {
-  value: string;
-  label: string;
-}
-
-/** 12시진 2시간 단위 시간 선택지 (자시부터). si_un.ts의 HOUR_BRANCHES를 그대로 따르므로 calculateHourPillar()의 경계와 일치한다. */
-export const TIME_OPTIONS: TimeOption[] = [
-  { value: "", label: "시간 미상" },
-  ...HOUR_BRANCHES.map(({ branch, startHour, name }) => {
-    const start = startHour * 60;
-    const hanja = getEarthlyBranchByKorean(branch)!.hanja;
-    return {
-      value: `${String(startHour).padStart(2, "0")}:00`,
-      label: `${fmtClock(start)} ~ ${fmtClock(start + 110)}  ${hanja}${name}`,
-    };
-  }),
-];
