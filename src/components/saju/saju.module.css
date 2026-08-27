@@ -1,0 +1,135 @@
+.root {
+  min-height: 100vh;
+}
+
+.root a {
+  color: var(--fg, #ede7db);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+}
+.root a:hover {
+  opacity: 0.7;
+}
+
+.root input,
+.root select {
+  font: inherit;
+  color: inherit;
+}
+.root input::placeholder {
+  color: var(--mute, rgba(237, 231, 219, 0.25));
+}
+.root input:focus,
+.root select:focus {
+  outline: none;
+}
+.root button {
+  font: inherit;
+}
+
+.luckScroll::-webkit-scrollbar {
+  height: 6px;
+}
+.luckScroll::-webkit-scrollbar-thumb {
+  background: var(--line, rgba(237, 231, 219, 0.18));
+  border-radius: 3px;
+}
+
+@keyframes stamp {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(1.09);
+    filter: blur(7px);
+  }
+  72% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes slotIn {
+  from {
+    opacity: 0;
+    transform: scaleY(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes drawRing {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.themeToggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: 1px solid var(--line, rgba(237, 231, 219, 0.16));
+  color: var(--dim, rgba(237, 231, 219, 0.5));
+  border-radius: 2px;
+  padding: 6px 11px;
+  cursor: pointer;
+  font-family: var(--font-myeongjo), serif;
+  font-size: 13px;
+}
+.themeToggle:hover {
+  color: var(--fg, #ede7db);
+}
+
+.resetButton {
+  background: none;
+  border: 1px solid var(--line, rgba(237, 231, 219, 0.2));
+  color: var(--dim, rgba(237, 231, 219, 0.7));
+  font-size: 13px;
+  padding: 9px 16px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.resetButton:hover {
+  color: var(--fg, #fff);
+}
+
+.slot {
+  border-radius: 3px;
+  background: var(--slot, rgba(0, 0, 0, 0.25));
+  box-shadow: inset 0 2px 16px var(--slotShadow, rgba(0, 0, 0, 0.5));
+  animation: slotIn 0.35s ease both;
+}
+
+.stampCard {
+  border-radius: 3px;
+  padding: 24px 18px 15px;
+  animation: stamp 0.5s cubic-bezier(0.18, 0.9, 0.24, 1) both;
+}
+
+.ringShape {
+  animation: drawRing 0.5s ease-out both 0.68s;
+}
+
+.fadeUp {
+  animation: fadeUp 0.6s ease both;
+}
