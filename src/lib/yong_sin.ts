@@ -6,6 +6,10 @@
 import type { SajuData, WuXing } from "../types/index";
 import { analyzeLeapMonthBirth } from "./leap_month_analysis";
 import { josa } from "./korean";
+import { checkSpecialGyeokGuk, type GyeokGuk } from "./gyeok_guk";
+import { selectJohuYongSin } from "./johu";
+import { WuXingRelations } from "./yongsin/base";
+import { getHeavenlyStemByKorean } from "../data/heavenly_stems";
 
 export interface YongSinAnalysis {
   primaryYongSin: WuXing; // 주 용신
@@ -14,6 +18,10 @@ export interface YongSinAnalysis {
   jiSin: WuXing[]; // 기신(忌神) - 피해야 할 오행
   chouSin: WuXing[]; // 수신(仇神) - 용신을 극하는 오행
   dayMasterStrength: "very_strong" | "strong" | "medium" | "weak" | "very_weak";
+  /** 용신을 어떤 법으로 정했는지 — 전왕(종격) > 조후(극단 계절) > 억부(강약 명확) > 통관(중화) 순 */
+  method: "jeonwang" | "johu" | "eokbu" | "tonggwan";
+  /** 0~1. 조후는 조후용신표의 verified 여부를, 나머지는 판정 근거의 명확성을 반영한다 */
+  confidence: number;
   reasoning: string; // 용신 선정 이유
   leapMonthAnalysis?: {
     isLeapMonth: boolean;
@@ -135,88 +143,212 @@ const WU_XING_ATTRIBUTES: Record<
   },
 };
 
+interface YongSinCore {
+  primaryYongSin: WuXing;
+  secondaryYongSin?: WuXing;
+  xiSin: WuXing[];
+  jiSin: WuXing[];
+  chouSin: WuXing[];
+  method: YongSinAnalysis["method"];
+  confidence: number;
+  reasoning: string;
+}
+
+/** 종격(從格)일 때 왕한 세력을 그대로 따르는 전왕용신 */
+function selectJeonwangYongSin(dayStemElement: WuXing, gyeokGuk: GyeokGuk): YongSinCore {
+  let dominant: WuXing; // 따라야 할 왕한 오행
+  let supportGenerator: WuXing; // 그 오행을 생조하는 오행(희신)
+  let opposing: [WuXing, WuXing]; // 종격의 흐름을 거스르는 오행들(기신)
+  let gyeokGukLabel: string;
+
+  if (gyeokGuk === "jong_wang") {
+    // 비겁이 5개 이상·60% 이상 → 일간 자신의 오행을 그대로 따른다
+    dominant = dayStemElement;
+    supportGenerator = getShengMeElement(dayStemElement); // 인성이 비겁을 생조
+    opposing = [getKeMeElement(dayStemElement), getKeElement(dayStemElement)]; // 관살·재성이 거스름
+    gyeokGukLabel = "종왕격";
+  } else if (gyeokGuk === "jong_sal") {
+    // 관살이 5개 이상·60% 이상 → 일간을 극하는 오행을 따른다
+    dominant = getKeMeElement(dayStemElement);
+    supportGenerator = getKeElement(dayStemElement); // 재성이 관살을 생조
+    opposing = [dayStemElement, getShengMeElement(dayStemElement)]; // 비겁·인성이 거스름
+    gyeokGukLabel = "종살격";
+  } else {
+    // jong_jae: 재성이 5개 이상·60% 이상 → 일간이 극하는 오행을 따른다
+    dominant = getKeElement(dayStemElement);
+    supportGenerator = getShengElement(dayStemElement); // 식상이 재성을 생조
+    opposing = [dayStemElement, getShengMeElement(dayStemElement)]; // 비겁·인성이 거스름
+    gyeokGukLabel = "종재격";
+  }
+
+  return {
+    primaryYongSin: dominant,
+    secondaryYongSin: supportGenerator,
+    xiSin: [dominant, supportGenerator],
+    jiSin: opposing,
+    chouSin: [getKeMeElement(dominant)],
+    method: "jeonwang",
+    confidence: 0.85,
+    reasoning: `사주에 특정 세력이 압도적으로 강해 종격(從格, ${gyeokGukLabel})을 이루므로, 억부를 거스르지 않고 그 왕한 세력(${dominant})을 그대로 따르는 전왕용신을 씁니다.`,
+  };
+}
+
+/** 궁통보감 조후용신 — 한난조습이 극단(urgency: 'high')일 때 억부보다 앞세운다 */
+function selectJohuAsYongSin(sajuData: SajuData): YongSinCore {
+  const johu = selectJohuYongSin(sajuData);
+  const secondaryElement = johu.assistStems
+    .map((stem) => getHeavenlyStemByKorean(stem)?.element)
+    .find((element): element is WuXing => element !== undefined && element !== johu.yongSinElement);
+
+  return {
+    primaryYongSin: johu.yongSinElement,
+    secondaryYongSin: secondaryElement,
+    xiSin: [johu.yongSinElement, secondaryElement, getShengMeElement(johu.yongSinElement)].filter(
+      (e): e is WuXing => e !== undefined,
+    ),
+    jiSin: [getKeMeElement(johu.yongSinElement)],
+    chouSin: [getKeMeElement(johu.yongSinElement)],
+    method: "johu",
+    confidence: johu.confidence,
+    reasoning: `${johu.reasoning} 한난조습이 극단적이라 억부보다 조후를 앞세웁니다.`,
+  };
+}
+
+/** 억부용신 — 강하면 설기·극하는 오행, 약하면 생조·동조하는 오행 */
+function selectEokbuYongSin(
+  dayStemElement: WuXing,
+  strengthLevel: "very_strong" | "strong" | "weak" | "very_weak",
+): YongSinCore {
+  if (strengthLevel === "very_strong" || strengthLevel === "strong") {
+    // 일간이 강하면: 식상(설), 재성(극), 관살(극)을 용신 후보로 — 관살 누락 보완
+    const shengElement = getShengElement(dayStemElement); // 식상
+    const keElement = getKeElement(dayStemElement); // 재성
+    const keMeElement = getKeMeElement(dayStemElement); // 관살
+
+    return {
+      primaryYongSin: shengElement,
+      secondaryYongSin: keElement,
+      xiSin: [shengElement, keElement, keMeElement],
+      jiSin: [dayStemElement, getShengMeElement(dayStemElement)], // 비겁, 인성은 기신
+      chouSin: [getShengMeElement(dayStemElement)],
+      method: "eokbu",
+      confidence: 0.75,
+      reasoning: `${josa(`일간(${dayStemElement})`, "이/가")} ${strengthLevel === "very_strong" ? "매우 " : ""}강하므로, 일간의 힘을 설(洩)하거나 소모시키는 ${josa(`${shengElement}(식상)`, "과/와")} ${josa(`${keElement}(재성)`, "을/를")} 용신으로 삼습니다.`,
+    };
+  }
+
+  // 일간이 약하면: 인성(생), 비겁(동조)을 용신으로
+  const shengMeElement = getShengMeElement(dayStemElement);
+
+  return {
+    primaryYongSin: shengMeElement,
+    secondaryYongSin: dayStemElement,
+    xiSin: [shengMeElement, dayStemElement],
+    jiSin: [getKeElement(dayStemElement), getKeMeElement(dayStemElement)], // 재성, 관살은 기신
+    chouSin: [getKeElement(dayStemElement)],
+    method: "eokbu",
+    confidence: 0.75,
+    reasoning: `${josa(`일간(${dayStemElement})`, "이/가")} ${strengthLevel === "very_weak" ? "매우 " : ""}약하므로, 일간을 생(生)하는 ${josa(`${shengMeElement}(인성)`, "과/와")} 일간과 같은 ${josa(`${dayStemElement}(비겁)`, "을/를")} 용신으로 삼습니다.`,
+  };
+}
+
 /**
- * 용신 선정 메인 함수
+ * 통관용신 — 중화(medium)일 때, 사주 안에서 서로 상극하며 팽팽히 맞선 두 오행 사이를
+ * 이어주는 오행을 찾는다. 상극하는 두 세력이 뚜렷하지 않으면 조후용신으로 폴백한다
+ * (예전의 "가장 적은 오행" 폴백은 명리학적 근거가 없어 제거했다).
+ */
+function findTonggwanCandidate(wuxingCount: Record<WuXing, number>): WuXing | null {
+  const elements: WuXing[] = ["목", "화", "토", "금", "수"];
+  let best: { mediator: WuXing; combinedCount: number } | null = null;
+
+  for (const attacker of elements) {
+    const target = WuXingRelations.getKeElement(attacker);
+    // 둘 다 세력이 뚜렷해야(2개 이상) 팽팽히 맞섰다고 본다
+    if ((wuxingCount[attacker] ?? 0) >= 2 && (wuxingCount[target] ?? 0) >= 2) {
+      const mediator = WuXingRelations.getMediationElement(attacker, target);
+      if (!mediator) continue;
+      const combinedCount = (wuxingCount[attacker] ?? 0) + (wuxingCount[target] ?? 0);
+      if (!best || combinedCount > best.combinedCount) {
+        best = { mediator, combinedCount };
+      }
+    }
+  }
+
+  return best?.mediator ?? null;
+}
+
+function selectTonggwanYongSin(sajuData: SajuData): YongSinCore {
+  const mediator = findTonggwanCandidate(sajuData.wuxingCount);
+  if (mediator) {
+    return {
+      primaryYongSin: mediator,
+      xiSin: [mediator, getShengMeElement(mediator)],
+      jiSin: [],
+      chouSin: [getKeMeElement(mediator)],
+      method: "tonggwan",
+      confidence: 0.7,
+      reasoning: `사주가 중화(中和)되어 있으나 오행 간 상극이 팽팽하여, 그 사이를 이어주는 ${josa(mediator, "을/를")} 통관용신으로 삼아 흐름을 원활하게 합니다.`,
+    };
+  }
+
+  // 뚜렷하게 맞선 세력이 없으면 조후용신으로 폴백 (urgency가 낮아도 계절 조율은 항상 유효한 참고값)
+  const johu = selectJohuAsYongSin(sajuData);
+  return {
+    ...johu,
+    method: "johu",
+    confidence: johu.confidence * 0.8,
+    reasoning: `사주가 중화(中和)되어 뚜렷하게 상극하는 세력이 없어, 계절 조후를 참고해 ${johu.reasoning}`,
+  };
+}
+
+/**
+ * 용신 선정 메인 함수.
+ *
+ * 우선순위(궁통보감·자평명리·적천수의 통설): 종격(전왕) > 조후(한난조습 극단) > 억부(강약 명확) >
+ * 통관(중화). CLAUDE.md가 경고하는 "경쟁하는 두 용신 구현" 함정을 늘리지 않기 위해, 종격 판정은
+ * gyeok_guk.ts#checkSpecialGyeokGuk을, 조후는 johu.ts#selectJohuYongSin을 그대로 재사용한다.
  */
 export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
-  // 1. 일간 강약 판단
   const strengthLevel = sajuData.dayMasterStrength?.level || "medium";
   const dayStemElement = sajuData.day.stemElement;
 
-  let primaryYongSin: WuXing;
-  let secondaryYongSin: WuXing | undefined;
-  let xiSin: WuXing[] = [];
-  let jiSin: WuXing[] = [];
-  let chouSin: WuXing[] = [];
-  let reasoning = "";
+  let core: YongSinCore;
 
-  // 2. 용신 선정 로직
-  if (strengthLevel === "very_strong" || strengthLevel === "strong") {
-    // 일간이 강함 → 설(洩), 극(克)하는 오행이 용신
-    // 설기: 일간이 생(生)하는 오행 (식상)
-    // 극: 일간을 극(克)하는... 아니 일간이 극하는 오행 (재성)
-
-    // 일간이 강하면: 식상(설), 재성(극), 관살(극)을 용신으로
-    const shengElement = getShengElement(dayStemElement); // 일간이 생하는 오행
-    const keElement = getKeElement(dayStemElement); // 일간이 극하는 오행
-
-    primaryYongSin = shengElement; // 식상으로 설기
-    secondaryYongSin = keElement; // 재성으로 일간의 힘을 빼냄
-
-    xiSin = [shengElement, keElement];
-    jiSin = [dayStemElement, getShengMeElement(dayStemElement)]; // 비겁, 인성은 기신
-    chouSin = [getShengMeElement(dayStemElement)]; // 인성은 수신(용신을 극함)
-
-    reasoning = `${josa(`일간(${dayStemElement})`, "이/가")} ${strengthLevel === "very_strong" ? "매우 " : ""}강하므로, 일간의 힘을 설(洩)하거나 소모시키는 ${josa(`${shengElement}(식상)`, "과/와")} ${josa(`${keElement}(재성)`, "을/를")} 용신으로 삼습니다.`;
-  } else if (strengthLevel === "weak" || strengthLevel === "very_weak") {
-    // 일간이 약함 → 생(生)하거나 동일 오행이 용신
-    // 생기: 일간을 생(生)하는 오행 (인성)
-    // 동일: 일간과 동일 오행 (비겁)
-
-    const shengMeElement = getShengMeElement(dayStemElement); // 일간을 생하는 오행
-
-    primaryYongSin = shengMeElement; // 인성으로 생기
-    secondaryYongSin = dayStemElement; // 비겁으로 돕기
-
-    xiSin = [shengMeElement, dayStemElement];
-    jiSin = [getKeElement(dayStemElement), getKeMeElement(dayStemElement)]; // 재성, 관살은 기신
-    chouSin = [getKeElement(dayStemElement)]; // 재성은 수신(용신인 인성을 극함)
-
-    reasoning = `${josa(`일간(${dayStemElement})`, "이/가")} ${strengthLevel === "very_weak" ? "매우 " : ""}약하므로, 일간을 생(生)하는 ${josa(`${shengMeElement}(인성)`, "과/와")} 일간과 같은 ${josa(`${dayStemElement}(비겁)`, "을/를")} 용신으로 삼습니다.`;
+  const specialGyeokGuk = checkSpecialGyeokGuk(sajuData);
+  if (specialGyeokGuk) {
+    core = selectJeonwangYongSin(dayStemElement, specialGyeokGuk);
   } else {
-    // medium - 중화
-    // 중화된 경우는 조후용신(계절 조율)이나 통관용신 사용
-    // 간단하게: 약한 오행을 용신으로
-
-    const weakestElement = findWeakestElement(sajuData);
-    primaryYongSin = weakestElement;
-
-    xiSin = [weakestElement, getShengElement(weakestElement)];
-    jiSin = [getKeElement(weakestElement)];
-    chouSin = [getKeMeElement(weakestElement)];
-
-    reasoning = `사주가 중화되어 있으므로, 가장 약한 오행인 ${josa(weakestElement, "을/를")} 보강하여 균형을 맞춥니다.`;
+    const johuUrgency = selectJohuYongSin(sajuData).urgency;
+    if (johuUrgency === "high") {
+      core = selectJohuAsYongSin(sajuData);
+    } else if (strengthLevel === "very_strong" || strengthLevel === "strong" || strengthLevel === "weak" || strengthLevel === "very_weak") {
+      core = selectEokbuYongSin(dayStemElement, strengthLevel);
+    } else {
+      core = selectTonggwanYongSin(sajuData);
+    }
   }
 
-  // 3. 윤달 출생자 특수 분석
+  // 윤달 출생자 특수 분석
   const leapMonthAnalysis = analyzeLeapMonthBirth(sajuData);
 
-  // 4. 용신 기반 조언 생성 (윤달 분석 반영)
+  // 용신 기반 조언 생성 (윤달 분석 반영)
   const recommendations = generateRecommendations(
-    primaryYongSin,
-    secondaryYongSin,
-    jiSin,
+    core.primaryYongSin,
+    core.secondaryYongSin,
+    core.jiSin,
     leapMonthAnalysis,
   );
 
   return {
-    primaryYongSin,
-    secondaryYongSin,
-    xiSin,
-    jiSin,
-    chouSin,
+    primaryYongSin: core.primaryYongSin,
+    secondaryYongSin: core.secondaryYongSin,
+    xiSin: [...new Set(core.xiSin)],
+    jiSin: [...new Set(core.jiSin)],
+    chouSin: [...new Set(core.chouSin)],
     dayMasterStrength: strengthLevel,
-    reasoning,
+    method: core.method,
+    confidence: core.confidence,
+    reasoning: core.reasoning,
     leapMonthAnalysis: leapMonthAnalysis || undefined,
     recommendations,
   };
@@ -278,28 +410,6 @@ function getKeMeElement(element: WuXing): WuXing {
     수: "토", // 토극수
   };
   return keMeMap[element];
-}
-
-/**
- * 가장 약한 오행 찾기
- */
-function findWeakestElement(sajuData: SajuData): WuXing {
-  const wuxingCount = sajuData.wuxingCount;
-
-  let weakestElement: WuXing = "목";
-  let minCount = wuxingCount["목"];
-
-  for (const [element, count] of Object.entries(wuxingCount) as [
-    WuXing,
-    number,
-  ][]) {
-    if (count < minCount) {
-      minCount = count;
-      weakestElement = element;
-    }
-  }
-
-  return weakestElement;
 }
 
 /**

@@ -141,6 +141,18 @@ export interface SajuData {
     level: 'very_strong' | 'strong' | 'medium' | 'weak' | 'very_weak';
     score: number; // 0-100
     analysis: string;
+    /** 득령(得令) — 월지 지장간 정기가 비겁 또는 인성인가 */
+    deukRyeong?: boolean;
+    /** 득지(得地) — 일지 지장간에 비겁 또는 인성이 있는가 */
+    deukJi?: boolean;
+    /** 득세(得勢) — 일간을 뺀 나머지 글자 중 비겁+인성이 3자 이상인가 */
+    deukSe?: boolean;
+    /** 통근(通根) — 일간과 같은 오행의 천간을 지지(지장간)에 두고 있는 자리들 */
+    rootedAt?: ('year' | 'month' | 'day' | 'hour')[];
+    /** 아군(비겁+인성) 가중 세력 합 */
+    supportScore?: number;
+    /** 적군(식상+재성+관성) 가중 세력 합 */
+    drainScore?: number;
   };
 
   // 격국(格局)
@@ -149,6 +161,15 @@ export interface SajuData {
     name: string;
     hanja: string;
     description: string;
+    /** 자평진전 성격(成格)/파격(破格) 판단. 종격·중화격은 이 판단 체계 대상이 아니라 undefined. */
+    quality?: {
+      status: '성격' | '파격' | '성중유패' | '패중유구';
+      useType: '순용' | '역용';
+      sangSin?: TenGod;
+      brokenBy: string[];
+      rescuedBy: string[];
+      explanation: string;
+    };
   };
 
   // 용신(用神)
@@ -156,6 +177,10 @@ export interface SajuData {
     primaryYongSin: WuXing;
     secondaryYongSin?: WuXing;
     reasoning: string;
+    /** 용신을 어떤 법으로 정했는지 — 전왕(종격) > 조후(극단 계절) > 억부(강약 명확) > 통관(중화) 순 */
+    method?: "jeonwang" | "johu" | "eokbu" | "tonggwan";
+    /** 0~1. 조후는 조후용신표의 verified 여부를, 나머지는 판정 근거의 명확성을 반영한다 */
+    confidence?: number;
   };
 
   // 특수 요소

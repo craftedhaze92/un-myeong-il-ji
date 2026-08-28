@@ -3,10 +3,14 @@
  * 시간대별 운세 분석 - 매 시진(2시간)의 천간지지와 그에 따른 운세
  */
 
+import { formatInTimeZone } from 'date-fns-tz';
 import type { SajuData, HeavenlyStem, EarthlyBranch, WuXing } from '../types/index';
 import { getHeavenlyStemByIndex } from '../data/heavenly_stems';
 import { getEarthlyBranchByIndex } from '../data/earthly_branches';
 import { analyzeElementInteraction } from '../data/wuxing';
+import { getDayPillar } from './helpers';
+
+const SEOUL_TZ = 'Asia/Seoul';
 
 /**
  * 시운(時運) 시간대 정보
@@ -132,7 +136,15 @@ export function analyzeSiUn(
   targetHour: number
 ): SiUnHour {
   const hourBranchInfo = getHourBranch(targetHour);
-  const hourStem = getHourStem(sajuData.day.stem, hourBranchInfo.branch);
+  // 시두법(時頭法)은 "그 날"의 일간을 기준으로 한다 — 출생일 일간(sajuData.day.stem)이 아니라
+  // targetDate 당일의 일간을 써야 한다. 과거엔 sajuData.day.stem을 그대로 써서 출생일이 아닌
+  // 다른 날짜를 조회해도 전부 출생일 기준 시운이 나오던 회귀가 있었다.
+  // 'YYYY-MM-DD' 문자열을 UTC 파싱(`new Date(targetDate)`)하면 실행 환경의 로컬 타임존에 따라
+  // getDayPillar의 getFullYear/getMonth/getDate가 하루 어긋날 수 있어, 연/월/일을 직접 분해해
+  // 로컬 자정 Date를 만든다(getDayPillar는 그 Date의 로컬 캘린더 날짜만 본다).
+  const [ty, tm, td] = targetDate.split('-').map(Number);
+  const targetDayPillar = getDayPillar(new Date(ty!, tm! - 1, td!));
+  const hourStem = getHourStem(targetDayPillar.stem, hourBranchInfo.branch);
 
   const stemData = getHeavenlyStemByIndex(
     ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'].indexOf(hourStem)
@@ -297,9 +309,11 @@ export function getDailySiUn(sajuData: SajuData, targetDate: string): SiUnHour[]
  * 현재 시간의 시운 조회
  */
 export function getCurrentSiUn(sajuData: SajuData): SiUnHour {
+  // UTC 기준 toISOString/getHours()를 쓰면 한국 시간 오전 9시 이전(UTC 기준 전날)에
+  // "오늘"이 어제로 잡히는 버그가 있었다 — 서울 시간대 기준으로 고정한다.
   const now = new Date();
-  const targetDate = now.toISOString().split('T')[0]!;
-  const targetHour = now.getHours();
+  const targetDate = formatInTimeZone(now, SEOUL_TZ, 'yyyy-MM-dd');
+  const targetHour = parseInt(formatInTimeZone(now, SEOUL_TZ, 'H'), 10);
 
   return analyzeSiUn(sajuData, targetDate, targetHour);
 }

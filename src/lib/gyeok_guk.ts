@@ -387,7 +387,11 @@ export function determineGyeokGuk(sajuData: SajuData): GyeokGukAnalysis {
 /**
  * 특수 격국(종격) 판단
  */
-function checkSpecialGyeokGuk(sajuData: SajuData): GyeokGuk | null {
+/**
+ * 종격(從格) 판단. yong_sin.ts#selectYongSin이 전왕용신(從格일 때 왕한 세력을 그대로
+ * 따르는 용신) 판정에 재사용한다 — 세 번째 종격 구현을 만들지 않기 위해 export한다.
+ */
+export function checkSpecialGyeokGuk(sajuData: SajuData): GyeokGuk | null {
   const dist = sajuData.tenGodsDistribution;
   if (!dist) return null;
 

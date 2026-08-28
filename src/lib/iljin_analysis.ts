@@ -19,6 +19,7 @@ import {
   TIME_RANGES,
 } from './constants';
 import { getDayPillar } from './helpers';
+import { getPreciseSolarTermMonthIndex } from './saju';
 
 /**
  * 일진 분석 결과
@@ -41,6 +42,8 @@ export interface IljinAnalysis {
   };
 
   // 28수(宿) 길흉
+  // 주의: calculateConstellation이 기준일 검증 없이 epoch % 28로 계산하는 근거 없는 값이다.
+  // 점수 계산(calculateDayScore)의 내부 입력으로만 쓰고, 화면에는 노출하지 않는다.
   constellation: {
     name: string; // 각(角), 항(亢), 저(氐), 방(房), 심(心), 미(尾), 기(箕) 등
     element: WuXing;
@@ -197,9 +200,11 @@ function calculateTwelveGods(
   date: Date,
   dayBranch: EarthlyBranch
 ): IljinAnalysis['twelveGods'] {
-  // 월지 기준으로 십이신 결정 (간단화)
-  const month = date.getMonth(); // 0-11
-  const monthBranchIndex = (month + 2) % 12; // 1월=인월
+  // 월지 기준으로 십이신 결정. 예전엔 date.getMonth()에 (month+2)%12로 근사해 절기를 무시했다 —
+  // 절입 전후 최대 보름 어긋난다(CLAUDE.md의 "근사/정밀 이중 함수" 함정과 같은 계열).
+  // saju.ts#calculateMonthPillar와 같은 기준(절기 인덱스 + 2 = 인월부터)을 공유한다.
+  const solarTermMonthIndex = getPreciseSolarTermMonthIndex(date);
+  const monthBranchIndex = (solarTermMonthIndex + 2) % 12; // 인(寅)월부터
   const dayBranchIndex = EARTHLY_BRANCHES.indexOf(dayBranch);
 
   const godIndex = (dayBranchIndex - monthBranchIndex + 12) % 12;
@@ -467,9 +472,13 @@ function checkSpecialMeaning(
   dayBranch: EarthlyBranch,
   saju: SajuData
 ): IljinAnalysis['specialMeaning'] {
-  // 생일
-  const birthday = new Date(saju.year.stem + saju.month.stem + saju.day.stem);
-  if (date.getMonth() === birthday.getMonth() && date.getDate() === birthday.getDate()) {
+  // 생일(양력 기준). 예전엔 간지 한글 문자열(saju.year.stem 등)을 new Date()에 그대로 넘겨
+  // 항상 Invalid Date가 되는 바람에 이 분기가 조용히 죽어 있었다 — solarBirthDate를 파싱해서 쓴다.
+  // (음력 생일은 해마다 양력 날짜가 바뀌므로 이 방식으로는 못 잡는다 — 범위 밖으로 남겨둔다.)
+  const [, birthMonthStr, birthDayStr] = saju.solarBirthDate.split('-');
+  const birthMonth = birthMonthStr ? parseInt(birthMonthStr, 10) - 1 : NaN;
+  const birthDay = birthDayStr ? parseInt(birthDayStr, 10) : NaN;
+  if (date.getMonth() === birthMonth && date.getDate() === birthDay) {
     return {
       isSpecialDay: true,
       reason: '생일 - 새로운 시작과 다짐의 날',

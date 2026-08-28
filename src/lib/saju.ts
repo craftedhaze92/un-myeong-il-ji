@@ -21,6 +21,7 @@ import { calculateTenGodsDistribution, generateTenGodsList } from './ten_gods';
 import { findSinSals } from './sin_sal';
 import { analyzeDayMasterStrength } from './day_master_strength';
 import { determineGyeokGuk } from './gyeok_guk';
+import { analyzeGyeokGukQuality } from './gyeok_guk_quality';
 import { selectYongSin } from './yong_sin';
 import { sajuCache, generateSajuCacheKey } from './performance_cache';
 
@@ -164,6 +165,7 @@ export function calculateSaju(
     name: gyeokGukAnalysis.name,
     hanja: gyeokGukAnalysis.hanja,
     description: gyeokGukAnalysis.description,
+    quality: analyzeGyeokGukQuality(sajuData, gyeokGukAnalysis.gyeokGuk) ?? undefined,
   };
 
   // 용신 선정
@@ -172,6 +174,8 @@ export function calculateSaju(
     primaryYongSin: yongSinAnalysis.primaryYongSin,
     secondaryYongSin: yongSinAnalysis.secondaryYongSin,
     reasoning: yongSinAnalysis.reasoning,
+    method: yongSinAnalysis.method,
+    confidence: yongSinAnalysis.confidence,
   };
 
   // 캐시에 저장
@@ -226,8 +230,10 @@ function calculateYearPillar(date: Date): Pillar {
 /**
  * 출생 시각 직전의 절(節, 12개 - 우수·춘분 등 기(氣)는 제외)로 월건 인덱스를 정밀 판정한다.
  * 월주 계산과 지장간 세력 계산이 같은 기준을 쓰도록 공유한다.
+ * (export: iljin_analysis.ts의 십이신살 계산도 절기 기준 월지가 필요해 이 함수를 재사용한다 —
+ * `date.getMonth()` 근사로 월지를 잡으면 절입 전후 최대 보름 어긋나는 버그가 있었다.)
  */
-function getPreciseSolarTermMonthIndex(date: Date): number {
+export function getPreciseSolarTermMonthIndex(date: Date): number {
   const prevJie = getPreviousJieSolarTermByInstant(date);
   const solarTerm = prevJie ? prevJie.term : getCurrentSolarTerm(date); // 폴백(1900년 이전 등)
   return getSolarTermMonthIndex(solarTerm);

@@ -206,9 +206,17 @@ export function calculateTenGodsDistribution(
   };
 
   const dayStem = sajuData.day.stem;
-  // 기본값 false = 기존 동작(일간 자신과 일간과 같은 천간은 분포에서 제외) 그대로 유지.
-  // true로 넘기면 일간 슬롯·동일 천간도 비견으로 잡는다 — 오행 파이차트처럼 8글자(또는
-  // 7글자) 전체를 분모로 삼아야 하는 화면에서 쓴다.
+  // includeDayMaster의 의미: "일주 천간 자신(1개)"을 비견으로 추가 집계할지 여부.
+  // 기본값 false = 일주 천간 자신은 분모에 안 들어간다(십성은 원래 일간을 뺀 나머지
+  // 7글자를 보는 게 정석). true면 오행 파이차트처럼 8글자(시간 미상이면 6글자) 전체를
+  // 분모로 삼아야 하는 화면에서 일주 천간 자신도 비견 1로 센다.
+  //
+  // 주의: 이전에는 이 옵션이 "일간과 같은 천간이면 무조건 제외"까지 겸했다 — 그래서
+  // 연간이나 지장간 정기가 일간과 우연히 같은 천간이어도(둘 다 甲처럼) 통째로
+  // 걸러져 distribution.비견이 구조적으로 항상 0이었다(연간·월간·시간은 stems
+  // 배열에 애초에 일주가 빠져 있으므로, 그 안의 동일 천간은 "일간 자신"이 아니라
+  // "일간과 같은 천간을 가진 다른 기둥" — 정의상 비견이라 제외하면 안 됨).
+  // 지금은 "일주 자신" 여부만 별도로 더하고, 나머지 자리는 항상 정상 집계한다.
   const includeDayMaster = options?.includeDayMaster ?? false;
 
   // 연주, 월주, 시주의 천간 (일주 제외). 시간 미상이면 시주는 표시용으로만 계산된
@@ -218,11 +226,8 @@ export function calculateTenGodsDistribution(
     : [sajuData.year.stem, sajuData.month.stem, sajuData.hour.stem];
 
   stems.forEach((stem) => {
-    if (stem !== dayStem || includeDayMaster) {
-      // 일간과 다른 천간만 계산 (includeDayMaster면 같아도 비견으로 집계)
-      const tenGod = calculateTenGod(dayStem, stem);
-      distribution[tenGod]++;
-    }
+    const tenGod = calculateTenGod(dayStem, stem);
+    distribution[tenGod]++;
   });
   if (includeDayMaster) {
     // 일주 천간 자신 — 일간과 일간의 관계는 정의상 비견
@@ -240,20 +245,20 @@ export function calculateTenGodsDistribution(
       if (!jiJangGan) return;
 
       // 정기(正氣) - 주 지장간
-      if (jiJangGan.primary && (jiJangGan.primary.stem !== dayStem || includeDayMaster)) {
+      if (jiJangGan.primary) {
         const tenGod = calculateTenGod(dayStem, jiJangGan.primary.stem);
         // 세력을 백분율로 변환하여 가중치로 사용 (0-1 범위)
         distribution[tenGod] += jiJangGan.primary.strength / 100;
       }
 
       // 중기(中氣) - 보조 지장간
-      if (jiJangGan.secondary && (jiJangGan.secondary.stem !== dayStem || includeDayMaster)) {
+      if (jiJangGan.secondary) {
         const tenGod = calculateTenGod(dayStem, jiJangGan.secondary.stem);
         distribution[tenGod] += jiJangGan.secondary.strength / 100;
       }
 
       // 여기(餘氣) - 잔여 지장간
-      if (jiJangGan.residual && (jiJangGan.residual.stem !== dayStem || includeDayMaster)) {
+      if (jiJangGan.residual) {
         const tenGod = calculateTenGod(dayStem, jiJangGan.residual.stem);
         distribution[tenGod] += jiJangGan.residual.strength / 100;
       }
@@ -271,7 +276,7 @@ export function calculateTenGodsDistribution(
 
     branches.forEach((branch) => {
       const branchStem = mapBranchToStem(branch);
-      if (branchStem && (branchStem !== dayStem || includeDayMaster)) {
+      if (branchStem) {
         const tenGod = calculateTenGod(dayStem, branchStem);
         distribution[tenGod] += 0.5;
       }

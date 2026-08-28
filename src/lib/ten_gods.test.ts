@@ -122,16 +122,95 @@ describe('calculateTenGodsDistribution — includeDayMaster 총계 정확도 (�
     },
   };
 
-  it('includeDayMaster: true의 총계가 옵션 없을 때보다 정확히 1.1 크다', () => {
+  // 예전엔 정확히 1.1이 나왔다 — includeDayMaster: false에서도 "일간과 같은 천간이면
+  // 무조건 제외" 가드가 걸려 있어서, 시지(인) 지장간 여기의 무(戊) 10%(일간과 같은
+  // 천간이지만 일간 자신이 아니라 시지에 통근한 것)까지 base에서 빠졌었다. 지금은
+  // 그 통근분이 base에도 정상 반영되므로, includeDayMaster: true가 추가하는 건
+  // "일주 천간 자신(1.0)" 하나뿐이라 차이가 정확히 1이 된다.
+  it('includeDayMaster: true의 총계가 옵션 없을 때보다 정확히 1 크다 — 일주 천간 자신만 추가되고, 다른 자리의 통근분은 base에도 이미 반영돼 있다', () => {
     const sum = (d: Record<string, number>) => Object.values(d).reduce((a, b) => a + b, 0);
     const base = calculateTenGodsDistribution(saju);
     const withDayMaster = calculateTenGodsDistribution(saju, { includeDayMaster: true });
-    expect(sum(withDayMaster) - sum(base)).toBeCloseTo(1.1, 10);
+    expect(sum(withDayMaster) - sum(base)).toBeCloseTo(1, 10);
   });
 
   it('includeDayMaster: true의 총계는 정확히 8이다 (천간 4 + 지지 지장간 4×1.0)', () => {
     const sum = (d: Record<string, number>) => Object.values(d).reduce((a, b) => a + b, 0);
     const withDayMaster = calculateTenGodsDistribution(saju, { includeDayMaster: true });
     expect(sum(withDayMaster)).toBeCloseTo(8, 10);
+  });
+
+  it('옵션 없이도(includeDayMaster: false) 일간과 같은 천간을 가진 다른 자리(시지 잔여 지장간)의 세력이 비견에 반영된다 — ' +
+    '예전엔 `stem !== dayStem` 가드가 "일간과 같은 천간이면 무조건 제외"까지 겸해서, 통근분까지 통째로 0으로 만들었다', () => {
+    const base = calculateTenGodsDistribution(saju);
+    // 시지(인) 지장간 여기 무(戊) 10% 하나가 유일한 "일간과 같은 천간" 매치.
+    expect(base.비견).toBeCloseTo(0.1, 10);
+  });
+});
+
+describe('calculateTenGodsDistribution — 연간이 일간과 같은 천간인 경우의 비견 집계 (Phase A 회귀)', () => {
+  // 갑(甲) 일간, 연간도 갑(甲)인 합성 명식 — 연간은 stems 배열에 항상 들어가므로
+  // 예전 가드("일간과 같은 천간이면 제외")가 걸리면 이 연간 갑이 통째로 사라진다.
+  // 갑-갑은 같은 오행+같은 음양이라 정의상 비견이어야 한다.
+  const saju: SajuData = {
+    birthDate: '1984-02-10',
+    solarBirthDate: '1984-02-10',
+    birthTime: '10:00',
+    birthCity: '서울',
+    calendar: 'solar',
+    isLeapMonth: false,
+    gender: 'male',
+    unknownHour: false,
+    year: { stem: '갑', branch: '자', stemElement: '목', branchElement: '수', yinYang: '양' },
+    month: { stem: '병', branch: '인', stemElement: '화', branchElement: '목', yinYang: '양' },
+    day: { stem: '갑', branch: '오', stemElement: '목', branchElement: '화', yinYang: '양' },
+    hour: { stem: '기', branch: '사', stemElement: '토', branchElement: '화', yinYang: '음' },
+    wuxingCount: { 목: 2, 화: 3, 토: 1, 금: 0, 수: 1 },
+    tenGods: [],
+  };
+
+  it('연간이 일간과 같은 천간(갑-갑)이면 비견으로 집계된다 — 예전엔 `stem !== dayStem` 가드가 비견을 통째로 0으로 만들었다', () => {
+    const distribution = calculateTenGodsDistribution(saju);
+    // 연간(갑)만 순수 천간 매치. 지장간 정보가 없으므로 branch 폴백(0.5 가중치)도 함께 계산되지만,
+    // 최소한 연간 갑 매치로 인한 1.0은 항상 포함돼야 한다.
+    expect(distribution.비견).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('calculateTenGodsDistribution — 월지 지장간 정기가 일간과 같은 경우(甲 일간 寅월)의 비견 집계 (Phase A 회귀)', () => {
+  // earthly_branches.ts: 인(寅)의 정기(primary)는 갑(甲) — 일간이 갑이면 월지 당령(當令)
+  // 자체가 비견이다. 예전엔 `jiJangGan.primary.stem !== dayStem` 가드가 이 매치를 통째로
+  // 걸러내 "당령인데도 지장간 세력이 과소 계상"됐다.
+  const saju: SajuData = {
+    birthDate: '1984-02-10',
+    solarBirthDate: '1984-02-10',
+    birthTime: '10:00',
+    birthCity: '서울',
+    calendar: 'solar',
+    isLeapMonth: false,
+    gender: 'male',
+    unknownHour: false,
+    year: { stem: '계', branch: '해', stemElement: '수', branchElement: '수', yinYang: '음' },
+    month: { stem: '병', branch: '인', stemElement: '화', branchElement: '목', yinYang: '양' },
+    day: { stem: '갑', branch: '오', stemElement: '목', branchElement: '화', yinYang: '양' },
+    hour: { stem: '기', branch: '사', stemElement: '토', branchElement: '화', yinYang: '음' },
+    wuxingCount: { 목: 2, 화: 3, 토: 1, 금: 0, 수: 2 },
+    tenGods: [],
+    jiJangGan: {
+      year: { primary: { stem: '임', strength: 70 }, secondary: { stem: '갑', strength: 30 } },
+      month: {
+        primary: { stem: '갑', strength: 60 },
+        secondary: { stem: '병', strength: 30 },
+        residual: { stem: '무', strength: 10 },
+      },
+      day: { primary: { stem: '정', strength: 70 }, secondary: { stem: '기', strength: 30 } },
+      hour: { primary: { stem: '병', strength: 70 }, secondary: { stem: '무', strength: 20 }, residual: { stem: '경', strength: 10 } },
+    },
+  };
+
+  it('월지 지장간 정기(갑)가 일간과 같으면 그 세력(60%)이 비견에 반영된다', () => {
+    const distribution = calculateTenGodsDistribution(saju);
+    // 월지 정기 갑 0.6 + 연지 지장간 보조 갑 0.3 = 0.9가 비견에 포함돼야 한다.
+    expect(distribution.비견).toBeCloseTo(0.9, 10);
   });
 });

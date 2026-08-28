@@ -11,6 +11,8 @@
 import type { SajuData, WuXing } from '../../types/index';
 import type { YongSinAlgorithm, YongSinResult } from './base';
 import { WuXingRelations } from './base';
+import { getHeavenlyStemByKorean } from '../../data/heavenly_stems';
+import { selectJohuYongSin } from '../johu';
 
 /**
  * 계절별 기후 특성
@@ -151,34 +153,32 @@ export class SeasonalYongSinAlgorithm implements YongSinAlgorithm {
 
   select(sajuData: SajuData): YongSinResult {
     const monthBranch = sajuData.month.branch;
-    const dayStemElement = sajuData.day.stemElement;
 
-    // 월지로 계절 판단
+    // SEASON_MAP은 이제 한난조습 서술 문구(계절 이름·avoidElements)에만 쓴다.
+    // 용신 자체는 johu.ts#selectJohuYongSin(궁통보감 조후용신표, 일간×월지 120칸)이
+    // 정한다 — SEASON_MAP은 월지 12칸만 보고 일간을 무시해서, 같은 子月이라도
+    // 甲木과 庚金에게 서로 다른 조후용신이 필요하다는 궁통보감의 핵심을 반영하지 못했다.
     const season = SEASON_MAP[monthBranch];
     if (!season) {
       throw new Error(`Unknown month branch: ${monthBranch}`);
     }
 
-    // 계절 특성에 따른 용신 선택
-    const primaryYongSin = season.preferredYongSin[0] as WuXing;
-    const secondaryYongSin = season.preferredYongSin[1] as WuXing | undefined;
+    const johu = selectJohuYongSin(sajuData);
+    const primaryYongSin = johu.yongSinElement;
+    const secondaryYongSin = johu.assistStems
+      .map((stem) => getHeavenlyStemByKorean(stem)?.element)
+      .find((element): element is WuXing => element !== undefined && element !== primaryYongSin);
 
     // 희신: 용신과 용신을 돕는 오행
-    const xiSin: WuXing[] = season.preferredYongSin.slice(0, 2) as WuXing[];
-    if (primaryYongSin && WuXingRelations.getShengMeElement(primaryYongSin)) {
-      xiSin.push(WuXingRelations.getShengMeElement(primaryYongSin));
-    }
+    const xiSin: WuXing[] = [primaryYongSin];
+    if (secondaryYongSin) xiSin.push(secondaryYongSin);
+    xiSin.push(WuXingRelations.getShengMeElement(primaryYongSin));
 
-    // 기신: 피해야 할 오행
+    // 기신: 피해야 할 오행 (SEASON_MAP의 한난조습 반대 극단)
     const jiSin: WuXing[] = season.avoidElements;
 
     // 수신: 용신을 극하는 오행
     const chouSin: WuXing[] = [WuXingRelations.getKeMeElement(primaryYongSin)];
-
-    const reasoning = `${season.name} 출생으로 ${season.temperature === 'hot' || season.temperature === 'warm' ? '따뜻하고' : '차갑고'} ${season.humidity === 'dry' ? '건조한' : '습한'} 기운이 강합니다. ${season.neededAdjustment} 조절을 위해 ${primaryYongSin} 오행을 용신으로 삼습니다.`;
-
-    // 계절과 일간의 조화 확인
-    const confidence = this.calculateSeasonalHarmony(dayStemElement, season);
 
     return {
       primaryYongSin,
@@ -186,53 +186,23 @@ export class SeasonalYongSinAlgorithm implements YongSinAlgorithm {
       xiSin: [...new Set(xiSin)],
       jiSin: [...new Set(jiSin)],
       chouSin: [...new Set(chouSin)],
-      reasoning,
+      reasoning: johu.reasoning,
       method: this.method,
-      confidence,
+      confidence: johu.confidence,
     };
   }
 
   calculateApplicability(sajuData: SajuData): number {
     const monthBranch = sajuData.month.branch;
     const season = SEASON_MAP[monthBranch];
-
     if (!season) return 0.0;
 
-    // 계절 편중이 심한 경우 조후용신 적합도 높음
-    const wuxingCount = sajuData.wuxingCount;
-
-    // 화(火)가 많으면 한습 필요, 수(水)가 많으면 온조 필요
-    const fireCount = wuxingCount['화'] || 0;
-    const waterCount = wuxingCount['수'] || 0;
-
-    let applicability = 0.7; // 기본값
-
-    if (season.neededAdjustment === '한습' && fireCount >= 3) {
-      applicability = 0.95; // 여름에 화 많음 → 조후용신 매우 적합
-    } else if (season.neededAdjustment === '온조' && waterCount >= 3) {
-      applicability = 0.95; // 겨울에 수 많음 → 조후용신 매우 적합
-    } else if (season.temperature === 'hot' || season.temperature === 'cold') {
-      applicability = 0.85; // 극단적 계절
-    }
-
-    return applicability;
-  }
-
-  /**
-   * 계절과 일간의 조화도 계산
-   */
-  private calculateSeasonalHarmony(dayStem: WuXing, season: SeasonClimate): number {
-    // 일간이 계절 용신과 일치하면 높은 신뢰도
-    if (season.preferredYongSin.includes(dayStem)) {
-      return 0.95;
-    }
-
-    // 일간이 기신과 일치하면 낮은 신뢰도
-    if (season.avoidElements.includes(dayStem)) {
-      return 0.6;
-    }
-
-    // 중간 신뢰도
-    return 0.8;
+    // urgency(조후 시급도)를 그대로 적합도로 쓴다 — 극단 계절(亥子丑·巳午未)이고
+    // 조후 글자가 원국에 없으면(high) 조후용신이 매우 적합하고, 원국에 이미 조후
+    // 글자가 있으면(medium) 상대적으로 덜 급하며, 중간 계절(low)이면 억부가 우선이다.
+    const { urgency } = selectJohuYongSin(sajuData);
+    if (urgency === 'high') return 0.95;
+    if (urgency === 'medium') return 0.7;
+    return 0.4;
   }
 }
