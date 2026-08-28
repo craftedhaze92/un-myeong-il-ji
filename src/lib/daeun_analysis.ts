@@ -5,11 +5,10 @@
  */
 
 import type { SajuData, HeavenlyStem, EarthlyBranch, WuXing } from '../types/index';
-import { getHeavenlyStemByIndex } from '../data/heavenly_stems';
-import { getEarthlyBranchByIndex } from '../data/earthly_branches';
-import { HEAVENLY_STEMS, EARTHLY_BRANCHES } from './constants';
-import { getNextJieSolarTermByInstant, getPreviousJieSolarTermByInstant } from '../data/solar_terms';
-import { getManAgeForFortuneYear, getAdjustedBirthInstantForSaju } from '../utils/date';
+import { calculateDaeUn } from './dae_un';
+import { getManAgeForFortuneYear } from '../utils/date';
+import { FORTUNE_OVERALL_LABEL } from './constants';
+import { getTenGodDomainDelta } from './ten_gods';
 
 /**
  * 대운 주기 (10년)
@@ -97,126 +96,25 @@ export interface DaeunAnalysis {
 }
 
 /**
- * 대운 시작 나이 계산 (정밀)
- *
- * 한국천문연구원 절기 데이터를 사용하여 정확한 대운 시작 시기를 계산합니다.
- *
- * @param birthDate 생년월일 (Date 객체)
- * @param isYangMale 양남음녀 여부 (true: 양남음녀 순행, false: 음남양녀 역행)
- * @returns 대운 시작 나이 (만 나이)
- */
-function calculateDaeunStartAge(
-  birthDate: Date,
-  isYangMale: boolean
-): number {
-  let solarTermDate: Date;
-
-  if (isYangMale) {
-    // 양남음녀(陽男陰女): 생일 → 다음 절기
-    const nextTerm = getNextJieSolarTermByInstant(birthDate);
-    if (!nextTerm) {
-      console.warn('다음 절기를 찾을 수 없어 기본값 3세를 사용합니다.');
-      return 3;
-    }
-    solarTermDate = new Date(nextTerm.datetime);
-  } else {
-    // 음남양녀(陰男陽女): 이전 절기 → 생일
-    const prevTerm = getPreviousJieSolarTermByInstant(birthDate);
-    if (!prevTerm) {
-      console.warn('이전 절기를 찾을 수 없어 기본값 3세를 사용합니다.');
-      return 3;
-    }
-    solarTermDate = new Date(prevTerm.datetime);
-  }
-
-  // 생일과 절기 사이의 일수 계산 (절대값)
-  const dayDiff = Math.abs(solarTermDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24);
-
-  // 3일 = 1년 규칙
-  const startAge = Math.floor(dayDiff / 3);
-
-  // 최소 1세, 최대 10세로 제한 (일반적인 대운 시작 범위)
-  return Math.max(1, Math.min(10, startAge));
-}
-
-/**
- * 대운 천간지지 계산
- */
-function calculateDaeunPillar(
-  monthStem: HeavenlyStem,
-  monthBranch: EarthlyBranch,
-  順逆: '順行' | '逆行',
-  순서: number
-): { stem: HeavenlyStem; branch: EarthlyBranch } {
-  const stemIndex = HEAVENLY_STEMS.indexOf(monthStem);
-  const branchIndex = EARTHLY_BRANCHES.indexOf(monthBranch);
-
-  let newStemIndex: number;
-  let newBranchIndex: number;
-
-  if (順逆 === '順行') {
-    // 순행: 다음 천간지지
-    newStemIndex = (stemIndex + 순서) % 10;
-    newBranchIndex = (branchIndex + 순서) % 12;
-  } else {
-    // 역행: 이전 천간지지
-    newStemIndex = (stemIndex - 순서 + 10) % 10;
-    newBranchIndex = (branchIndex - 순서 + 12) % 12;
-  }
-
-  const stem = getHeavenlyStemByIndex(newStemIndex);
-  const branch = getEarthlyBranchByIndex(newBranchIndex);
-
-  return {
-    stem: stem.korean,
-    branch: branch.korean,
-  };
-}
-
-/**
  * 대운 목록 생성
+ *
+ * 대운 시작 나이·순역 판정·간지 산출은 전부 {@link calculateDaeUn}(dae_un.ts)에 위임한다.
+ * 이 파일이 예전에 따로 갖고 있던 구현은 순역을 `gender === 'male'`로만 판단해
+ * (연간 음양을 보지 않아) 음남·양녀 명식에서 calculateDaeUn과 다른 간지를 냈던 버그가 있었다 —
+ * 두 벌을 유지하지 않고 여기서는 결과 형태만 DaeunPeriod로 어댑트한다.
  */
 export function calculateDaeunList(
   saju: SajuData,
   maxAge: number = 100
 ): DaeunPeriod[] {
-  const gender = saju.gender;
-  const monthStem = saju.month.stem;
-  const monthBranch = saju.month.branch;
-
-  // 양남음녀는 순행, 음남양녀는 역행
-  // TODO: 실제로는 연주의 음양을 확인해야 하지만, 간단히 성별로 판단
-  const isYangMale = gender === 'male';
-  const direction: '順行' | '逆行' = isYangMale ? '順行' : '逆行';
-
-  const birthDate = getAdjustedBirthInstantForSaju(saju.birthDate, saju.birthTime, saju.birthCity);
-
-  // 절기 데이터 기반 정밀 대운 시작 나이 계산
-  const startAge = calculateDaeunStartAge(birthDate, isYangMale);
-
-  const periods: DaeunPeriod[] = [];
-  let currentAge = startAge;
-  let periodIndex = 1;
-
-  while (currentAge <= maxAge) {
-    const { stem, branch } = calculateDaeunPillar(monthStem, monthBranch, direction, periodIndex);
-    const stemData = getHeavenlyStemByIndex(HEAVENLY_STEMS.indexOf(stem));
-    const element = stemData.element;
-
-    periods.push({
-      startAge: currentAge,
-      endAge: currentAge + 9,
-      stem,
-      branch,
-      pillar: `${stem}${branch}`,
-      element,
-    });
-
-    currentAge += 10;
-    periodIndex += 1;
-  }
-
-  return periods;
+  return calculateDaeUn(saju, maxAge).map((p) => ({
+    startAge: p.startAge,
+    endAge: p.endAge,
+    stem: p.stem,
+    branch: p.branch,
+    pillar: `${p.stem}${p.branch}`,
+    element: p.stemElement,
+  }));
 }
 
 /**
@@ -238,7 +136,8 @@ export function getDaeunByYear(
   saju: SajuData,
   year: number
 ): DaeunPeriod | null {
-  const age = getManAgeForFortuneYear(saju.birthDate, year);
+  // 만 나이 계산은 양력 환산일 기준이어야 한다 (음력 입력 시 birthDate는 음력 날짜)
+  const age = getManAgeForFortuneYear(saju.solarBirthDate, year);
   return getDaeunByAge(saju, age);
 }
 
@@ -258,7 +157,14 @@ export function analyzeDaeun(
   const wuxingAnalysis = analyzeWuxing(saju, daeunPeriod, yongsin);
 
   // 3. 운세 평가
-  const fortune = evaluateFortune(sajuRelation, wuxingAnalysis, yongsin, daeunPeriod.element);
+  const fortune = evaluateFortune(
+    sajuRelation,
+    wuxingAnalysis,
+    yongsin,
+    daeunPeriod.element,
+    saju.day.stem,
+    daeunPeriod.stem
+  );
 
   // 4. 해석 생성
   const interpretation = generateInterpretation(daeunPeriod, sajuRelation, wuxingAnalysis, fortune);
@@ -362,7 +268,9 @@ function evaluateFortune(
   sajuRelation: DaeunAnalysis['sajuRelation'],
   wuxingAnalysis: DaeunAnalysis['wuxingAnalysis'],
   yongsin: WuXing,
-  daeunElement: WuXing
+  daeunElement: WuXing,
+  dayStem: HeavenlyStem,
+  daeunStem: HeavenlyStem
 ): DaeunAnalysis['fortune'] {
   let score = sajuRelation.harmonyScore;
 
@@ -381,11 +289,13 @@ function evaluateFortune(
 
   score = Math.min(100, Math.max(0, score));
 
-  // 세부 점수
-  const career = Math.min(100, score + (Math.random() * 10 - 5));
-  const wealth = Math.min(100, score + (Math.random() * 10 - 5));
-  const health = Math.min(100, score + (Math.random() * 10 - 5));
-  const relationship = Math.min(100, score + (Math.random() * 10 - 5));
+  // 세부 점수: 대운 천간이 일간 기준 어떤 십성인지(재성/관성/식상/인성/비겁)로
+  // 4대 영역별 방향을 가른다 — 무작위 요소 없이 십성-육친 대응에서 결정론적으로 유도.
+  const domainDelta = getTenGodDomainDelta(dayStem, daeunStem);
+  const career = Math.min(100, Math.max(0, score + domainDelta.career));
+  const wealth = Math.min(100, Math.max(0, score + domainDelta.wealth));
+  const health = Math.min(100, Math.max(0, score + domainDelta.health));
+  const relationship = Math.min(100, Math.max(0, score + domainDelta.relationship));
 
   const overall: '대길' | '길' | '평' | '흉' | '대흉' =
     score >= 80 ? '대길'
@@ -415,7 +325,7 @@ function generateInterpretation(
   wuxingAnalysis: DaeunAnalysis['wuxingAnalysis'],
   fortune: DaeunAnalysis['fortune']
 ): DaeunAnalysis['interpretation'] {
-  const summary = `${daeun.startAge}세부터 ${daeun.endAge}세까지의 10년은 ${fortune.overall} 운세입니다. (점수: ${fortune.score}점)`;
+  const summary = `${daeun.startAge}세부터 ${daeun.endAge}세까지의 10년은 ${FORTUNE_OVERALL_LABEL[fortune.overall]} 운세입니다. (점수: ${fortune.score}점)`;
 
   const opportunities = [
     ...wuxingAnalysis.favorable,

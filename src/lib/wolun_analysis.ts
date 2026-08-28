@@ -11,6 +11,8 @@ import type {
   WuXing
 } from '../types/index';
 import { getHeavenlyStemFromYear } from './helpers';
+import { josa } from './korean';
+import { getTenGodDomainDelta } from './ten_gods';
 
 /**
  * 월운 분석 결과
@@ -212,23 +214,23 @@ function analyzeElementBalance(
 
   switch (relation) {
     case 'generates':
-      description = `${element}이(가) 일간 ${dayElement}을(를) 생하여 도움이 되는 달`;
+      description = `${josa(element, "이/가")} 일간 ${josa(dayElement, "을/를")} 생하여 도움이 되는 달입니다.`;
       isFavorable = true;
       break;
     case 'generated':
-      description = `일간 ${dayElement}이(가) ${element}을(를) 생하여 에너지 소모가 있는 달`;
+      description = `일간 ${josa(dayElement, "이/가")} ${josa(element, "을/를")} 생하여 에너지 소모가 있는 달입니다.`;
       isFavorable = false;
       break;
     case 'controls':
-      description = `${element}이(가) 일간 ${dayElement}을(를) 극하여 압박이 있는 달`;
+      description = `${josa(element, "이/가")} 일간 ${josa(dayElement, "을/를")} 극하여 압박이 있는 달입니다.`;
       isFavorable = false;
       break;
     case 'controlled':
-      description = `일간 ${dayElement}이(가) ${element}을(를) 극하여 재물운이 좋은 달`;
+      description = `일간 ${josa(dayElement, "이/가")} ${josa(element, "을/를")} 극하여 재물운이 좋은 달입니다.`;
       isFavorable = true;
       break;
     case 'same':
-      description = `${element}이(가) 일간과 같아 경쟁이 있는 달`;
+      description = `${josa(element, "이/가")} 일간과 같아 경쟁이 있는 달입니다.`;
       isFavorable = false;
       break;
   }
@@ -289,13 +291,17 @@ function calculateMonthFortune(
   else if (score >= 20) overall = '흉';
   else overall = '대흉';
 
+  // 월운 천간이 일간 기준 어떤 십성인지(재성/관성/식상/인성/비겁)로 4대 영역별
+  // 방향을 가른다 — 무작위 요소 없이 십성-육친 대응에서 결정론적으로 유도.
+  const domainDelta = getTenGodDomainDelta(saju.day.stem, monthStem);
+
   return {
     overall,
     score,
-    career: Math.min(100, Math.max(0, score + Math.random() * 20 - 10)),
-    wealth: Math.min(100, Math.max(0, score + Math.random() * 20 - 10)),
-    health: Math.min(100, Math.max(0, score + Math.random() * 20 - 10)),
-    relationship: Math.min(100, Math.max(0, score + Math.random() * 20 - 10)),
+    career: Math.min(100, Math.max(0, score + domainDelta.career)),
+    wealth: Math.min(100, Math.max(0, score + domainDelta.wealth)),
+    health: Math.min(100, Math.max(0, score + domainDelta.health)),
+    relationship: Math.min(100, Math.max(0, score + domainDelta.relationship)),
   };
 }
 

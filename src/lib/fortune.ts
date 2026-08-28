@@ -6,6 +6,7 @@ import type { SajuData, FortuneAnalysis, FortuneAnalysisType, DailyFortune, WuXi
 import { WUXING_DATA, analyzeWuXingBalance } from '../data/wuxing';
 import { interpretAllTenGods } from './ten_gods';
 import { interpretBySinSal } from './sin_sal';
+import { josa, joinKoreanList } from './korean';
 
 /**
  * 사주를 기반으로 운세 분석
@@ -81,17 +82,17 @@ function analyzeGeneralFortune(
         const traits = data.personality.slice(0, numTraits).join(', ');
         const intensity = ratio >= 2.5 ? '매우 강한' : ratio >= 2.0 ? '강한' : '뚜렷한';
 
-        return `${element}(${data.hanja}) 기운의 ${intensity} 영향으로 ${traits}한 특성`;
-      })
-      .join(balance.strong.length > 1 ? '과 ' : '');
+        return `${element}(${data.hanja}) 기운의 ${intensity} 영향으로 ${traits} 등의 특성`;
+      });
+    const strongDescText = joinKoreanList(strongDesc);
 
     // 여러 강한 오행이 있을 경우 혼합 표현
     if (balance.strong.length > 1) {
       positiveParts.push(
-        `${strongDesc}이 복합적으로 나타나 다채롭고 입체적인 성격을 형성하고 있습니다.`
+        `${josa(strongDescText, "이/가")} 복합적으로 나타나 다채롭고 입체적인 성격을 형성하고 있습니다.`
       );
     } else {
-      positiveParts.push(`${strongDesc}이 뚜렷하게 나타나고 있습니다.`);
+      positiveParts.push(`${josa(strongDescText, "이/가")} 뚜렷하게 나타나고 있습니다.`);
     }
   }
 
@@ -101,7 +102,8 @@ function analyzeGeneralFortune(
       const data = WUXING_DATA[element];
       return `${element} 기운을 보충하는 ${data.color.join('/')} 색상`;
     });
-    adviceParts.push(`일상에서 ${weakColors.join(', ')}을 활용하면 오행의 균형을 맞추는 데 도움이 될 것입니다.`);
+    const weakColorsText = joinKoreanList(weakColors);
+    adviceParts.push(`일상에서 ${josa(weakColorsText, "을/를")} 활용하면 오행의 균형을 맞추는 데 도움이 될 것입니다.`);
   }
 
   // 십성 분석 통합 (강도 표현 활용)
@@ -113,21 +115,13 @@ function analyzeGeneralFortune(
 
     tenGodsInterpretations.forEach((interp) => {
       if (interp.count > 0) {
-        // 강도에 따라 표현 조정
-        const intensityPrefix =
-          interp.intensity === 'very_strong'
-            ? '매우 강한'
-            : interp.intensity === 'strong'
-              ? '강한'
-              : interp.intensity === 'moderate'
-                ? '적당한'
-                : '약간의';
-
         if (interp.strengths.length > 0) {
           // 강도가 높을수록 더 많은 특성 표현
           const numStrengths = interp.intensity === 'very_strong' ? 3 : interp.intensity === 'strong' ? 2 : 1;
-          const strengthText = interp.strengths.slice(0, numStrengths).join(' ');
-          tenGodsStrengths.push(`${intensityPrefix} ${interp.tenGod}의 영향으로 ${strengthText}`);
+          // 강점 문구는 각각 완결된 문장(…습니다)이므로 공백이 아닌 마침표로 이어야
+          // "…있습니다 강력한…" 처럼 문장이 붙어버리지 않는다.
+          const strengthText = interp.strengths.slice(0, numStrengths).join('. ');
+          tenGodsStrengths.push(`${interp.tenGod}의 영향으로 ${strengthText}`);
         }
 
         if (interp.advice.length > 0 && interp.intensity !== 'very_weak') {
@@ -137,21 +131,21 @@ function analyzeGeneralFortune(
         if (interp.weaknesses.length > 0 && interp.count >= 1.5) {
           const weaknessText =
             interp.intensity === 'very_strong'
-              ? `${interp.tenGod}이(가) 매우 과다하여 ${interp.weaknesses[0]}는 경향이 강함`
-              : `${interp.tenGod}이(가) 과다하여 ${interp.weaknesses[0]}는 경향`;
+              ? `${josa(interp.tenGod, "이/가")} 매우 과다하여 ${interp.weaknesses[0]}`
+              : `${josa(interp.tenGod, "이/가")} 과다하여 ${interp.weaknesses[0]}`;
           tenGodsWeaknesses.push(weaknessText);
         }
       }
     });
 
     if (tenGodsStrengths.length > 0) {
-      positiveParts.push(`십성 분석에서는 ${tenGodsStrengths.join(', ')}을 보이고 있습니다.`);
+      positiveParts.push(`십성 분석에서 ${tenGodsStrengths.join('. 또한 ')}.`);
     }
     if (tenGodsWeaknesses.length > 0) {
-      negativeParts.push(`다만 ${tenGodsWeaknesses.join(', ')}이 나타날 수 있으니 주의가 필요합니다.`);
+      negativeParts.push(`다만 ${tenGodsWeaknesses.join('. 또한 ')}. 주의가 필요합니다.`);
     }
     if (tenGodsAdvice.length > 0) {
-      adviceParts.push(`십성의 균형을 위해 ${tenGodsAdvice.slice(0, 2).join(', ')}는 것이 좋겠습니다.`);
+      adviceParts.push(`십성의 균형을 위해 ${tenGodsAdvice.slice(0, 2).join('. 또한 ')}.`);
     }
   }
 
@@ -159,19 +153,19 @@ function analyzeGeneralFortune(
   if (sajuData.sinSals && sajuData.sinSals.length > 0) {
     const sinSalAnalysis = interpretBySinSal(sajuData.sinSals);
 
-    if (sinSalAnalysis.blessings.length > 0) {
-      const blessings = sinSalAnalysis.blessings.slice(0, 3).join(' 또한 ');
-      positiveParts.push(`신살의 축복으로 ${blessings}는 길한 운세가 함께하고 있습니다.`);
+    if (sinSalAnalysis.blessingNames.length > 0) {
+      const blessings = sinSalAnalysis.blessingNames.slice(0, 3).join(', ');
+      positiveParts.push(`신살 중 ${blessings} 등 길한 기운이 함께하고 있습니다.`);
     }
 
-    if (sinSalAnalysis.warnings.length > 0) {
-      const warnings = sinSalAnalysis.warnings.slice(0, 2).join(' 그리고 ');
-      negativeParts.push(`신살의 영향으로 ${warnings}는 점에 유의해야 합니다.`);
+    if (sinSalAnalysis.warningNames.length > 0) {
+      const warnings = sinSalAnalysis.warningNames.slice(0, 2).join(', ');
+      negativeParts.push(`신살 중 ${warnings} 등에 유의해야 합니다.`);
     }
 
     if (sinSalAnalysis.specialAdvice.length > 0) {
-      const special = sinSalAnalysis.specialAdvice.slice(0, 2).join(' 아울러 ');
-      adviceParts.push(`신살의 작용을 조화롭게 다루기 위해 ${special}는 것을 권장합니다.`);
+      const special = sinSalAnalysis.specialAdvice.slice(0, 2).join('. 아울러 ');
+      adviceParts.push(`신살의 작용을 조화롭게 다루기 위해 ${special}.`);
     }
   }
 
@@ -239,8 +233,8 @@ function analyzeCareerFortune(
   }
 
   // 십성 기반 직업 적성 분석
-  if (sajuData.tenGodsDistribution) {
-    const dist = sajuData.tenGodsDistribution;
+  const dist = sajuData.tenGodsDistribution;
+  if (dist) {
     const tenGodsParts: string[] = [];
     const tenGodsAdvice: string[] = [];
 
@@ -288,7 +282,15 @@ function analyzeCareerFortune(
     }
   }
 
-  const score = 70 + (balance.balanced ? 20 : 0) + Math.random() * 10;
+  // 점수는 위에서 이미 계산한 십성 분포(dist)를 그대로 재사용한다 — 텍스트와 점수가
+  // 서로 다른 신호를 쓰지 않도록 관성(직업/명예)·식상(활동)은 가점, 비겁 과다는 감점.
+  let score = 70 + (balance.balanced ? 15 : 0);
+  if (dist) {
+    if (dist.정관 + dist.편관 >= 2) score += 10;
+    if (dist.식신 + dist.상관 >= 2) score += 8;
+    if (dist.비견 + dist.겁재 >= 4) score -= 10;
+  }
+  score = Math.min(100, Math.max(0, score));
 
   return {
     type: 'career',
@@ -320,7 +322,7 @@ function analyzeWealthFortune(
 
   if (wealthCount >= 2) {
     positiveParts.push(
-      `사주 내 재성(${wealthElement})이 충분히 자리잡고 있어 재물을 모으고 불리는 운이 양호한 편입니다.`
+      `사주 내 ${josa(`재성(${wealthElement})`, "이/가")} 충분히 자리잡고 있어 재물을 모으고 불리는 운이 양호한 편입니다.`
     );
     adviceParts.push(
       '재물운이 뒷받침되는 시기이므로 투자 기회가 찾아올 때 적극적으로 검토하고 도전해보는 것이 좋습니다.'
@@ -528,15 +530,17 @@ function analyzeLoveFortune(
   }
 
   // 십성 기반 애정운 분석
-  if (sajuData.tenGodsDistribution) {
-    const dist = sajuData.tenGodsDistribution;
-    const isMale = sajuData.gender === 'male';
+  const dist = sajuData.tenGodsDistribution;
+  const isMale = sajuData.gender === 'male';
+  // 남성은 재성(財星), 여성은 관성(官星)이 배우자를 상징 — 점수 계산에서도 재사용한다.
+  let spouseCount = 0;
+  if (dist) {
     const spouseParts: string[] = [];
     const spouseAdvice: string[] = [];
 
     if (isMale) {
       // 남성: 재성(財星)이 배우자
-      const spouseCount = dist.정재 + dist.편재;
+      spouseCount = dist.정재 + dist.편재;
       if (spouseCount >= 2) {
         spouseParts.push('재성이 자리잡고 있어 이성과의 인연이 좋고 만남의 기회도 많은 편입니다');
         if (dist.정재 >= 1) {
@@ -558,7 +562,7 @@ function analyzeLoveFortune(
       }
     } else {
       // 여성: 관성(官星)이 배우자
-      const spouseCount = dist.정관 + dist.편관;
+      spouseCount = dist.정관 + dist.편관;
       if (spouseCount >= 2) {
         spouseParts.push('관성이 있어 좋은 조건과 품성을 갖춘 배우자를 만날 수 있는 운이 있습니다');
         if (dist.정관 >= 1) {
@@ -612,7 +616,16 @@ function analyzeLoveFortune(
     }
   }
 
-  const score = 70 + Math.random() * 20;
+  // 점수는 위에서 이미 계산한 배우자성 개수(spouseCount)·식상/비겁 과다 여부를 그대로
+  // 재사용한다 — 남명은 재성, 여명은 관성이 배우자운을 상징한다는 표준 대응을 따른다.
+  let score = 70;
+  if (dist) {
+    if (spouseCount >= 2) score += 15;
+    else if (spouseCount === 0) score -= 15;
+    if (dist.식신 + dist.상관 >= 4) score -= 10;
+    if (dist.비견 + dist.겁재 >= 4) score -= 10;
+  }
+  score = Math.min(100, Math.max(0, score));
 
   return {
     type: 'love',

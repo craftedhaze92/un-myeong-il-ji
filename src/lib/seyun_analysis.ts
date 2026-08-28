@@ -14,6 +14,9 @@ import {
   getHeavenlyStemFromYear,
   getEarthlyBranchFromYear,
 } from './helpers';
+import { josa } from './korean';
+import { FORTUNE_OVERALL_LABEL } from './constants';
+import { getTenGodDomainDelta } from './ten_gods';
 
 /**
  * 세운 분석 결과
@@ -111,7 +114,9 @@ export function analyzeSeyun(
   const fortune = evaluateFortune(
     harmonyScore,
     conflictWarning.length,
-    wuxingAnalysis
+    wuxingAnalysis,
+    saju.day.stem,
+    yearStem
   );
 
   // 7. 상세 해석
@@ -183,13 +188,13 @@ function checkConflicts(
   };
 
   if (saju.year.stem === stemConflicts[yearStem]) {
-    conflicts.push(`년간 충: ${yearStem}과 ${saju.year.stem}이 충돌`);
+    conflicts.push(`년간 충: ${josa(yearStem, "과/와")} ${josa(saju.year.stem, "이/가")} 충돌`);
   }
   if (saju.month.stem === stemConflicts[yearStem]) {
-    conflicts.push(`월간 충: ${yearStem}과 ${saju.month.stem}이 충돌`);
+    conflicts.push(`월간 충: ${josa(yearStem, "과/와")} ${josa(saju.month.stem, "이/가")} 충돌`);
   }
   if (saju.day.stem === stemConflicts[yearStem]) {
-    conflicts.push(`일간 충: ${yearStem}과 ${saju.day.stem}이 충돌 (주의 필요)`);
+    conflicts.push(`일간 충: ${josa(yearStem, "과/와")} ${josa(saju.day.stem, "이/가")} 충돌 (주의 필요)`);
   }
 
   // 지지 충 (地支冲)
@@ -200,13 +205,13 @@ function checkConflicts(
   };
 
   if (saju.year.branch === branchConflicts[yearBranch]) {
-    conflicts.push(`년지 충: ${yearBranch}과 ${saju.year.branch}이 충돌`);
+    conflicts.push(`년지 충: ${josa(yearBranch, "과/와")} ${josa(saju.year.branch, "이/가")} 충돌`);
   }
   if (saju.month.branch === branchConflicts[yearBranch]) {
-    conflicts.push(`월지 충: ${yearBranch}과 ${saju.month.branch}이 충돌`);
+    conflicts.push(`월지 충: ${josa(yearBranch, "과/와")} ${josa(saju.month.branch, "이/가")} 충돌`);
   }
   if (saju.day.branch === branchConflicts[yearBranch]) {
-    conflicts.push(`일지 충: ${yearBranch}과 ${saju.day.branch}이 충돌 (매우 주의)`);
+    conflicts.push(`일지 충: ${josa(yearBranch, "과/와")} ${josa(saju.day.branch, "이/가")} 충돌 (매우 주의)`);
   }
 
   return conflicts;
@@ -352,22 +357,22 @@ function analyzeWuxingForYear(
 
   switch (relationship) {
     case 'generates': // 세운이 일간을 생함
-      balanceChange = `${yearElement}이(가) ${dayElement}을(를) 생하여 도움을 주는 해`;
+      balanceChange = `${josa(yearElement, "이/가")} ${josa(dayElement, "을/를")} 생하여 도움을 주는 해입니다.`;
       favorableElements.push(yearElement);
       break;
     case 'generated': // 일간이 세운을 생함
-      balanceChange = `${dayElement}이(가) ${yearElement}을(를) 생하여 에너지 소모가 있는 해`;
+      balanceChange = `${josa(dayElement, "이/가")} ${josa(yearElement, "을/를")} 생하여 에너지 소모가 있는 해입니다.`;
       break;
     case 'controls': // 세운이 일간을 극함
-      balanceChange = `${yearElement}이(가) ${dayElement}을(를) 극하여 도전이 있는 해`;
+      balanceChange = `${josa(yearElement, "이/가")} ${josa(dayElement, "을/를")} 극하여 도전이 있는 해입니다.`;
       unfavorableElements.push(yearElement);
       break;
     case 'controlled': // 일간이 세운을 극함
-      balanceChange = `${dayElement}이(가) ${yearElement}을(를) 극하여 기회를 잡는 해`;
+      balanceChange = `${josa(dayElement, "이/가")} ${josa(yearElement, "을/를")} 극하여 기회를 잡는 해입니다.`;
       favorableElements.push(yearElement);
       break;
     case 'same':
-      balanceChange = `${yearElement}이(가) 같아 동료 의식이 강한 해`;
+      balanceChange = `${josa(yearElement, "이/가")} 같아 동료 의식이 강한 해입니다.`;
       break;
   }
 
@@ -418,7 +423,9 @@ function getWuxingRelationship(
 function evaluateFortune(
   harmonyScore: number,
   conflictCount: number,
-  wuxingAnalysis: SeyunAnalysis['wuxingAnalysis']
+  wuxingAnalysis: SeyunAnalysis['wuxingAnalysis'],
+  dayStem: HeavenlyStem,
+  yearStem: HeavenlyStem
 ): SeyunAnalysis['fortune'] {
   let score = harmonyScore;
 
@@ -438,17 +445,18 @@ function evaluateFortune(
   else if (score >= 20) overall = '흉';
   else overall = '대흉';
 
-  // 세부 운세 (기본 점수에서 약간의 변동)
-  const variance = () => Math.floor(Math.random() * 20 - 10);
+  // 세부 운세: 세운 천간이 일간 기준 어떤 십성인지(재성/관성/식상/인성/비겁)로
+  // 4대 영역별 방향을 가른다 — 무작위 요소 없이 십성-육친 대응에서 결정론적으로 유도.
+  const domainDelta = getTenGodDomainDelta(dayStem, yearStem);
 
   return {
     overall,
     score,
     keyAspects: {
-      career: Math.min(100, Math.max(0, score + variance())),
-      wealth: Math.min(100, Math.max(0, score + variance())),
-      health: Math.min(100, Math.max(0, score + variance())),
-      relationship: Math.min(100, Math.max(0, score + variance())),
+      career: Math.min(100, Math.max(0, score + domainDelta.career)),
+      wealth: Math.min(100, Math.max(0, score + domainDelta.wealth)),
+      health: Math.min(100, Math.max(0, score + domainDelta.health)),
+      relationship: Math.min(100, Math.max(0, score + domainDelta.relationship)),
     },
   };
 }
@@ -464,7 +472,7 @@ function generateInterpretation(
   wuxingAnalysis: SeyunAnalysis['wuxingAnalysis'],
   fortune: SeyunAnalysis['fortune']
 ): SeyunAnalysis['interpretation'] {
-  const summary = `${yearPillar}년은 전반적으로 ${fortune.overall}한 해입니다. ${wuxingAnalysis.balanceChange}`;
+  const summary = `${yearPillar}년은 전반적으로 ${FORTUNE_OVERALL_LABEL[fortune.overall]} 해입니다. ${wuxingAnalysis.balanceChange}`;
 
   const opportunities: string[] = [];
   const challenges: string[] = [];
@@ -472,23 +480,23 @@ function generateInterpretation(
 
   // 기회 요인
   if (fortune.score >= 60) {
-    opportunities.push('사업 확장이나 새로운 도전에 유리한 시기');
-    opportunities.push('인간관계 확대와 협력 기회 증가');
+    opportunities.push('사업 확장이나 새로운 도전에 유리한 시기입니다.');
+    opportunities.push('인간관계 확대와 협력 기회가 늘어납니다.');
   }
   if (wuxingAnalysis.favorableElements.length > 0) {
-    opportunities.push(`${wuxingAnalysis.favorableElements.join(', ')} 오행 관련 분야에서 좋은 성과 기대`);
+    opportunities.push(`${wuxingAnalysis.favorableElements.join(', ')} 오행 관련 분야에서 좋은 성과를 기대할 수 있습니다.`);
   }
 
   // 도전 과제
   if (conflicts.length > 0) {
-    challenges.push('충돌로 인한 변동이나 갈등 가능성');
-    challenges.push('기존 관계나 상황에 변화 필요');
+    challenges.push('충돌로 인한 변동이나 갈등이 있을 수 있습니다.');
+    challenges.push('기존 관계나 상황에 변화가 필요합니다.');
   }
   if (wuxingAnalysis.unfavorableElements.length > 0) {
-    challenges.push(`${wuxingAnalysis.unfavorableElements.join(', ')} 오행 관련 분야는 신중히 접근`);
+    challenges.push(`${wuxingAnalysis.unfavorableElements.join(', ')} 오행 관련 분야는 신중히 접근하세요.`);
   }
   if (fortune.score < 50) {
-    challenges.push('무리한 확장보다는 내실 다지기에 집중');
+    challenges.push('무리한 확장보다는 내실 다지기에 집중하세요.');
   }
 
   // 조언
@@ -506,8 +514,8 @@ function generateInterpretation(
 
   return {
     summary,
-    opportunities: opportunities.length > 0 ? opportunities : ['안정적인 상황 유지'],
-    challenges: challenges.length > 0 ? challenges : ['특별한 어려움 없음'],
+    opportunities: opportunities.length > 0 ? opportunities : ['안정적인 상황이 유지됩니다.'],
+    challenges: challenges.length > 0 ? challenges : ['특별한 어려움은 없습니다.'],
     advice,
   };
 }
