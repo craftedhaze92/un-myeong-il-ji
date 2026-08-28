@@ -15,6 +15,7 @@ import {
 import {
   buildDaeunDetailViewModel,
   buildSeyunDetailViewModel,
+  buildWolunDetailViewModel,
   type ReadingVM,
 } from "./reading-view-model";
 import { SectionCard } from "./ui/section-card";
@@ -431,6 +432,9 @@ function FlowTab({
     vm.flow.selectedDaeun?.startAge ?? vm.flow.daeunOptions[0]?.startAge ?? 0,
   );
   const [selectedYear, setSelectedYear] = useState(vm.flow.selectedSeyun.year);
+  const [selectedMonth, setSelectedMonth] = useState(
+    () => new Date().getMonth() + 1,
+  );
 
   const daeunDetail = useMemo(
     () => buildDaeunDetailViewModel(saju, daeUn, selectedStartAge),
@@ -439,6 +443,10 @@ function FlowTab({
   const seyunDetail = useMemo(
     () => buildSeyunDetailViewModel(saju, selectedYear),
     [saju, selectedYear],
+  );
+  const wolunDetail = useMemo(
+    () => buildWolunDetailViewModel(saju, selectedYear, selectedMonth),
+    [saju, selectedYear, selectedMonth],
   );
 
   return (
@@ -645,9 +653,13 @@ function FlowTab({
           {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
             const favorable = seyunDetail.favorableMonths.includes(month);
             const cautious = seyunDetail.cautiousMonths.includes(month);
+            const selected = month === selectedMonth;
             return (
-              <div
+              <button
                 key={month}
+                type="button"
+                onClick={() => setSelectedMonth(month)}
+                aria-pressed={selected}
                 title={
                   favorable ? "유리한 달" : cautious ? "주의할 달" : undefined
                 }
@@ -657,6 +669,7 @@ function FlowTab({
                   fontFamily: FONT_MONO,
                   padding: "6px 0",
                   borderRadius: 2,
+                  cursor: "pointer",
                   color: favorable
                     ? "var(--fg)"
                     : cautious
@@ -664,13 +677,130 @@ function FlowTab({
                       : "var(--mute)",
                   background: favorable ? "var(--track)" : "transparent",
                   border: `1px solid ${cautious ? "var(--danger)" : "var(--line)"}`,
+                  outline: selected ? "2px solid var(--fg)" : "none",
+                  outlineOffset: -2,
                 }}
               >
                 {month}월
-              </div>
+              </button>
             );
           })}
         </div>
+      </SectionCard>
+
+      <SectionCard title="월운 — 이 달의 결">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 12,
+            marginBottom: 10,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: FONT_MYEONGJO,
+              fontSize: FS.sectionHead,
+              fontWeight: 800,
+            }}
+          >
+            {wolunDetail.pillar}
+          </span>
+          <span
+            style={{ fontFamily: FONT_MONO, fontSize: FS.small, ...muteText }}
+          >
+            {wolunDetail.year}년 {wolunDetail.month}월 · {wolunDetail.overall}{" "}
+            · {wolunDetail.score}점
+          </span>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 12,
+            marginBottom: 14,
+          }}
+        >
+          <ScoreBar label="직업운" score={wolunDetail.aspects.career} />
+          <ScoreBar label="재물운" score={wolunDetail.aspects.wealth} />
+          <ScoreBar label="건강운" score={wolunDetail.aspects.health} />
+          <ScoreBar
+            label="인간관계운"
+            score={wolunDetail.aspects.relationship}
+          />
+        </div>
+        <div
+          style={{
+            fontSize: FS.body,
+            lineHeight: 1.75,
+            marginBottom: 12,
+            ...dimText,
+          }}
+        >
+          {wolunDetail.balanceDescription}
+        </div>
+        <div
+          style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}
+        >
+          {wolunDetail.keywords.map((k, i) => (
+            <span
+              key={i}
+              style={pillBtnStyle(true, elementColor(wolunDetail.element, dark))}
+            >
+              {k}
+            </span>
+          ))}
+        </div>
+
+        <div
+          style={{
+            fontFamily: FONT_BATANG,
+            fontWeight: 700,
+            fontSize: FS.small,
+            marginBottom: 4,
+          }}
+        >
+          이 달의 기회 · 주의
+        </div>
+        <BulletList items={wolunDetail.opportunities} tone="positive" />
+        <BulletList items={wolunDetail.cautions} tone="negative" />
+        <div
+          style={{
+            fontFamily: FONT_BATANG,
+            fontWeight: 700,
+            fontSize: FS.small,
+            margin: "10px 0 4px",
+          }}
+        >
+          하면 좋은 일 · 피할 일
+        </div>
+        <BulletList items={wolunDetail.doList} tone="positive" />
+        <BulletList items={wolunDetail.dontList} tone="negative" />
+
+        <div style={{ fontSize: FS.body, marginTop: 4, ...muteText }}>
+          유리한 방위 {wolunDetail.direction} · 색 {wolunDetail.color}
+        </div>
+
+        {(wolunDetail.luckyDates.length > 0 ||
+          wolunDetail.unluckyDates.length > 0) && (
+          <div
+            style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}
+          >
+            {wolunDetail.luckyDates.map((d) => (
+              <span key={`l-${d}`} style={pillBtnStyle(true)}>
+                길일 {d}일
+              </span>
+            ))}
+            {wolunDetail.unluckyDates.map((d) => (
+              <span
+                key={`u-${d}`}
+                style={pillBtnStyle(true, "var(--danger)")}
+              >
+                흉일 {d}일
+              </span>
+            ))}
+          </div>
+        )}
       </SectionCard>
     </div>
   );

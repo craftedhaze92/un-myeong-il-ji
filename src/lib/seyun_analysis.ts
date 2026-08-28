@@ -566,6 +566,6 @@ function getMonthBranch(month: number): EarthlyBranch {
     '인', '묘', '진', '사', '오', '미',
     '신', '유', '술', '해', '자', '축',
   ];
-  // 1월 = 인월 (입춘 기준이지만 여기서는 간단히 처리)
-  return monthBranches[(month - 1 + 2) % 12] || '인';
+  // 양력 2월 = 인월 (절기 timestamp가 아닌 양력 월 근사, wolun_analysis.ts와 기준 통일)
+  return monthBranches[(month - 2 + 12) % 12] || '인';
 }

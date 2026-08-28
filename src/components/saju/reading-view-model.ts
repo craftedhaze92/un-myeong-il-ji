@@ -16,6 +16,7 @@ import {
 } from "@/lib/daeun_analysis";
 import { analyzeFortune } from "@/lib/fortune";
 import { analyzeSeyun } from "@/lib/seyun_analysis";
+import { analyzeWolun } from "@/lib/wolun_analysis";
 import { getAllSinSalInfo } from "@/lib/sin_sal";
 import { interpretAllTenGods } from "@/lib/ten_gods";
 import { getManAgeForFortuneYear } from "@/utils/date";
@@ -455,6 +456,66 @@ export function buildSeyunDetailViewModel(
     advice: analysis.interpretation.advice,
     favorableMonths: analysis.importantPeriods.favorableMonths,
     cautiousMonths: analysis.importantPeriods.cautiousMonths,
+  };
+}
+
+export interface WolunDetailVM {
+  year: number;
+  month: number;
+  pillar: string;
+  element: WuXing;
+  overall: string;
+  score: number;
+  aspects: {
+    career: number;
+    wealth: number;
+    health: number;
+    relationship: number;
+  };
+  balanceDescription: string;
+  isFavorable: boolean;
+  keywords: string[];
+  opportunities: string[];
+  cautions: string[];
+  doList: string[];
+  dontList: string[];
+  direction: string;
+  color: string;
+  luckyDates: number[];
+  unluckyDates: number[];
+}
+
+export function buildWolunDetailViewModel(
+  saju: SajuData,
+  year: number,
+  month: number,
+): WolunDetailVM {
+  const analysis = analyzeWolun(saju, year, month);
+  return {
+    year,
+    month,
+    pillar: analysis.monthPillar,
+    element: analysis.element,
+    overall: analysis.fortune.overall,
+    score: analysis.fortune.score,
+    // 세운(analyzeSeyun)의 fortune.keyAspects와 달리 월운은 fortune 바로 아래 평평하게 있다.
+    aspects: {
+      career: analysis.fortune.career,
+      wealth: analysis.fortune.wealth,
+      health: analysis.fortune.health,
+      relationship: analysis.fortune.relationship,
+    },
+    balanceDescription: analysis.elementBalance.description,
+    isFavorable: analysis.elementBalance.isFavorable,
+    keywords: analysis.characteristics.keywords,
+    opportunities: analysis.characteristics.opportunities,
+    cautions: analysis.characteristics.cautions,
+    doList: analysis.advice.doList,
+    dontList: analysis.advice.dontList,
+    direction: analysis.advice.direction,
+    color: analysis.advice.color,
+    luckyDates: analysis.specialDays.luckyDates,
+    unluckyDates: analysis.specialDays.unluckyDates,
   };
 }
 

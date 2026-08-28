@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { calculateSaju } from '@/lib/saju';
 import { calculateDaeUn } from '@/lib/dae_un';
-import { buildReadingViewModel, buildDaeunDetailViewModel, buildSeyunDetailViewModel } from './reading-view-model';
+import {
+  buildReadingViewModel,
+  buildDaeunDetailViewModel,
+  buildSeyunDetailViewModel,
+  buildWolunDetailViewModel,
+} from './reading-view-model';
 
 describe('buildReadingViewModel — 4블록이 빈 값 없이 채워지는지 스모크 테스트', () => {
   const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
@@ -45,6 +50,18 @@ describe('buildReadingViewModel — 4블록이 빈 값 없이 채워지는지 �
 
     const seyunDetail = buildSeyunDetailViewModel(saju, 2030);
     expect(seyunDetail.year).toBe(2030);
+  });
+
+  it('buildWolunDetailViewModel이 흐름 탭의 월운 카드에 필요한 필드를 빈 값 없이 채운다', () => {
+    const wolunDetail = buildWolunDetailViewModel(saju, 2024, 5);
+    expect(wolunDetail.year).toBe(2024);
+    expect(wolunDetail.month).toBe(5);
+    expect(wolunDetail.pillar.length).toBe(2);
+    expect(wolunDetail.score).toBeGreaterThanOrEqual(0);
+    expect(wolunDetail.score).toBeLessThanOrEqual(100);
+    expect(wolunDetail.keywords.length).toBeGreaterThan(0);
+    expect(wolunDetail.doList.length).toBeGreaterThan(0);
+    expect(wolunDetail.dontList.length).toBeGreaterThan(0);
   });
 });
 

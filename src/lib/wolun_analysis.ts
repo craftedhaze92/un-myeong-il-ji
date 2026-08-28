@@ -10,7 +10,7 @@ import type {
   SajuData,
   WuXing
 } from '../types/index';
-import { getHeavenlyStemFromYear } from './helpers';
+import { getDayPillar, getHeavenlyStemFromYear } from './helpers';
 import { josa } from './korean';
 import { getTenGodDomainDelta } from './ten_gods';
 
@@ -154,7 +154,7 @@ function getMonthStem(
   };
 
   const baseIndex = monthStartMap[yearStem];
-  const monthOffset = month - 1; // 1월 = 인월(0번째)
+  const monthOffset = (month - 2 + 12) % 12; // 양력 2월 = 인월(0번째)
 
   const index = (baseIndex + monthOffset) % 10;
   return stems[index] || '갑';
@@ -162,26 +162,29 @@ function getMonthStem(
 
 /**
  * 월지 구하기
+ *
+ * 절기 시작 timestamp가 아니라 양력 월로 근사한다(절입일 전후 며칠은 부정확할 수 있음).
+ * 정밀 계산이 필요하면 unified_data_query.ts의 절기 조회를 배선하는 별도 작업이 필요하다.
  */
 function getMonthBranch(month: number): EarthlyBranch {
   // 양력 월 기준 (절입 전후로 실제로는 다를 수 있음)
   const branches: EarthlyBranch[] = [
-    '축', // 12월 대한-1월 입춘 전
-    '인', // 1월 입춘-2월 경칩 전
-    '묘', // 2월 경칩-3월 청명 전
-    '진', // 3월 청명-4월 입하 전
-    '사', // 4월 입하-5월 망종 전
-    '오', // 5월 망종-6월 소서 전
-    '미', // 6월 소서-7월 입추 전
-    '신', // 7월 입추-8월 백로 전
-    '유', // 8월 백로-9월 한로 전
-    '술', // 9월 한로-10월 입동 전
-    '해', // 10월 입동-11월 대설 전
-    '자', // 11월 대설-12월 소한 전
+    '축', // 1월 소한-2월 입춘 전
+    '인', // 2월 입춘-3월 경칩 전
+    '묘', // 3월 경칩-4월 청명 전
+    '진', // 4월 청명-5월 입하 전
+    '사', // 5월 입하-6월 망종 전
+    '오', // 6월 망종-7월 소서 전
+    '미', // 7월 소서-8월 입추 전
+    '신', // 8월 입추-9월 백로 전
+    '유', // 9월 백로-10월 한로 전
+    '술', // 10월 한로-11월 입동 전
+    '해', // 11월 입동-12월 대설 전
+    '자', // 12월 대설-1월 소한 전
   ];
 
   // 간단하게 양력 월 기준 (정확한 절입일 계산은 별도 필요)
-  return branches[month % 12] || '자';
+  return branches[(month - 1 + 12) % 12] || '자';
 }
 
 /**
@@ -396,14 +399,11 @@ function findSpecialDays(
   const luckyDates: number[] = [];
   const unluckyDates: number[] = [];
 
-  // 간단한 계산 (실제로는 일진 계산 필요)
   const daysInMonth = new Date(year, month, 0).getDate();
 
   for (let day = 1; day <= daysInMonth; day++) {
-    // 일지 계산 (간단히 순환으로 처리)
-    const dayBranchIndex = (day % 12);
-    const branches: EarthlyBranch[] = ['자', '축', '인', '묘', '진', '사', '오', '미', '신', '유', '술', '해'];
-    const dayBranch = branches[dayBranchIndex];
+    // 실제 일진(기준일 오프셋 기반) — helpers.ts#getDayPillar
+    const { branch: dayBranch } = getDayPillar(new Date(year, month - 1, day));
 
     // 육합일
     const sixHarmony: Record<EarthlyBranch, EarthlyBranch> = {

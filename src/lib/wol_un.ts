@@ -98,8 +98,8 @@ function getMonthGanJi(
   yearStem: HeavenlyStem
 ): { stem: HeavenlyStem; branch: EarthlyBranch; solarTerm: string } {
   // 절기 기준으로 월지 결정
-  // 간단화: 양력 월을 기준으로 근사치 사용
-  const solarTermIndex = month - 1;
+  // 간단화: 양력 월을 기준으로 근사치 사용 (양력 2월 = 인월)
+  const solarTermIndex = (month - 2 + 12) % 12;
   const monthBranch = MONTH_BRANCHES[solarTermIndex % 12]!;
   const monthStem = getMonthStem(yearStem, monthBranch);
 
