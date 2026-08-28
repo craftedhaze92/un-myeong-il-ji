@@ -13,10 +13,15 @@ import {
   type ElementDistributionResult,
   type ElementStatus,
 } from "@/lib/element_distribution";
+import { convertCalendar } from "@/lib/calendar";
 import { getYearGanJi } from "@/lib/se_un";
 import { SIN_SAL_DATA } from "@/lib/sin_sal";
 import { calculateTenGod, calculateTenGodsDistribution } from "@/lib/ten_gods";
-import { getTwelveStage, type TwelveStage } from "@/lib/twelve_stages";
+import {
+  getTwelveStage,
+  TWELVE_STAGE_INFO,
+  type TwelveStage,
+} from "@/lib/twelve_stages";
 import { getTwelveSinSal, type TwelveSinSal } from "@/lib/twelve_sinsal";
 import type { DaeUnPeriod } from "@/lib/dae_un";
 import type {
@@ -36,6 +41,25 @@ function formatLongitudeOffset(offsetMinutes: number): string {
   return offsetMinutes < 0
     ? `−${Math.abs(offsetMinutes)}분`
     : `+${offsetMinutes}분`;
+}
+
+/**
+ * 생년월일 줄에 반대쪽 달력 날짜를 괄호로 병기한다.
+ * - 음력 입력이면 이미 계산된 양력 환산일(saju.solarBirthDate)을 그대로 쓴다(재변환 불필요).
+ * - 양력 입력이면 calendar.ts#convertCalendar로 음력을 구한다. 1900~2200 범위 밖 등으로
+ *   변환이 실패하면 병기를 생략한다(다른 표시는 그대로 정상 동작해야 하므로).
+ */
+function buildCalendarPairLabel(saju: SajuData): string {
+  if (saju.calendar === "lunar") {
+    return ` (양력 ${saju.solarBirthDate.replace(/-/g, ".")})`;
+  }
+  try {
+    const conversion = convertCalendar(saju.birthDate, "solar", "lunar");
+    const leapTag = conversion.isLeapMonth ? "(윤)" : "";
+    return ` (음력${leapTag} ${conversion.convertedDate.replace(/-/g, ".")})`;
+  } catch {
+    return "";
+  }
 }
 
 export interface PillarCellVM {
@@ -141,6 +165,8 @@ export interface GanjiCellVM {
   branch: GanjiCharVM;
   branchGod: TenGod;
   stage: TwelveStage;
+  /** 십이운성 한 줄 설명 (twelve_stages.ts#TWELVE_STAGE_INFO) — 칸에 마우스오버 시 툴팁으로 표시 */
+  stageDescription: string;
   sinsal: TwelveSinSal;
 }
 
@@ -488,13 +514,15 @@ function buildGanjiCell(
   const stemData = getHeavenlyStemByKorean(stem)!;
   const branchData = getEarthlyBranchByKorean(branch)!;
   const hiddenStem = extractJiJangGan(branch)[0]!;
+  const stage = getTwelveStage(dayStem, branch);
 
   return {
     stem: buildGanjiChar(stem, stemData.hanja, stemData.element, dark),
     stemGod: calculateTenGod(dayStem, stem),
     branch: buildGanjiChar(branch, branchData.hanja, branchData.element, dark),
     branchGod: calculateTenGod(dayStem, hiddenStem),
-    stage: getTwelveStage(dayStem, branch),
+    stage,
+    stageDescription: TWELVE_STAGE_INFO[stage].description,
     sinsal: getTwelveSinSal(saju.day.branch, branch),
   };
 }
@@ -696,7 +724,7 @@ export function buildSajuViewModel({
     }.`,
     birthLine: `${saju.calendar === "lunar" ? `음력${saju.isLeapMonth ? "(윤)" : ""}` : "양력"} ${saju.birthDate.replace(/-/g, ".")}${
       hasHour ? " " + saju.birthTime : " 시간 미상"
-    } · ${saju.birthCity}(${formatLongitudeOffset(getLongitudeOffsetMinutesForSaju(saju.birthCity))}) · ${gender === "male" ? "남" : "여"}`,
+    }${buildCalendarPairLabel(saju)} · ${saju.birthCity}(${formatLongitudeOffset(getLongitudeOffsetMinutesForSaju(saju.birthCity))}) · ${gender === "male" ? "남" : "여"}`,
     yong: saju.yongSin
       ? {
           ch: ELEMENTS[elementIndex(saju.yongSin.primaryYongSin)]!.ch,

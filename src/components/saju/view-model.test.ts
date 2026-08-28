@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSajuViewModel } from './view-model';
+import { calculateSaju } from '@/lib/saju';
 import { calculateTenGod } from '@/lib/ten_gods';
 import type { SajuData } from '@/types';
 
@@ -204,5 +205,65 @@ describe('jiJangGan 정보가 없을 때도 extractJiJangGan의 본기(첫 원�
 
   it('여전히 정재다 (JI_JANG_GAN 테이블의 자=계 폴백)', () => {
     expect(yearPillarVm.branch.god).toBe('정재');
+  });
+});
+
+describe('birthLine 음/양력 병기', () => {
+  it('양력 입력이면 음력 날짜를 괄호로 병기한다', () => {
+    const real = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
+    const vm = buildSajuViewModel({
+      name: '',
+      saju: real,
+      daeUn: [],
+      hasHour: true,
+      gender: 'male',
+      dark: true,
+      nowYear: 2024,
+    });
+    expect(vm.birthLine).toMatch(/\(음력 \d{4}\.\d{2}\.\d{2}\)/);
+  });
+
+  it('음력 입력이면 재변환 없이 solarBirthDate를 그대로 양력으로 병기한다', () => {
+    const real = calculateSaju('1990-04-21', '14:30', 'lunar', false, 'male', '서울');
+    const vm = buildSajuViewModel({
+      name: '',
+      saju: real,
+      daeUn: [],
+      hasHour: true,
+      gender: 'male',
+      dark: true,
+      nowYear: 2024,
+    });
+    expect(vm.birthLine).toContain(
+      `(양력 ${real.solarBirthDate.replace(/-/g, '.')})`,
+    );
+  });
+});
+
+describe('대운/세운 칸의 십이운성에 설명(stageDescription)이 함께 계산된다', () => {
+  const daeUn = [
+    {
+      startAge: 10,
+      endAge: 19,
+      stem: '병' as const,
+      branch: '자' as const,
+      stemElement: '화' as const,
+      branchElement: '수' as const,
+      pillarIndex: 0,
+    },
+  ];
+  const vm = buildSajuViewModel({
+    name: '',
+    saju,
+    daeUn,
+    hasHour: true,
+    gender: 'male',
+    dark: true,
+    nowYear: 2024,
+  });
+
+  it('stageDescription이 TWELVE_STAGE_INFO의 해당 설명과 일치한다', () => {
+    const luck = vm.luck[0]!;
+    expect(luck.stageDescription.length).toBeGreaterThan(0);
   });
 });

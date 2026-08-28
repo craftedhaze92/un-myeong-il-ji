@@ -17,7 +17,10 @@ import {
 import { analyzeFortune } from "@/lib/fortune";
 import { analyzeSeyun } from "@/lib/seyun_analysis";
 import { analyzeWolun } from "@/lib/wolun_analysis";
-import { getAllSinSalInfo } from "@/lib/sin_sal";
+import { analyzeTimingAdvice, type DecisionType } from "@/lib/timing_advice";
+import { analyzePungsu, type SpaceType } from "@/lib/pungsu_advice";
+import { analyzeName } from "@/lib/jakmeong_analysis";
+import { getAllSinSalInfo, interpretBySinSal } from "@/lib/sin_sal";
 import { interpretAllTenGods } from "@/lib/ten_gods";
 import { getManAgeForFortuneYear } from "@/utils/date";
 import { selectYongSin, generateYongSinAdvice } from "@/lib/yong_sin";
@@ -51,6 +54,33 @@ const WOL_RYEONG_LABEL: Record<"strong" | "medium" | "weak", string> = {
   strong: "강",
   medium: "중",
   weak: "약",
+};
+
+const YONGSIN_METHOD_LABEL: Record<
+  NonNullable<SajuData["yongSin"]>["method"] & string,
+  string
+> = {
+  jeonwang: "전왕용신(종격)",
+  johu: "조후용신",
+  eokbu: "억부용신",
+  tonggwan: "통관용신",
+};
+
+const PILLAR_SHORT_LABEL: Record<"year" | "month" | "day" | "hour", string> = {
+  year: "년",
+  month: "월",
+  day: "일",
+  hour: "시",
+};
+
+const GYEOKGUK_STATUS_LABEL: Record<
+  NonNullable<NonNullable<SajuData["gyeokGuk"]>["quality"]>["status"],
+  string
+> = {
+  성격: "성격(成格)",
+  파격: "파격(破格)",
+  성중유패: "성중유패(成中有敗)",
+  패중유구: "패중유구(敗中有救)",
 };
 
 const INTENSITY_LABEL: Record<string, string> = {
@@ -106,9 +136,35 @@ export interface SinSalDetailVM {
   advice: string[];
 }
 
+/** 신살 개별 카드가 아니라 사주에 있는 신살 전체를 길신/흉신으로 묶어 요약한 조합 해석. */
+export interface SinSalCombinedVM {
+  blessingNames: string[];
+  warningNames: string[];
+  specialAdvice: string[];
+}
+
+export interface GyeokGukQualityVM {
+  statusLabel: string;
+  useType: "순용" | "역용";
+  sangSinLabel?: string;
+  brokenBy: string[];
+  rescuedBy: string[];
+  explanation: string;
+}
+
 export interface MyeongsikVM {
-  gyeokGuk?: { name: string; hanja: string; description: string };
-  dayMasterStrength?: { levelLabel: string; score: number; analysis: string };
+  gyeokGuk?: { name: string; hanja: string; description: string; quality?: GyeokGukQualityVM };
+  dayMasterStrength?: {
+    levelLabel: string;
+    score: number;
+    analysis: string;
+    /** 득령·득지·득세 3요소 배지 — undefined면 예전 데이터 등 판정 근거가 없다는 뜻 */
+    deukRyeong?: boolean;
+    deukJi?: boolean;
+    deukSe?: boolean;
+    /** 통근한 자리 라벨(예: ["년", "시"]) */
+    rootedAtLabels: string[];
+  };
   wolRyeong?: { isDeukRyeong: boolean; reason: string; strengthLabel: string };
   jiJangGan: JiJangGanPillarVM[];
   branchRelations?: BranchRelationsVM;
@@ -117,8 +173,13 @@ export interface MyeongsikVM {
     secondary?: WuXing;
     reasoning: string;
     advice: string[];
+    methodLabel?: string;
+    /** 확정도가 낮은 경우(궁통보감 조후용신표 미검증 칸 등) 화면에 표기할 문구 */
+    lowConfidenceNote?: string;
   };
   sinsal: SinSalDetailVM[];
+  /** 신살이 2개 이상일 때만 채워지는 조합 요약 — 신살 1개 이하는 개별 카드와 중복이라 뺀다. */
+  sinsalCombined?: SinSalCombinedVM;
 }
 
 function buildJiJangGan(saju: SajuData): JiJangGanPillarVM[] {
@@ -188,8 +249,37 @@ function buildSinsalDetails(saju: SajuData): SinSalDetailVM[] {
   }));
 }
 
+/** 신살 각각의 카드(buildSinsalDetails)와 별개로, 여러 신살을 길신/흉신으로 묶은 조합 요약. */
+function buildSinsalCombined(saju: SajuData): SinSalCombinedVM | undefined {
+  if (!saju.sinSals || saju.sinSals.length < 2) return undefined;
+  const { blessingNames, warningNames, specialAdvice } = interpretBySinSal(
+    saju.sinSals,
+  );
+  return {
+    blessingNames,
+    warningNames,
+    specialAdvice: [...new Set(specialAdvice)],
+  };
+}
+
+function buildGyeokGukQuality(
+  quality: NonNullable<SajuData["gyeokGuk"]>["quality"],
+): GyeokGukQualityVM | undefined {
+  if (!quality) return undefined;
+  return {
+    statusLabel: GYEOKGUK_STATUS_LABEL[quality.status],
+    useType: quality.useType,
+    sangSinLabel: quality.sangSin,
+    brokenBy: quality.brokenBy,
+    rescuedBy: quality.rescuedBy,
+    explanation: quality.explanation,
+  };
+}
+
 export function buildMyeongsikViewModel(saju: SajuData): MyeongsikVM {
   const yongSinAnalysis = selectYongSin(saju);
+  const strength = saju.dayMasterStrength;
+  const rootedAtLabels = (strength?.rootedAt ?? []).map((p) => PILLAR_SHORT_LABEL[p]);
 
   return {
     gyeokGuk: saju.gyeokGuk
@@ -197,15 +287,18 @@ export function buildMyeongsikViewModel(saju: SajuData): MyeongsikVM {
           name: saju.gyeokGuk.name,
           hanja: saju.gyeokGuk.hanja,
           description: saju.gyeokGuk.description,
+          quality: buildGyeokGukQuality(saju.gyeokGuk.quality),
         }
       : undefined,
-    dayMasterStrength: saju.dayMasterStrength
+    dayMasterStrength: strength
       ? {
-          levelLabel:
-            STRENGTH_LEVEL_LABEL[saju.dayMasterStrength.level] ??
-            saju.dayMasterStrength.level,
-          score: saju.dayMasterStrength.score,
-          analysis: saju.dayMasterStrength.analysis,
+          levelLabel: STRENGTH_LEVEL_LABEL[strength.level] ?? strength.level,
+          score: strength.score,
+          analysis: strength.analysis,
+          deukRyeong: strength.deukRyeong,
+          deukJi: strength.deukJi,
+          deukSe: strength.deukSe,
+          rootedAtLabels,
         }
       : undefined,
     wolRyeong: saju.wolRyeong
@@ -223,9 +316,15 @@ export function buildMyeongsikViewModel(saju: SajuData): MyeongsikVM {
           secondary: saju.yongSin.secondaryYongSin,
           reasoning: saju.yongSin.reasoning,
           advice: generateYongSinAdvice(yongSinAnalysis),
+          methodLabel: saju.yongSin.method ? YONGSIN_METHOD_LABEL[saju.yongSin.method] : undefined,
+          lowConfidenceNote:
+            saju.yongSin.confidence !== undefined && saju.yongSin.confidence < 0.6
+              ? "궁통보감 조후용신표에서 아직 복수 출처로 대조되지 않은 항목이라 확정도가 낮습니다."
+              : undefined,
         }
       : undefined,
     sinsal: buildSinsalDetails(saju),
+    sinsalCombined: buildSinsalCombined(saju),
   };
 }
 
@@ -539,6 +638,114 @@ function buildFlowViewModel(
   };
 }
 
+// ── 블록 3.5: 시기 조언 (결정 타입을 고를 때만 계산) ──────────────────────
+
+/** 화면에서 선택 가능한 결정 타입 10종 — timing_advice.ts#DecisionType과 동일 순서. */
+export const DECISION_TYPES: DecisionType[] = [
+  "결혼",
+  "이직",
+  "창업",
+  "투자",
+  "이사",
+  "수술",
+  "계약",
+  "학업",
+  "출산",
+  "여행",
+];
+
+export interface TimingOptimalVM {
+  period: string;
+  rating: string;
+  score: number;
+  reasons: string[];
+  yongsinSupport: string;
+  cautions: string[];
+}
+
+export interface TimingAvoidVM {
+  period: string;
+  reason: string;
+  severity: string;
+  alternatives: string[];
+}
+
+export interface TimingMonthVM {
+  yearMonth: string;
+  rating: string;
+  score: number;
+  briefAdvice: string;
+}
+
+export interface TimingOutlookVM {
+  year: number;
+  overallRating: string;
+  keyPeriods: string[];
+  majorOpportunities: string[];
+  majorChallenges: string[];
+  daeunInfluence?: string;
+}
+
+export interface TimingVM {
+  decisionType: DecisionType;
+  optimalTiming: TimingOptimalVM[];
+  timesToAvoid: TimingAvoidVM[];
+  monthlyForecast: TimingMonthVM[];
+  longTermOutlook: TimingOutlookVM[];
+  summary: {
+    bestYear: number;
+    bestMonth: number;
+    bestSeason: string;
+    overallAdvice: string;
+    urgency: string;
+  };
+}
+
+/**
+ * timing_advice.ts#analyzeTimingAdvice는 대운/세운 기반이라(daeun_analysis.ts 참고)
+ * si_un/iljin_analysis 같은 근사 함정이 없다 — 결과를 얇게 VM으로만 옮긴다.
+ * buildReadingViewModel에는 합류시키지 않는다 — 결정 타입을 고르기 전까지는 계산할 필요가 없다.
+ */
+export function buildTimingViewModel(
+  saju: SajuData,
+  decisionType: DecisionType,
+  startDate: Date = new Date(),
+): TimingVM {
+  const advice = analyzeTimingAdvice(saju, decisionType, startDate, 3);
+  return {
+    decisionType,
+    optimalTiming: advice.optimalTiming.map((o) => ({
+      period: o.period,
+      rating: o.rating,
+      score: o.score,
+      reasons: o.reasons,
+      yongsinSupport: o.yongsinSupport,
+      cautions: o.cautions,
+    })),
+    timesToAvoid: advice.timesToAvoid.map((t) => ({
+      period: t.period,
+      reason: t.reason,
+      severity: t.severity,
+      alternatives: t.alternatives,
+    })),
+    monthlyForecast: advice.monthlyForecast.map((m) => ({
+      yearMonth: m.yearMonth,
+      rating: m.rating,
+      score: m.score,
+      briefAdvice: m.briefAdvice,
+    })),
+    longTermOutlook: advice.longTermOutlook.map((y) => ({
+      year: y.year,
+      overallRating: y.overallRating,
+      keyPeriods: y.keyPeriods,
+      majorOpportunities: y.majorOpportunities,
+      majorChallenges: y.majorChallenges,
+      daeunInfluence: y.daeunInfluence,
+    })),
+    summary: advice.summary,
+  };
+}
+
 // ── 블록 4: 직업 적성 ──────────────────────────────────────────────────
 
 export interface CareerRecommendationVM {
@@ -589,6 +796,160 @@ export function buildCareerViewModel(saju: SajuData): CareerVM {
     elementalAffinity: result.elementalAffinity,
     careerAdvice: result.careerAdvice,
     summary: result.summary,
+  };
+}
+
+// ── 블록 6: 이름 오행 분석 ─────────────────────────────────────────────
+
+export interface NameCharacterVM {
+  char: string;
+  element: WuXing;
+  /** 이 글자의 오행을 한자(자원오행)로 정했는지 발음(초성)으로 정했는지 */
+  elementSourceLabel: '자원오행' | '발음오행';
+  /** elementSourceLabel이 자원오행이면서 부수 근거가 약할 때만 표시 */
+  lowConfidenceElement: boolean;
+  meaning?: string;
+}
+
+export interface NameStrokeAnalysisVM {
+  heavenGround: number;
+  personalGround: number;
+  earthGround: number;
+  outerGround: number;
+  totalGround: number;
+  fortune: string;
+  /** 획수 중 하나라도 사전 미검증(보정 추정치)이면 true — 화면에 신뢰도 caveat용 */
+  hasUnverifiedStroke: boolean;
+}
+
+export interface NameAnalysisVM {
+  name: string;
+  characters: NameCharacterVM[];
+  wuxingBalanceLabel: string;
+  isFavorable: boolean;
+  harmonyScore: number;
+  harmonyDescription: string;
+  supplementElements: WuXing[];
+  /** 한자를 입력했고 사전에 모두 있어야만 존재한다 — 없으면 오격을 아예 표시하지 않는다. */
+  strokeAnalysis?: NameStrokeAnalysisVM;
+  /** strokeAnalysis가 없을 때, 왜 없는지(한자 미입력/사전에 없음 등) 사용자에게 보여줄 문구 */
+  strokeUnavailableReason?: string;
+}
+
+/**
+ * jakmeong_analysis.ts#analyzeName은 오행 구성(초성오행, 훈민정음 오행 원리 기반)과
+ * 사주와의 조화(부족한 오행 보완 여부)는 한자 없이도 근거가 있다. 반면 strokeAnalysis
+ * (천격/인격/지격/외격/총격)는 실제 한자 획수가 있어야만 의미가 있는데, 예전엔 한자 입력
+ * 경로 자체가 없어서 `getStrokeCount`가 한글 코드포인트를 해싱한 가짜 값을 냈다 —
+ * 그래서 이전 버전은 strokeAnalysis를 통째로 숨겼다.
+ *
+ * 지금은 `hanja` 파라미터로 실제 한자를 받아 `analyzeName`에 그대로 넘긴다. `analyzeName`이
+ * `data/naming_hanja_table.ts`에서 세 글자(성+이름 두 자) 모두를 찾았을 때만
+ * `strokeAnalysis.available: true`를 주므로, 그 경우에만 오격을 노출한다 — 부분 성공은
+ * 없다(하나라도 사전에 없으면 통째로 숨김, `available: false`의 `reason`을 그대로 보여준다).
+ *
+ * overall(종합 점수·등급)·pronunciation은 여전히 노출하지 않는다 — `overall.score`가
+ * 아직 `pronunciation.easyToWrite`(한글 기반 가짜 획수로 판정)를 섞어 쓰고 있어서다.
+ */
+export function buildNameAnalysisVM(
+  fullName: string,
+  saju: SajuData,
+  hanja?: string,
+): NameAnalysisVM {
+  const analysis = analyzeName(fullName, saju, hanja);
+  const strokeAnalysis = analysis.strokeAnalysis;
+
+  return {
+    name: analysis.name,
+    characters: analysis.characters.map((c) => ({
+      char: c.char,
+      element: c.element,
+      elementSourceLabel: c.elementSource === '자원' ? '자원오행' : '발음오행',
+      lowConfidenceElement: c.elementSource === '자원' && c.elementVerified === false,
+      meaning: c.meaning,
+    })),
+    wuxingBalanceLabel: analysis.wuxingComposition.balance,
+    isFavorable: analysis.wuxingComposition.isFavorable,
+    harmonyScore: analysis.harmonyWithSaju.score,
+    harmonyDescription: analysis.harmonyWithSaju.description,
+    supplementElements: analysis.harmonyWithSaju.補益Elements,
+    strokeAnalysis: strokeAnalysis.available
+      ? {
+          heavenGround: strokeAnalysis.heavenGround,
+          personalGround: strokeAnalysis.personalGround,
+          earthGround: strokeAnalysis.earthGround,
+          outerGround: strokeAnalysis.outerGround,
+          totalGround: strokeAnalysis.totalGround,
+          fortune: strokeAnalysis.fortune,
+          hasUnverifiedStroke: !strokeAnalysis.allVerified,
+        }
+      : undefined,
+    strokeUnavailableReason: strokeAnalysis.available ? undefined : strokeAnalysis.reason,
+  };
+}
+
+// ── 블록 5: 방위(풍수) ─────────────────────────────────────────────────
+
+export interface PungsuDirectionVM {
+  direction: string;
+  detail: string;
+  tags: string[];
+}
+
+export interface PungsuSpaceVM {
+  spaceType: SpaceType;
+  bestDirection: string;
+  layout: string;
+  colors: string[];
+  furniture: string[];
+  plants?: string[];
+  avoid: string[];
+}
+
+export interface PungsuElementalDecorVM {
+  element: WuXing;
+  colors: string[];
+  materials: string[];
+  shapes: string[];
+  items: string[];
+}
+
+export interface PungsuVM {
+  luckyDirections: PungsuDirectionVM[];
+  unluckyDirections: { direction: string; reason: string; avoid: string[] }[];
+  spaceAdvice: PungsuSpaceVM[];
+  yearlyDirections: {
+    year: number;
+    luckyDirection: string;
+    unluckyDirection: string;
+    description: string;
+  };
+  elementalDecor: PungsuElementalDecorVM[];
+  generalAdvice: {
+    priority: string[];
+    warnings: string[];
+    enhancements: string[];
+  };
+}
+
+/** pungsu_advice.ts#analyzePungsu는 saju+year만으로 결정되는 순수 함수라 무겁지 않다 —
+ * 그래도 방위 탭이 선택됐을 때만 계산해 다른 탭 렌더에 영향 주지 않는다. */
+export function buildPungsuViewModel(
+  saju: SajuData,
+  currentYear: number,
+): PungsuVM {
+  const analysis = analyzePungsu(saju, currentYear);
+  return {
+    luckyDirections: analysis.luckyDirections.map((d) => ({
+      direction: d.direction,
+      detail: d.fortune,
+      tags: d.uses,
+    })),
+    unluckyDirections: analysis.unluckyDirections,
+    spaceAdvice: analysis.spaceAdvice,
+    yearlyDirections: analysis.yearlyDirections,
+    elementalDecor: analysis.elementalDecor,
+    generalAdvice: analysis.generalAdvice,
   };
 }
 

@@ -77,7 +77,10 @@ export function GanjiColumn({
           gap: 2,
         }}
       >
-        <span style={{ fontSize: FS.micro, fontFamily: FONT_MYEONGJO, color: "var(--fg)" }}>
+        <span
+          title={cell.stageDescription}
+          style={{ fontSize: FS.micro, fontFamily: FONT_MYEONGJO, color: "var(--fg)" }}
+        >
           {cell.stage}
         </span>
         <span style={{ fontSize: FS.micro, color: "var(--mute)" }}>{cell.sinsal}</span>

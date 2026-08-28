@@ -14,10 +14,16 @@ import {
 } from "./constants";
 import {
   buildDaeunDetailViewModel,
+  buildNameAnalysisVM,
+  buildPungsuViewModel,
   buildSeyunDetailViewModel,
+  buildTimingViewModel,
   buildWolunDetailViewModel,
+  DECISION_TYPES,
   type ReadingVM,
 } from "./reading-view-model";
+import { buildTodayViewModel } from "./today-view-model";
+import { BulletList } from "./ui/bullet-list";
 import { SectionCard } from "./ui/section-card";
 import { ScoreBar } from "./ui/score-bar";
 
@@ -26,52 +32,20 @@ export interface ReadingPanelProps {
   daeUn: DaeUnPeriod[];
   readingVM: ReadingVM;
   dark: boolean;
+  /** 이름 오행 분석(명식 탭)에 쓰는, 사용자가 입력 폼에 적은 성명 */
+  name: string;
 }
 
-type TabKey = "myeongsik" | "life" | "flow" | "career";
+type TabKey = "myeongsik" | "life" | "flow" | "career" | "today" | "pungsu";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "myeongsik", label: "명식" },
   { key: "life", label: "인생" },
   { key: "flow", label: "흐름" },
   { key: "career", label: "직업" },
+  { key: "today", label: "오늘" },
+  { key: "pungsu", label: "방위" },
 ];
-
-function BulletList({
-  items,
-  tone,
-}: {
-  items: string[];
-  tone?: "positive" | "negative";
-}) {
-  if (items.length === 0) return null;
-  const markColor =
-    tone === "positive"
-      ? "var(--fg)"
-      : tone === "negative"
-        ? "var(--danger)"
-        : "var(--dim)";
-  return (
-    <ul style={{ margin: "0 0 12px", padding: 0, listStyle: "none" }}>
-      {items.map((item, i) => (
-        <li
-          key={i}
-          style={{
-            display: "flex",
-            gap: 8,
-            fontSize: FS.body,
-            lineHeight: 1.75,
-            marginBottom: 6,
-            ...dimText,
-          }}
-        >
-          <span style={{ color: markColor, flexShrink: 0 }}>·</span>
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 function tabBtnStyle(active: boolean): CSSProperties {
   return {
@@ -106,6 +80,7 @@ export function ReadingPanel({
   daeUn,
   readingVM,
   dark,
+  name,
 }: ReadingPanelProps) {
   const [tab, setTab] = useState<TabKey>("myeongsik");
 
@@ -135,20 +110,42 @@ export function ReadingPanel({
         ))}
       </div>
 
-      {tab === "myeongsik" && <MyeongsikTab vm={readingVM} />}
+      {tab === "myeongsik" && (
+        <MyeongsikTab vm={readingVM} saju={saju} name={name} dark={dark} />
+      )}
       {tab === "life" && <LifeTab vm={readingVM} />}
       {tab === "flow" && (
         <FlowTab saju={saju} daeUn={daeUn} vm={readingVM} dark={dark} />
       )}
       {tab === "career" && <CareerTab vm={readingVM} dark={dark} />}
+      {tab === "today" && <TodayTab saju={saju} />}
+      {tab === "pungsu" && <PungsuTab saju={saju} dark={dark} />}
     </section>
   );
 }
 
 // ── 명식 탭 ────────────────────────────────────────────────────────────
 
-function MyeongsikTab({ vm }: { vm: ReadingVM }) {
+function MyeongsikTab({
+  vm,
+  saju,
+  name,
+  dark,
+}: {
+  vm: ReadingVM;
+  saju: SajuData;
+  name: string;
+  dark: boolean;
+}) {
   const { myeongsik } = vm;
+  // 한자는 명식 계산에 쓰이지 않는 부가 정보라 메인 입력 폼(BirthFormValues)에는 넣지 않고
+  // 이 탭 안에서만 로컬로 들고 있는다 — 캐시 키에 영향을 주지 않기 위함.
+  const [hanjaInput, setHanjaInput] = useState("");
+  const nameVm = useMemo(
+    () =>
+      name.trim() ? buildNameAnalysisVM(name.trim(), saju, hanjaInput.trim() || undefined) : null,
+    [name, saju, hanjaInput],
+  );
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
@@ -174,6 +171,30 @@ function MyeongsikTab({ vm }: { vm: ReadingVM }) {
               >
                 {myeongsik.gyeokGuk.description}
               </div>
+              {myeongsik.gyeokGuk.quality && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <span
+                      style={pillBtnStyle(
+                        true,
+                        myeongsik.gyeokGuk.quality.statusLabel.startsWith("성격") ||
+                          myeongsik.gyeokGuk.quality.statusLabel.startsWith("패중유구")
+                          ? undefined
+                          : "var(--danger)",
+                      )}
+                    >
+                      {myeongsik.gyeokGuk.quality.statusLabel}
+                    </span>
+                    <span style={pillBtnStyle(false)}>{myeongsik.gyeokGuk.quality.useType}</span>
+                    {myeongsik.gyeokGuk.quality.sangSinLabel && (
+                      <span style={pillBtnStyle(false)}>상신 {myeongsik.gyeokGuk.quality.sangSinLabel}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: FS.small, lineHeight: 1.7, marginTop: 8, ...muteText }}>
+                    {myeongsik.gyeokGuk.quality.explanation}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {myeongsik.dayMasterStrength && (
@@ -212,6 +233,24 @@ function MyeongsikTab({ vm }: { vm: ReadingVM }) {
               >
                 {myeongsik.dayMasterStrength.analysis}
               </div>
+              {myeongsik.dayMasterStrength.deukRyeong !== undefined && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+                  <span style={pillBtnStyle(myeongsik.dayMasterStrength.deukRyeong)}>
+                    {myeongsik.dayMasterStrength.deukRyeong ? "득령" : "실령"}
+                  </span>
+                  <span style={pillBtnStyle(!!myeongsik.dayMasterStrength.deukJi)}>
+                    {myeongsik.dayMasterStrength.deukJi ? "득지" : "실지"}
+                  </span>
+                  <span style={pillBtnStyle(!!myeongsik.dayMasterStrength.deukSe)}>
+                    {myeongsik.dayMasterStrength.deukSe ? "득세" : "실세"}
+                  </span>
+                  {myeongsik.dayMasterStrength.rootedAtLabels.length > 0 && (
+                    <span style={pillBtnStyle(true)}>
+                      {myeongsik.dayMasterStrength.rootedAtLabels.join("·")}지 통근
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {myeongsik.wolRyeong && (
@@ -225,6 +264,11 @@ function MyeongsikTab({ vm }: { vm: ReadingVM }) {
 
         {myeongsik.yongSin && (
           <SectionCard title="용신 실천 조언">
+            {myeongsik.yongSin.methodLabel && (
+              <div style={{ marginBottom: 10 }}>
+                <span style={pillBtnStyle(true)}>{myeongsik.yongSin.methodLabel}</span>
+              </div>
+            )}
             <div
               style={{
                 fontSize: FS.body,
@@ -235,6 +279,11 @@ function MyeongsikTab({ vm }: { vm: ReadingVM }) {
             >
               {myeongsik.yongSin.reasoning}
             </div>
+            {myeongsik.yongSin.lowConfidenceNote && (
+              <div style={{ fontSize: FS.small, lineHeight: 1.6, marginBottom: 12, ...muteText }}>
+                ⓘ {myeongsik.yongSin.lowConfidenceNote}
+              </div>
+            )}
             <BulletList items={myeongsik.yongSin.advice} />
           </SectionCard>
         )}
@@ -330,6 +379,113 @@ function MyeongsikTab({ vm }: { vm: ReadingVM }) {
               </span>
             ))}
           </div>
+        </SectionCard>
+      )}
+
+      {nameVm && (
+        <SectionCard
+          title={`이름 오행 — ${nameVm.name}`}
+          subtitle="초성(자음)의 발음오행이 기본입니다. 한자를 입력하면 그 글자의 자원오행과 실제 획수 성명학(오격)도 함께 봅니다."
+        >
+          <label style={{ display: "block", marginBottom: 14 }}>
+            <span style={{ fontSize: FS.small, ...muteText }}>
+              한자 입력(선택, {nameVm.name.length}자와 같은 글자 수로)
+            </span>
+            <input
+              value={hanjaInput}
+              onChange={(e) => setHanjaInput(e.target.value)}
+              placeholder={"예: " + "金敏俊".slice(0, nameVm.name.length)}
+              style={{
+                display: "block",
+                width: "100%",
+                marginTop: 4,
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+                borderRadius: 2,
+                height: 40,
+                padding: "0 10px",
+                fontFamily: FONT_MYEONGJO,
+                fontSize: FS.body,
+              }}
+            />
+          </label>
+
+          <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
+            {nameVm.characters.map((c, i) => (
+              <div key={i} style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    fontFamily: FONT_MYEONGJO,
+                    fontSize: FS.sectionHead,
+                    fontWeight: 800,
+                    color: elementColor(c.element, dark),
+                  }}
+                >
+                  {c.char}
+                </div>
+                <div style={{ fontSize: FS.caption, ...muteText }}>
+                  {c.element}
+                  {c.meaning ? ` · ${c.meaning}` : ""}
+                </div>
+                <div style={{ fontSize: FS.micro, ...muteText }}>
+                  {c.elementSourceLabel}
+                  {c.lowConfidenceElement ? "(근거 약함)" : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: FS.body, ...dimText }}>
+            오행 구성: {nameVm.wuxingBalanceLabel}
+            {nameVm.isFavorable ? " (사주와 함께 무난한 균형)" : ""}
+          </div>
+          <div style={{ fontSize: FS.body, marginTop: 4, ...dimText }}>
+            {nameVm.harmonyDescription} (조화도 {nameVm.harmonyScore}점)
+          </div>
+          {nameVm.supplementElements.length > 0 && (
+            <div style={{ fontSize: FS.small, marginTop: 8, ...muteText }}>
+              보완 오행: {nameVm.supplementElements.join(", ")}
+            </div>
+          )}
+
+          {nameVm.strokeAnalysis ? (
+            <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+              <div
+                style={{
+                  fontFamily: FONT_MYEONGJO,
+                  fontSize: FS.subtitle,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}
+              >
+                성명학 획수(오격)
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                <span style={pillBtnStyle(true)}>천격 {nameVm.strokeAnalysis.heavenGround}</span>
+                <span style={pillBtnStyle(true)}>인격 {nameVm.strokeAnalysis.personalGround}</span>
+                <span style={pillBtnStyle(true)}>지격 {nameVm.strokeAnalysis.earthGround}</span>
+                <span style={pillBtnStyle(true)}>외격 {nameVm.strokeAnalysis.outerGround}</span>
+                <span
+                  style={pillBtnStyle(
+                    true,
+                    nameVm.strokeAnalysis.fortune === "흉" ? "var(--danger)" : undefined,
+                  )}
+                >
+                  총격 {nameVm.strokeAnalysis.totalGround} · {nameVm.strokeAnalysis.fortune}
+                </span>
+              </div>
+              {nameVm.strokeAnalysis.hasUnverifiedStroke && (
+                <div style={{ fontSize: FS.micro, ...muteText }}>
+                  ⓘ 일부 글자는 원획 보정을 자체 추정한 값이라 확정도가 낮습니다.
+                </div>
+              )}
+            </div>
+          ) : (
+            hanjaInput.trim() && (
+              <div style={{ fontSize: FS.small, marginTop: 14, ...muteText }}>
+                ⓘ {nameVm.strokeUnavailableReason}
+              </div>
+            )
+          )}
         </SectionCard>
       )}
     </div>
@@ -435,6 +591,9 @@ function FlowTab({
   const [selectedMonth, setSelectedMonth] = useState(
     () => new Date().getMonth() + 1,
   );
+  const [selectedDecision, setSelectedDecision] = useState<
+    (typeof DECISION_TYPES)[number] | null
+  >(null);
 
   const daeunDetail = useMemo(
     () => buildDaeunDetailViewModel(saju, daeUn, selectedStartAge),
@@ -447,6 +606,12 @@ function FlowTab({
   const wolunDetail = useMemo(
     () => buildWolunDetailViewModel(saju, selectedYear, selectedMonth),
     [saju, selectedYear, selectedMonth],
+  );
+  // 결정 타입을 고르기 전까지는 계산하지 않는다 — analyzeTimingAdvice가 12개월 예보 +
+  // 3년 전망을 매번 새로 계산하는 비교적 무거운 함수라서다.
+  const timingVm = useMemo(
+    () => (selectedDecision ? buildTimingViewModel(saju, selectedDecision) : null),
+    [saju, selectedDecision],
   );
 
   return (
@@ -802,6 +967,314 @@ function FlowTab({
           </div>
         )}
       </SectionCard>
+
+      <SectionCard title="시기 조언">
+        <div
+          style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}
+        >
+          {DECISION_TYPES.map((d) => (
+            <button
+              key={d}
+              onClick={() =>
+                setSelectedDecision((cur) => (cur === d ? null : d))
+              }
+              style={pillBtnStyle(selectedDecision === d)}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+
+        {!timingVm && (
+          <div style={{ fontSize: FS.small, ...muteText }}>
+            결정 항목을 고르면 향후 3년의 시기를 분석합니다.
+          </div>
+        )}
+
+        {timingVm && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ fontSize: FS.body, lineHeight: 1.75, ...dimText }}>
+              {timingVm.summary.overallAdvice}
+            </div>
+            <div style={{ fontSize: FS.small, ...muteText }}>
+              적기: {timingVm.summary.bestYear}년 {timingVm.summary.bestMonth}
+              월({timingVm.summary.bestSeason}) · 시급도{" "}
+              {timingVm.summary.urgency}
+            </div>
+
+            <div>
+              <div
+                style={{
+                  fontFamily: FONT_BATANG,
+                  fontWeight: 700,
+                  fontSize: FS.small,
+                  marginBottom: 8,
+                }}
+              >
+                최적 시기
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {timingVm.optimalTiming.map((o, i) => (
+                  <div key={i}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontFamily: FONT_MONO, fontWeight: 700 }}>
+                        {o.period}
+                      </span>
+                      <span style={{ fontSize: FS.caption, ...muteText }}>
+                        {o.rating} · {o.score}점
+                      </span>
+                    </div>
+                    <div style={{ fontSize: FS.small, ...dimText }}>
+                      {o.yongsinSupport}
+                    </div>
+                    <BulletList items={o.reasons} tone="positive" />
+                    <BulletList items={o.cautions} tone="negative" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div
+                style={{
+                  fontFamily: FONT_BATANG,
+                  fontWeight: 700,
+                  fontSize: FS.small,
+                  marginBottom: 8,
+                }}
+              >
+                12개월 예보
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: 4,
+                  height: 60,
+                }}
+              >
+                {timingVm.monthlyForecast.map((m, i) => (
+                  <div
+                    key={i}
+                    title={`${m.yearMonth} ${m.rating} · ${m.briefAdvice}`}
+                    style={{
+                      flex: 1,
+                      height: `${Math.max(6, m.score)}%`,
+                      background:
+                        m.rating === "최적기" || m.rating === "좋음"
+                          ? "var(--fg)"
+                          : m.rating === "불가" || m.rating === "주의"
+                            ? "var(--danger)"
+                            : "var(--track)",
+                      borderRadius: 2,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {timingVm.timesToAvoid.length > 0 && (
+              <div>
+                <div
+                  style={{
+                    fontFamily: FONT_BATANG,
+                    fontWeight: 700,
+                    fontSize: FS.small,
+                    marginBottom: 8,
+                  }}
+                >
+                  피해야 할 시기
+                </div>
+                {timingVm.timesToAvoid.map((t, i) => (
+                  <div key={i} style={{ fontSize: FS.small, marginBottom: 6 }}>
+                    <span style={{ color: "var(--danger)" }}>
+                      {t.period} ({t.severity})
+                    </span>{" "}
+                    <span style={{ ...dimText }}>{t.reason}</span>
+                    {t.alternatives.length > 0 && (
+                      <span style={{ ...muteText }}>
+                        {" "}
+                        — 대안: {t.alternatives.join(", ")}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div>
+              <div
+                style={{
+                  fontFamily: FONT_BATANG,
+                  fontWeight: 700,
+                  fontSize: FS.small,
+                  marginBottom: 8,
+                }}
+              >
+                3년 장기 전망
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${timingVm.longTermOutlook.length}, 1fr)`,
+                  gap: 14,
+                }}
+              >
+                {timingVm.longTermOutlook.map((y) => (
+                  <div key={y.year}>
+                    <div
+                      style={{
+                        fontFamily: FONT_MONO,
+                        fontSize: FS.small,
+                        fontWeight: 700,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {y.year}년 · {y.overallRating}
+                    </div>
+                    <BulletList items={y.majorOpportunities} tone="positive" />
+                    <BulletList items={y.majorChallenges} tone="negative" />
+                    {y.daeunInfluence && (
+                      <div style={{ fontSize: FS.caption, ...muteText }}>
+                        {y.daeunInfluence}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
+// ── 방위 탭 ────────────────────────────────────────────────────────────
+
+function PungsuTab({ saju, dark }: { saju: SajuData; dark: boolean }) {
+  const nowYear = useMemo(() => new Date().getFullYear(), []);
+  const vm = useMemo(
+    () => buildPungsuViewModel(saju, nowYear),
+    [saju, nowYear],
+  );
+  // pungsu_advice.ts#generateSpaceAdvice는 SpaceType 9종 중 5종(침실/거실/부엌/서재/사무실)만
+  // 실제 콘텐츠가 있다 — 나머지는 getDetailedSpaceAdvice가 통용 문구로 대체하므로, 여기서는
+  // 실제 콘텐츠가 있는 항목만 보여준다(고정 SpaceType 목록을 돌리지 않는다).
+  const [selectedSpace, setSelectedSpace] = useState(
+    vm.spaceAdvice[0]?.spaceType,
+  );
+  const space = vm.spaceAdvice.find((s) => s.spaceType === selectedSpace);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+        <SectionCard title="길한 방위">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {vm.luckyDirections.map((d, i) => (
+              <div key={i}>
+                <div style={{ fontFamily: FONT_MONO, fontWeight: 700 }}>
+                  {d.direction}
+                </div>
+                <div style={{ fontSize: FS.small, ...dimText }}>{d.detail}</div>
+                <div style={{ fontSize: FS.caption, ...muteText }}>
+                  {d.tags.join(", ")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+        <SectionCard title="주의할 방위">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {vm.unluckyDirections.map((d, i) => (
+              <div key={i}>
+                <div style={{ fontFamily: FONT_MONO, fontWeight: 700, color: "var(--danger)" }}>
+                  {d.direction}
+                </div>
+                <div style={{ fontSize: FS.small, ...dimText }}>{d.reason}</div>
+                <div style={{ fontSize: FS.caption, ...muteText }}>
+                  피할 배치: {d.avoid.join(", ")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      <SectionCard
+        title="공간별 조언"
+        subtitle={`${vm.yearlyDirections.year}년 길한 방위 ${vm.yearlyDirections.luckyDirection} · 주의 방위 ${vm.yearlyDirections.unluckyDirection}`}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {vm.spaceAdvice.map((s) => (
+            <button
+              key={s.spaceType}
+              onClick={() => setSelectedSpace(s.spaceType)}
+              style={pillBtnStyle(selectedSpace === s.spaceType)}
+            >
+              {s.spaceType}
+            </button>
+          ))}
+        </div>
+        {space && (
+          <div>
+            <div style={{ fontSize: FS.body, marginBottom: 6, ...dimText }}>
+              최적 방향: {space.bestDirection} · {space.layout}
+            </div>
+            <div style={{ fontSize: FS.small, marginBottom: 4, ...muteText }}>
+              색상: {space.colors.join(", ")}
+            </div>
+            <div style={{ fontSize: FS.small, marginBottom: 4, ...muteText }}>
+              가구: {space.furniture.join(", ")}
+            </div>
+            {space.plants && (
+              <div style={{ fontSize: FS.small, marginBottom: 4, ...muteText }}>
+                식물: {space.plants.join(", ")}
+              </div>
+            )}
+            <div style={{ fontSize: FS.small, color: "var(--danger)" }}>
+              피할 것: {space.avoid.join(", ")}
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="오행별 인테리어">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14 }}>
+          {vm.elementalDecor.map((e) => (
+            <div key={e.element}>
+              <div
+                style={{
+                  fontFamily: FONT_MYEONGJO,
+                  fontWeight: 700,
+                  color: elementColor(e.element, dark),
+                  marginBottom: 4,
+                }}
+              >
+                {e.element}
+              </div>
+              <div style={{ fontSize: FS.caption, ...dimText }}>
+                {e.colors.join(", ")}
+              </div>
+              <div style={{ fontSize: FS.caption, ...muteText }}>
+                {e.items.join(", ")}
+              </div>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="종합 조언">
+        <BulletList items={vm.generalAdvice.priority} tone="positive" />
+        <BulletList items={vm.generalAdvice.warnings} tone="negative" />
+        <BulletList items={vm.generalAdvice.enhancements} />
+      </SectionCard>
     </div>
   );
 }
@@ -1000,6 +1473,195 @@ function CareerTab({ vm, dark }: { vm: ReadingVM; dark: boolean }) {
         </div>
         <div style={{ fontSize: FS.small, marginTop: 14, ...muteText }}>
           창업 적성: {career.careerAdvice.entrepreneurship}
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+// ── 오늘 탭 ────────────────────────────────────────────────────────────
+
+/** dayOffset(0=오늘, -1=어제, +1=내일)만큼 옮긴 로컬 자정 Date. */
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function TodayTab({ saju }: { saju: SajuData }) {
+  const [dayOffset, setDayOffset] = useState(0);
+
+  // buildReadingViewModel과 달리 탭이 선택됐을 때만, dayOffset이 바뀔 때만 다시 계산한다 —
+  // analyzeIljin·getDailyFortune·getDailySiUn을 매 렌더 다시 부르지 않는다.
+  const vm = useMemo(
+    () => buildTodayViewModel(saju, addDays(new Date(), dayOffset)),
+    [saju, dayOffset],
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      <SectionCard
+        title={`${vm.dayPillar}일 · ${vm.ratingLabel}`}
+        subtitle={vm.dateLabel}
+        titleRight={
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setDayOffset((v) => v - 1)}
+              style={pillBtnStyle(false)}
+            >
+              ← 어제
+            </button>
+            <button
+              onClick={() => setDayOffset(0)}
+              style={pillBtnStyle(dayOffset === 0)}
+            >
+              오늘
+            </button>
+            <button
+              onClick={() => setDayOffset((v) => v + 1)}
+              style={pillBtnStyle(false)}
+            >
+              내일 →
+            </button>
+          </div>
+        }
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            gap: 12,
+            marginBottom: 16,
+          }}
+        >
+          {vm.scores.map((s) => (
+            <ScoreBar key={s.label} label={s.label} score={s.score} />
+          ))}
+        </div>
+        <div style={{ fontSize: FS.body, lineHeight: 1.75, ...dimText }}>
+          {vm.dailyAdvice}
+        </div>
+        <div style={{ fontSize: FS.small, marginTop: 8, ...muteText }}>
+          {vm.twelveGodLabel} · {vm.twelveGodDescription}
+        </div>
+        <div style={{ fontSize: FS.small, marginTop: 4, ...muteText }}>
+          {vm.relationDescription}
+        </div>
+        {vm.specialMeaning && (
+          <div style={{ fontSize: FS.small, marginTop: 4, color: "var(--fg)" }}>
+            ✦ {vm.specialMeaning}
+          </div>
+        )}
+        <div style={{ fontSize: FS.small, marginTop: 12, ...muteText }}>
+          길한 방향: {vm.luckyDirection} · 행운의 색: {vm.luckyColor}
+        </div>
+      </SectionCard>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+        <SectionCard title="길한 시간대">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {vm.luckyHours.map((h, i) => (
+              <div key={i} style={{ fontSize: FS.body, ...dimText }}>
+                {h.hour} — {h.reason}
+              </div>
+            ))}
+            {vm.luckyHours.length === 0 && (
+              <div style={{ fontSize: FS.small, ...muteText }}>
+                오늘은 특별히 길한 시간대가 없습니다.
+              </div>
+            )}
+          </div>
+        </SectionCard>
+        <SectionCard title="주의할 시간대">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {vm.cautiousHours.map((h, i) => (
+              <div key={i} style={{ fontSize: FS.body, color: "var(--danger)" }}>
+                {h.hour} — {h.reason}
+              </div>
+            ))}
+            {vm.cautiousHours.length === 0 && (
+              <div style={{ fontSize: FS.small, ...muteText }}>
+                오늘은 특별히 주의할 시간대가 없습니다.
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      </div>
+
+      <SectionCard title="적합한 활동 · 피해야 할 활동">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+          {vm.suitableActivities.map((a, i) => (
+            <span key={`s-${i}`} style={pillBtnStyle(true)}>
+              {a}
+            </span>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {vm.unsuitableActivities.map((a, i) => (
+            <span key={`u-${i}`} style={pillBtnStyle(true, "var(--danger)")}>
+              {a}
+            </span>
+          ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="운세 항목별">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+          }}
+        >
+          {vm.aspects.map((a) => (
+            <div key={a.label} style={{ fontSize: FS.small, ...dimText }}>
+              <span style={{ ...muteText }}>{a.label}:</span> {a.text}
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="오늘의 12시진">
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            overflowX: "auto",
+            paddingBottom: 4,
+          }}
+        >
+          {vm.hours.map((h, i) => (
+            <div
+              key={i}
+              style={{
+                flex: "0 0 132px",
+                border: `1px solid ${h.isNow ? "var(--fg)" : "var(--line)"}`,
+                borderRadius: 4,
+                padding: "10px 12px",
+                background: h.isNow
+                  ? "color-mix(in srgb, var(--fg) 8%, transparent)"
+                  : "transparent",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: FONT_MONO,
+                  fontSize: FS.small,
+                  fontWeight: h.isNow ? 700 : 400,
+                }}
+              >
+                {h.branchName} {h.hourRange}
+              </div>
+              <div style={{ fontSize: FS.caption, marginTop: 4, ...muteText }}>
+                {h.ganjiName}
+              </div>
+              {h.luckyActivity && (
+                <div style={{ fontSize: FS.caption, marginTop: 4, ...dimText }}>
+                  추천: {h.luckyActivity}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </SectionCard>
     </div>
