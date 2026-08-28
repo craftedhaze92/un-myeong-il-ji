@@ -5,6 +5,7 @@
 
 import type { EarthlyBranch, HeavenlyStem, WuXing, YinYang } from '../types/index';
 import { HEAVENLY_STEMS } from './heavenly_stems';
+import { josa } from '../lib/korean';
 
 export interface EarthlyBranchData {
   korean: EarthlyBranch;
@@ -299,7 +300,7 @@ export function analyzeBranchRelations(branches: EarthlyBranch[]): {
 
   let summary = '';
   if (samHap.type) {
-    summary += `${samHap.type}이 형성되어 ${samHap.element} 기운이 강화됩니다. `;
+    summary += `${josa(samHap.type, "이/가")} 형성되어 ${samHap.element} 기운이 강화됩니다. `;
   }
   if (samHyeong.length > 0) {
     summary += `${samHyeong.join(', ')} 형벌 관계가 있어 갈등이 있을 수 있습니다. `;
@@ -368,7 +369,12 @@ export function calculateJiJangGanStrength(
 
   // 지지와 월령의 관계로 세력 결정
   const branchIndex = EARTHLY_BRANCHES.findIndex((b) => b.korean === branch);
-  const monthDiff = (monthIndex - branchIndex + 12) % 12;
+  // monthIndex는 saju.ts#getPreciseSolarTermMonthIndex가 주는 "인(寅)월=0" 기준인데
+  // EARTHLY_BRANCHES는 "자(子)=0" 기준이라 그대로 빼면 2칸 어긋난다. saju.ts:240의
+  // `(monthIndex + 2) % 12`와 같은 보정을 적용해야 "지금 이 달의 지지"가 당령(monthDiff=0)으로
+  // 잡힌다 — 보정 전에는 당령이어야 할 달도 "먼 시기"로 떨어져 지장간 세력이 과소 계상됐다.
+  const currentMonthBranchIndex = (monthIndex + 2) % 12;
+  const monthDiff = (currentMonthBranchIndex - branchIndex + 12) % 12;
 
   let primaryStrength = 70; // 기본 정기 세력
   let secondaryStrength = 20; // 기본 중기 세력
@@ -468,7 +474,7 @@ export function checkWolRyeong(
   if (generationMap[primaryElement] === dayStemElement) {
     return {
       isDeukRyeong: true,
-      reason: `월지 ${primaryElement}이(가) 일간 ${dayStemElement}을(를) 생하므로 득령입니다`,
+      reason: `월지 ${josa(primaryElement, "이/가")} 일간 ${josa(dayStemElement, "을/를")} 생하므로 득령입니다`,
       strength: 'medium',
     };
   }
@@ -485,7 +491,7 @@ export function checkWolRyeong(
   if (destructionMap[primaryElement] === dayStemElement) {
     return {
       isDeukRyeong: false,
-      reason: `월지 ${primaryElement}이(가) 일간 ${dayStemElement}을(를) 극하므로 실령입니다`,
+      reason: `월지 ${josa(primaryElement, "이/가")} 일간 ${josa(dayStemElement, "을/를")} 극하므로 실령입니다`,
       strength: 'weak',
     };
   }

@@ -110,6 +110,22 @@ export const FORTUNE_RATINGS = {
 } as const;
 
 /**
+ * 운세 등급(대길/길/평/흉/대흉)을 "~한 해입니다" 같은 서술문에 자연스럽게
+ * 넣기 위한 수식어. 등급 문자열을 그대로 어미 앞에 붙이면 "평한 해입니다"처럼
+ * 문법이 깨지므로, 문장 조립 시에는 등급 대신 이 라벨을 사용한다.
+ */
+export const FORTUNE_OVERALL_LABEL: Record<
+  (typeof FORTUNE_RATINGS)[keyof typeof FORTUNE_RATINGS],
+  string
+> = {
+  대길: '매우 좋은',
+  길: '좋은',
+  평: '무난한',
+  흉: '어려운',
+  대흉: '매우 어려운',
+};
+
+/**
  * 일진 등급
  */
 export const DAY_RATINGS = {

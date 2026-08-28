@@ -92,6 +92,54 @@ export const TEN_GODS_DATA: Record<TenGod, TenGodData> = {
 };
 
 /**
+ * 특정 기간(세운·월운·대운)이 4대 영역(직업·재물·건강·인간관계)에 미치는 영향.
+ * 점수에 더하는 델타이며, 범위 자체에 의미는 없고 방향(+/-)과 상대적 크기만 의미가 있다.
+ */
+export interface TenGodDomainDelta {
+  career: number;
+  wealth: number;
+  health: number;
+  relationship: number;
+}
+
+/**
+ * 육친(십성 카테고리)이 상징하는 영역에 근거한 가중치. 무작위 요소 없음 — 같은
+ * (일간, 기간 천간) 조합은 항상 같은 델타를 낸다.
+ *
+ * 근거(명리학 육친 대응):
+ * - wealth(재성=내가 극하는 오행): 재물과 직결. 다만 재다신약(재성이 많아 일간이
+ *   힘을 뺏김)이 되기 쉬워 건강엔 부담.
+ * - power(관성=나를 극하는 오행): 직업·명예·조직 생활을 상징. 편관(칠살)은
+ *   일간을 강하게 극하므로 명리 질병론에서도 건강 부담이 가장 크게 다뤄진다.
+ * - output(식상=내가 생하는 오행): 활동력·표현력·사업 수완. 식상생재(재물로
+ *   이어짐)가 있으나 일간의 기운을 설기(소모)하므로 건강엔 약간 부담.
+ * - resource(인성=나를 생하는 오행): 일간을 생조하는 자양분 — 명리학에서
+ *   "일간의 생명력이 근간"이라 보는 만큼 건강에 가장 크게 기여.
+ * - self(비겁=일간과 같은 오행): 형제·동료·경쟁 관계. 체력을 보태주지만
+ *   군겁쟁재(비겁이 재성을 나눠 가짐)로 재물엔 불리.
+ */
+const CATEGORY_DOMAIN_DELTA: Record<TenGodData['category'], TenGodDomainDelta> = {
+  wealth: { career: 5, wealth: 15, health: -6, relationship: 5 },
+  power: { career: 15, wealth: 2, health: -10, relationship: 6 },
+  output: { career: 10, wealth: 6, health: -6, relationship: 4 },
+  resource: { career: 4, wealth: -4, health: 14, relationship: -2 },
+  self: { career: -4, wealth: -10, health: 8, relationship: 10 },
+};
+
+/**
+ * 세운·월운·대운의 천간이 일간 기준 어떤 십성에 해당하는지 보고 4대 영역 델타를 구한다.
+ * `Math.random()`이나 문자열 해시 같은 무작위 요소 없이, 실제 십성-육친 대응에서
+ * 결정론적으로 유도된다.
+ */
+export function getTenGodDomainDelta(
+  dayStem: HeavenlyStem,
+  periodStem: HeavenlyStem
+): TenGodDomainDelta {
+  const tenGod = calculateTenGod(dayStem, periodStem);
+  return CATEGORY_DOMAIN_DELTA[TEN_GODS_DATA[tenGod].category];
+}
+
+/**
  * 일간과 대상 천간을 비교하여 십성 판단
  */
 export function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem): TenGod {
@@ -140,7 +188,10 @@ export function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem)
 /**
  * 사주 전체의 십성 분포 계산 (지장간 세력 반영)
  */
-export function calculateTenGodsDistribution(sajuData: SajuData): Record<TenGod, number> {
+export function calculateTenGodsDistribution(
+  sajuData: SajuData,
+  options?: { includeDayMaster?: boolean },
+): Record<TenGod, number> {
   const distribution: Record<TenGod, number> = {
     비견: 0,
     겁재: 0,
@@ -155,19 +206,32 @@ export function calculateTenGodsDistribution(sajuData: SajuData): Record<TenGod,
   };
 
   const dayStem = sajuData.day.stem;
+  // 기본값 false = 기존 동작(일간 자신과 일간과 같은 천간은 분포에서 제외) 그대로 유지.
+  // true로 넘기면 일간 슬롯·동일 천간도 비견으로 잡는다 — 오행 파이차트처럼 8글자(또는
+  // 7글자) 전체를 분모로 삼아야 하는 화면에서 쓴다.
+  const includeDayMaster = options?.includeDayMaster ?? false;
 
-  // 연주, 월주, 시주의 천간 (일주 제외)
-  const stems = [sajuData.year.stem, sajuData.month.stem, sajuData.hour.stem];
+  // 연주, 월주, 시주의 천간 (일주 제외). 시간 미상이면 시주는 표시용으로만 계산된
+  // 가짜 값이므로 분포에서 뺀다.
+  const stems = sajuData.unknownHour
+    ? [sajuData.year.stem, sajuData.month.stem]
+    : [sajuData.year.stem, sajuData.month.stem, sajuData.hour.stem];
 
   stems.forEach((stem) => {
-    if (stem !== dayStem) {
-      // 일간과 다른 천간만 계산
+    if (stem !== dayStem || includeDayMaster) {
+      // 일간과 다른 천간만 계산 (includeDayMaster면 같아도 비견으로 집계)
       const tenGod = calculateTenGod(dayStem, stem);
       distribution[tenGod]++;
     }
   });
+  if (includeDayMaster) {
+    // 일주 천간 자신 — 일간과 일간의 관계는 정의상 비견
+    distribution.비견++;
+  }
 
-  // 지장간 세력을 직접 반영
+  // 지장간 세력을 직접 반영. jiJangGan.hour는 unknownHour일 때 saju.ts에서
+  // 애초에 undefined로 비워두므로 아래 forEach의 `if (!jiJangGan) return`이
+  // 자동으로 시주를 건너뛴다.
   if (sajuData.jiJangGan) {
     const pillars = ['year', 'month', 'day', 'hour'] as const;
 
@@ -176,36 +240,38 @@ export function calculateTenGodsDistribution(sajuData: SajuData): Record<TenGod,
       if (!jiJangGan) return;
 
       // 정기(正氣) - 주 지장간
-      if (jiJangGan.primary && jiJangGan.primary.stem !== dayStem) {
+      if (jiJangGan.primary && (jiJangGan.primary.stem !== dayStem || includeDayMaster)) {
         const tenGod = calculateTenGod(dayStem, jiJangGan.primary.stem);
         // 세력을 백분율로 변환하여 가중치로 사용 (0-1 범위)
         distribution[tenGod] += jiJangGan.primary.strength / 100;
       }
 
       // 중기(中氣) - 보조 지장간
-      if (jiJangGan.secondary && jiJangGan.secondary.stem !== dayStem) {
+      if (jiJangGan.secondary && (jiJangGan.secondary.stem !== dayStem || includeDayMaster)) {
         const tenGod = calculateTenGod(dayStem, jiJangGan.secondary.stem);
         distribution[tenGod] += jiJangGan.secondary.strength / 100;
       }
 
       // 여기(餘氣) - 잔여 지장간
-      if (jiJangGan.residual && jiJangGan.residual.stem !== dayStem) {
+      if (jiJangGan.residual && (jiJangGan.residual.stem !== dayStem || includeDayMaster)) {
         const tenGod = calculateTenGod(dayStem, jiJangGan.residual.stem);
         distribution[tenGod] += jiJangGan.residual.strength / 100;
       }
     });
   } else {
     // 지장간 정보가 없을 경우 기존 방식 (0.5 가중치)
-    const branches = [
-      sajuData.year.branch,
-      sajuData.month.branch,
-      sajuData.day.branch,
-      sajuData.hour.branch,
-    ];
+    const branches = sajuData.unknownHour
+      ? [sajuData.year.branch, sajuData.month.branch, sajuData.day.branch]
+      : [
+          sajuData.year.branch,
+          sajuData.month.branch,
+          sajuData.day.branch,
+          sajuData.hour.branch,
+        ];
 
     branches.forEach((branch) => {
       const branchStem = mapBranchToStem(branch);
-      if (branchStem && branchStem !== dayStem) {
+      if (branchStem && (branchStem !== dayStem || includeDayMaster)) {
         const tenGod = calculateTenGod(dayStem, branchStem);
         distribution[tenGod] += 0.5;
       }
@@ -261,11 +327,13 @@ export function generateTenGodsList(sajuData: SajuData): TenGod[] {
   // 일주 천간 (자기 자신이므로 비견)
   tenGods.push('비견');
 
-  // 시주 천간
-  if (sajuData.hour.stem !== dayStem) {
-    tenGods.push(calculateTenGod(dayStem, sajuData.hour.stem));
-  } else {
-    tenGods.push('비견');
+  // 시주 천간 (시간 미상이면 가짜 시주이므로 목록에서 뺀다)
+  if (!sajuData.unknownHour) {
+    if (sajuData.hour.stem !== dayStem) {
+      tenGods.push(calculateTenGod(dayStem, sajuData.hour.stem));
+    } else {
+      tenGods.push('비견');
+    }
   }
 
   // 지지는 생략 또는 간단히 추가 가능
@@ -284,24 +352,6 @@ function getIntensity(count: number): 'very_strong' | 'strong' | 'moderate' | 'w
 }
 
 /**
- * 강도에 따른 수식어 반환
- */
-function getIntensityModifier(intensity: 'very_strong' | 'strong' | 'moderate' | 'weak' | 'very_weak'): string {
-  switch (intensity) {
-    case 'very_strong':
-      return '매우 강한';
-    case 'strong':
-      return '강한';
-    case 'moderate':
-      return '적당한';
-    case 'weak':
-      return '약간의';
-    case 'very_weak':
-      return '매우 약한';
-  }
-}
-
-/**
  * 십성별 의미 해석 (연속적 범위 반영)
  */
 export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpretation {
@@ -309,13 +359,12 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
   const weaknesses: string[] = [];
   const advice: string[] = [];
   const intensity = getIntensity(count);
-  const modifier = getIntensityModifier(intensity);
 
   // 십성별 해석
   switch (tenGod) {
     case '비견':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 자립심과 독립성을 가지고 있습니다`);
+        strengths.push(`자립심과 독립성을 가지고 있습니다`);
         if (count >= 3) {
           strengths.push('강력한 목표 지향성과 끈기가 있습니다');
           weaknesses.push('고집이 매우 세고 타협을 어려워할 수 있습니다');
@@ -326,7 +375,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('협력과 타협의 중요성을 인식하세요');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 자존심과 자립심이 있습니다`);
+        strengths.push(`자존심과 자립심이 있습니다`);
         advice.push('자신감을 유지하며 타인과 균형있게 지내세요');
       } else {
         weaknesses.push('의지력이나 추진력이 약할 수 있습니다');
@@ -336,7 +385,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
 
     case '겁재':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 협력과 팀워크 능력이 있습니다`);
+        strengths.push(`협력과 팀워크 능력이 있습니다`);
         if (count >= 3) {
           weaknesses.push('재물 손실이나 과도한 경쟁 상황에 주의가 필요합니다');
           advice.push('재물 관리에 매우 신중하고 경쟁보다는 협력을 택하세요');
@@ -345,13 +394,13 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('재물 관리에 신중하고 경쟁보다는 협력을 택하세요');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 경쟁심과 협력심이 있습니다`);
+        strengths.push(`경쟁심과 협력심이 있습니다`);
       }
       break;
 
     case '식신':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 창의력과 예술적 재능이 있습니다`);
+        strengths.push(`창의력과 예술적 재능이 있습니다`);
         if (count >= 3) {
           strengths.push('매우 여유롭고 낙천적인 성격입니다');
           advice.push('창작 활동이나 서비스업에서 뛰어난 재능을 발휘할 수 있습니다');
@@ -360,7 +409,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('창작 활동이나 서비스업에 적합합니다');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 표현력과 창의성이 있습니다`);
+        strengths.push(`표현력과 창의성이 있습니다`);
       } else {
         weaknesses.push('창의력이나 표현력이 부족할 수 있습니다');
         advice.push('예술이나 취미 활동을 통해 표현력을 키우세요');
@@ -369,7 +418,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
 
     case '상관':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 재능과 비판적 사고력이 있습니다`);
+        strengths.push(`재능과 비판적 사고력이 있습니다`);
         if (count >= 3) {
           strengths.push('매우 개혁적이고 자유로운 사고를 합니다');
           weaknesses.push('권위에 매우 반항적이거나 비판적일 수 있습니다');
@@ -380,13 +429,13 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('재능을 긍정적으로 활용하고 조화를 추구하세요');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 비판력과 개혁 성향이 있습니다`);
+        strengths.push(`비판력과 개혁 성향이 있습니다`);
       }
       break;
 
     case '편재':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 사교적이고 활동적인 재물운이 있습니다`);
+        strengths.push(`사교적이고 활동적인 재물운이 있습니다`);
         if (count >= 3) {
           strengths.push('매우 다양한 사업 기회를 만들 수 있습니다');
           advice.push('사업이나 영업직에서 탁월한 능력을 발휘할 수 있습니다');
@@ -395,7 +444,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('사업이나 영업직에 적합합니다');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 재물운과 사교성이 있습니다`);
+        strengths.push(`재물운과 사교성이 있습니다`);
       } else {
         weaknesses.push('재물운이 약하거나 소극적일 수 있습니다');
         advice.push('적극적인 재물 활동을 하세요');
@@ -404,7 +453,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
 
     case '정재':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 성실하고 근면한 재물 관리 능력이 있습니다`);
+        strengths.push(`성실하고 근면한 재물 관리 능력이 있습니다`);
         if (count >= 3) {
           strengths.push('매우 안정적인 수입원을 확보합니다');
           advice.push('정직하고 꾸준한 직업에서 큰 성공을 거둘 수 있습니다');
@@ -413,13 +462,13 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('정직하고 꾸준한 직업이 유리합니다');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 균형잡힌 재물운이 있습니다`);
+        strengths.push(`균형잡힌 재물운이 있습니다`);
       }
       break;
 
     case '편관':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 추진력과 결단력이 있습니다`);
+        strengths.push(`추진력과 결단력이 있습니다`);
         if (count >= 3) {
           weaknesses.push('과도한 스트레스나 압박감이 있을 수 있습니다');
           advice.push('강한 에너지를 긍정적으로 활용하고 휴식과 균형을 유지하세요');
@@ -428,13 +477,13 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('에너지를 긍정적으로 활용하세요');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 권위와 추진력이 있습니다`);
+        strengths.push(`권위와 추진력이 있습니다`);
       }
       break;
 
     case '정관':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 책임감이 있고 질서를 중시합니다`);
+        strengths.push(`책임감이 있고 질서를 중시합니다`);
         if (count >= 3) {
           strengths.push('조직생활에 매우 적합합니다');
           advice.push('공무원이나 대기업 관리직으로 큰 성공을 거둘 수 있습니다');
@@ -443,7 +492,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('공무원이나 대기업 직장인으로 적합합니다');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 책임감과 규율이 있습니다`);
+        strengths.push(`책임감과 규율이 있습니다`);
       } else {
         weaknesses.push('권위나 책임감이 부족할 수 있습니다');
         advice.push('책임감을 기르고 조직 활동에 참여하세요');
@@ -452,7 +501,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
 
     case '편인':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 독창적이고 직관적인 사고를 합니다`);
+        strengths.push(`독창적이고 직관적인 사고를 합니다`);
         if (count >= 3) {
           strengths.push('특수 분야나 종교·철학에 매우 깊은 관심이 있습니다');
           advice.push('전문적이고 독특한 분야에서 탁월한 재능을 발휘할 수 있습니다');
@@ -461,13 +510,13 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('전문적이고 독특한 분야에서 재능을 발휘하세요');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 직관력과 학습력이 있습니다`);
+        strengths.push(`직관력과 학습력이 있습니다`);
       }
       break;
 
     case '정인':
       if (count >= 1.5) {
-        strengths.push(`${modifier} 학문적 재능과 명예운이 있습니다`);
+        strengths.push(`학문적 재능과 명예운이 있습니다`);
         if (count >= 3) {
           strengths.push('보호받고 도움받는 운이 매우 강합니다');
           advice.push('학업이나 연구 분야에서 큰 성공을 거둘 수 있습니다');
@@ -476,7 +525,7 @@ export function interpretTenGod(tenGod: TenGod, count: number): TenGodInterpreta
           advice.push('학업이나 연구 분야에서 성공할 수 있습니다');
         }
       } else if (count >= 0.5) {
-        strengths.push(`${modifier} 학습력과 지혜가 있습니다`);
+        strengths.push(`학습력과 지혜가 있습니다`);
       } else {
         weaknesses.push('학습 의욕이나 보호운이 약할 수 있습니다');
         advice.push('꾸준한 학습과 자기개발을 하세요');

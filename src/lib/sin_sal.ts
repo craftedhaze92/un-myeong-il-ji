@@ -403,13 +403,10 @@ export function findSinSals(sajuData: SajuData): SinSal[] {
   const dayStem = sajuData.day.stem;
   const dayBranch = sajuData.day.branch;
 
-  // 4기둥의 지지 수집
-  const branches: EarthlyBranch[] = [
-    sajuData.year.branch,
-    sajuData.month.branch,
-    sajuData.day.branch,
-    sajuData.hour.branch,
-  ];
+  // 4기둥의 지지 수집. 시간 미상이면 시지는 표시용 가짜 값이므로 신살 판정에서 뺀다.
+  const branches: EarthlyBranch[] = sajuData.unknownHour
+    ? [sajuData.year.branch, sajuData.month.branch, sajuData.day.branch]
+    : [sajuData.year.branch, sajuData.month.branch, sajuData.day.branch, sajuData.hour.branch];
 
   // 천을귀인 체크
   const cheonEulBranches = CHEON_EUL_GWI_IN_TABLE[dayStem];
@@ -478,19 +475,24 @@ function checkWonJinSal(branches: EarthlyBranch[]): boolean {
 }
 
 /**
- * 귀문관살 체크 - 인, 신, 사, 해가 있을 때
+ * 귀문관살 성립 조합 (지지) - 아래 짝 중 하나가 사주 내에 동시에 있으면 성립
+ * 진해(辰亥), 오축(午丑), 사술(巳戌), 묘신(卯申), 인미(寅未), 자유(子酉)
+ */
+const GWI_MUN_GWAN_SAL_PAIRS: [EarthlyBranch, EarthlyBranch][] = [
+  ['진', '해'],
+  ['오', '축'],
+  ['사', '술'],
+  ['묘', '신'],
+  ['인', '미'],
+  ['자', '유'],
+];
+
+/**
+ * 귀문관살 체크 - 위 짝 조합 중 하나라도 지지에 동시에 있을 때
  */
 function checkGwiMunGwanSal(branches: EarthlyBranch[]): boolean {
   const branchSet = new Set(branches);
-  const gwiMunBranches: EarthlyBranch[] = ['인', '신', '사', '해'];
-
-  // 귀문관살 관련 지지가 2개 이상 있으면
-  let count = 0;
-  for (const branch of gwiMunBranches) {
-    if (branchSet.has(branch)) count++;
-  }
-
-  return count >= 2;
+  return GWI_MUN_GWAN_SAL_PAIRS.some(([a, b]) => branchSet.has(a) && branchSet.has(b));
 }
 
 /**
@@ -508,29 +510,44 @@ export function getSinSalInfo(sinSal: SinSal): SinSalInfo {
  */
 export function interpretBySinSal(
   sinSals: SinSal[]
-): { warnings: string[]; blessings: string[]; specialAdvice: string[] } {
+): {
+  /** "이름(한자)" 형태 — 여러 개를 나열하는 문장에 쓴다 */
+  blessingNames: string[];
+  warningNames: string[];
+  /** "이름(한자): 설명" 형태 — 개별 항목을 상세히 보여줄 때 쓴다 */
+  blessings: string[];
+  warnings: string[];
+  specialAdvice: string[];
+} {
   const warnings: string[] = [];
   const blessings: string[] = [];
+  const blessingNames: string[] = [];
+  const warningNames: string[] = [];
   const specialAdvice: string[] = [];
 
   sinSals.forEach((sinSal) => {
     const info = getSinSalInfo(sinSal);
+    const label = `${info.name}(${info.hanja})`;
 
     if (info.type === 'lucky') {
-      blessings.push(`${info.name}(${info.hanja}): ${info.description}`);
+      blessings.push(`${label}: ${info.description}`);
+      blessingNames.push(label);
       specialAdvice.push(...info.advice);
     } else if (info.type === 'unlucky') {
-      warnings.push(`${info.name}(${info.hanja}): ${info.description}`);
+      warnings.push(`${label}: ${info.description}`);
+      warningNames.push(label);
       specialAdvice.push(...info.advice);
     } else {
       // neutral
-      blessings.push(`${info.name}(${info.hanja}): ${info.description}`);
-      warnings.push(`${info.name}의 부정적 측면에 주의하세요`);
+      blessings.push(`${label}: ${info.description}`);
+      blessingNames.push(label);
+      warnings.push(`${label}의 부정적 측면`);
+      warningNames.push(label);
       specialAdvice.push(...info.advice);
     }
   });
 
-  return { warnings, blessings, specialAdvice };
+  return { warnings, blessings, warningNames, blessingNames, specialAdvice };
 }
 
 /**

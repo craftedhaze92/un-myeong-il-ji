@@ -4,6 +4,7 @@
  */
 
 import type { WuXing } from '../types/index';
+import { josa } from '../lib/korean';
 
 export interface WuXingData {
   name: WuXing;
@@ -155,19 +156,19 @@ export function analyzeElementInteraction(from: WuXing, to: WuXing): string {
   }
 
   if (isGenerating(from, to)) {
-    return `${from}이(가) ${to}을(를) 생(生)하는 관계로 긍정적인 영향을 줍니다.`;
+    return `${josa(from, "이/가")} ${josa(to, "을/를")} 생(生)하는 관계로 긍정적인 영향을 줍니다.`;
   }
 
   if (isGenerating(to, from)) {
-    return `${to}이(가) ${from}을(를) 생(生)하는 관계로 도움을 받습니다.`;
+    return `${josa(to, "이/가")} ${josa(from, "을/를")} 생(生)하는 관계로 도움을 받습니다.`;
   }
 
   if (isDestroying(from, to)) {
-    return `${from}이(가) ${to}을(를) 극(克)하는 관계로 부정적인 영향을 줍니다.`;
+    return `${josa(from, "이/가")} ${josa(to, "을/를")} 극(克)하는 관계로 부정적인 영향을 줍니다.`;
   }
 
   if (isDestroying(to, from)) {
-    return `${to}이(가) ${from}을(를) 극(克)하는 관계로 어려움이 있을 수 있습니다.`;
+    return `${josa(to, "이/가")} ${josa(from, "을/를")} 극(克)하는 관계로 어려움이 있을 수 있습니다.`;
   }
 
   return `중립적인 관계입니다.`;

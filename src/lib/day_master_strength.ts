@@ -6,6 +6,13 @@
 import type { SajuData } from '../types/index';
 
 /**
+ * 신강신약 게이지(신약/중화/신강 3구간)의 경계값. 아래 analyzeDayMasterStrength의 레벨 판정
+ * (medium >= 40, strong >= 65)과 반드시 같은 값을 써야 한다 — 게이지 밴드 라벨과
+ * dayMasterStrength.level이 서로 다른 말을 하는 걸 막기 위한 단일 출처.
+ */
+export const STRENGTH_BAND_THRESHOLDS = { weak: 0, medium: 40, strong: 65 } as const;
+
+/**
  * 일간 강약 종합 분석
  *
  * 판단 요소:

@@ -3,7 +3,9 @@
  * 사주팔자의 전체적인 패턴과 틀을 분석
  */
 
-import type { SajuData, TenGod } from '../types/index';
+import type { HeavenlyStem, SajuData, TenGod } from '../types/index';
+import { extractJiJangGan } from '../data/earthly_branches';
+import { calculateTenGod } from './ten_gods';
 
 export type GyeokGuk =
   | 'jeong_gwan'    // 정관격
@@ -323,6 +325,41 @@ const GYEOK_GUK_INFO: Record<GyeokGuk, Omit<GyeokGukAnalysis, 'gyeokGuk'>> = {
 };
 
 /**
+ * 월지 지장간 투출법(通關法) — 정기→중기→여기 순으로 연간·월간·시간(일간 제외) 중
+ * 하나와 같은 천간이 있는지 확인해, 처음 맞는 지장간을 격을 정하는 기준으로 삼는다.
+ * 셋 다 투출하지 않으면 정기(본기)를 그대로 쓴다(無透用本氣) — 전통 자평명리 격국법.
+ *
+ * 예전 구현은 월지를 전혀 보지 않고 sajuData.tenGodsDistribution(사주 전체 십성
+ * 가중합) 최빈값을 그대로 격으로 썼다 — GYEOK_GUK_INFO의 각 설명("정관이 월지에
+ * 투출하여...")과 어긋나는 주석-구현 불일치 버그였다. 예: 일간 辛·월지 巳(정기 丙·
+ * 중기 戊·여기 庚)인데 연간 壬(상관)이 사주 전체에서 가장 많으면 "상관격"을 냈지만,
+ * 월지 지장간 중 어느 것도 투출하지 않으므로 무투용본기 원칙대로 정기 丙(정관) →
+ * "정관격"이 맞다.
+ *
+ * saju.jiJangGan.month(절기 기준 정밀 지장간, 있으면)을 우선 쓰고 없으면
+ * extractJiJangGan의 정적 테이블로 폴백한다 — view-model.ts#primaryHiddenStem과
+ * 같은 패턴.
+ */
+function determineMonthBranchTenGod(sajuData: SajuData): TenGod | null {
+  const monthJiJangGan = sajuData.jiJangGan?.month;
+  const [primary, secondary, residual] = monthJiJangGan
+    ? [monthJiJangGan.primary.stem, monthJiJangGan.secondary?.stem, monthJiJangGan.residual?.stem]
+    : extractJiJangGan(sajuData.month.branch);
+  if (!primary) return null;
+
+  const visibleStems = sajuData.unknownHour
+    ? [sajuData.year.stem, sajuData.month.stem]
+    : [sajuData.year.stem, sajuData.month.stem, sajuData.hour.stem];
+
+  const candidates = [primary, secondary, residual].filter(
+    (s): s is HeavenlyStem => s !== undefined,
+  );
+  const determiningStem = candidates.find((s) => visibleStems.includes(s)) ?? primary;
+
+  return calculateTenGod(sajuData.day.stem, determiningStem);
+}
+
+/**
  * 격국 판단 메인 함수
  */
 export function determineGyeokGuk(sajuData: SajuData): GyeokGukAnalysis {
@@ -335,21 +372,8 @@ export function determineGyeokGuk(sajuData: SajuData): GyeokGukAnalysis {
     };
   }
 
-  // 2. 월지 지장간에서 투출한 십성 확인
-  // 월지의 정기(주기)로 십성 판단
-  let dominantTenGod: TenGod | null = null;
-
-  // 십성 분포에서 가장 많은 십성 찾기
-  if (sajuData.tenGodsDistribution) {
-    const tenGodEntries = Object.entries(sajuData.tenGodsDistribution) as [TenGod, number][];
-    const sortedTenGods = tenGodEntries
-      .filter(([_, count]) => count > 0)
-      .sort((a, b) => b[1] - a[1]);
-
-    if (sortedTenGods.length > 0 && sortedTenGods[0]) {
-      dominantTenGod = sortedTenGods[0][0];
-    }
-  }
+  // 2. 월지 지장간 투출법으로 격을 정하는 십성 확인
+  const dominantTenGod = determineMonthBranchTenGod(sajuData);
 
   // 3. 십성별 격국 매핑
   const gyeokGuk = mapTenGodToGyeokGuk(dominantTenGod);
