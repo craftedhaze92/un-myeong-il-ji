@@ -93,6 +93,75 @@ describe('대운 지지 십성도 명식 카드와 같은 지장간 본기 기�
   });
 });
 
+describe('대운별 세운(luck[i].seun)이 그 대운의 정확한 10년치를 담는다 — result-panel.tsx가 대운 클릭 시 이 목록으로 세운 띠를 갈아 끼운다', () => {
+  // saju.solarBirthDate = '1990-01-01' → birthYear 1990. 대운 startAge/endAge를 실제 연도로
+  // 환산하면(birthYear + age) 이 구간엔 nowYear(2024)가 들어있지 않아야 한다.
+  const daeUn = [
+    {
+      startAge: 10,
+      endAge: 19,
+      stem: '병' as const,
+      branch: '자' as const,
+      stemElement: '화' as const,
+      branchElement: '수' as const,
+      pillarIndex: 0,
+    },
+  ];
+  const vm = buildSajuViewModel({
+    name: '',
+    saju,
+    daeUn,
+    hasHour: true,
+    gender: 'male',
+    dark: true,
+    nowYear: 2024,
+  });
+
+  it('endAge가 대운 구간 그대로 담긴다', () => {
+    expect(vm.luck[0]!.endAge).toBe(19);
+  });
+
+  it('seun은 startAge~endAge에 해당하는 10년(2000~2009)이다', () => {
+    expect(vm.luck[0]!.seun.length).toBe(10);
+    expect(vm.luck[0]!.seun[0]!.year).toBe(2000);
+    expect(vm.luck[0]!.seun.at(-1)!.year).toBe(2009);
+  });
+
+  it('이 구간엔 실제 올해(2024)가 없으므로 어떤 칸도 current로 표시되지 않는다 — "현재" 표시가 엉뚱한 대운의 세운으로 새던 회귀 가드', () => {
+    expect(vm.luck[0]!.seun.every((s) => !s.current)).toBe(true);
+  });
+});
+
+describe('대운 구간이 실제 올해를 포함하면 그 해만 세운에서 current로 표시된다', () => {
+  // startAge 30~39 → 1990 + 30~39 = 2020~2029, nowYear(2024) 포함.
+  const daeUn = [
+    {
+      startAge: 30,
+      endAge: 39,
+      stem: '병' as const,
+      branch: '자' as const,
+      stemElement: '화' as const,
+      branchElement: '수' as const,
+      pillarIndex: 0,
+    },
+  ];
+  const vm = buildSajuViewModel({
+    name: '',
+    saju,
+    daeUn,
+    hasHour: true,
+    gender: 'male',
+    dark: true,
+    nowYear: 2024,
+  });
+
+  it('2024년 칸만 current이고 나머지 9개는 아니다', () => {
+    const seun = vm.luck[0]!.seun;
+    const currentYears = seun.filter((s) => s.current).map((s) => s.year);
+    expect(currentYears).toEqual([2024]);
+  });
+});
+
 describe('오행 오각형 — 노드 5개, 상생 화살표 5개, 상극 화살표 5개', () => {
   const vm = buildSajuViewModel({
     name: '',

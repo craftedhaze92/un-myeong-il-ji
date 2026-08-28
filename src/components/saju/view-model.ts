@@ -147,12 +147,15 @@ export interface GanjiCellVM {
 export interface LuckVM extends GanjiCellVM {
   age: string;
   startAge: number;
+  endAge: number;
   gz: string;
   color: string;
   bg: string;
   line: string;
   bar: string;
   current: boolean;
+  /** 이 대운 10년치 세운 — result-panel.tsx가 대운 칸 클릭 시 이 목록으로 세운 띠를 갈아 끼운다. */
+  seun: SeunCellVM[];
 }
 
 export interface SeunCellVM extends GanjiCellVM {
@@ -172,7 +175,6 @@ export interface SajuViewModel {
   strengthGauge: StrengthGaugeVM | null;
   sinsal: SinSalVM[];
   luck: LuckVM[];
-  seun: SeunCellVM[];
   colCount: number;
   myColor: string;
   headline: string;
@@ -497,15 +499,20 @@ function buildGanjiCell(
   };
 }
 
+/**
+ * startYear~endYear(포함) 구간의 세운 칸을 만든다. nowYear는 그중 "실제 올해"가 몇 년인지
+ * 표시하는 기준일 뿐 구간 자체와는 무관하다 — buildSajuViewModel이 대운 구간별로 이 함수를
+ * 호출하므로, 구간이 실제 올해를 포함하지 않으면 어떤 칸도 current로 표시되지 않는다.
+ */
 function buildSeunCells(
   saju: SajuData,
+  startYear: number,
+  endYear: number,
   nowYear: number,
   dark: boolean,
-  pastYears: number,
-  futureYears: number,
 ): SeunCellVM[] {
   const years: number[] = [];
-  for (let y = nowYear - pastYears; y <= nowYear + futureYears; y++) years.push(y);
+  for (let y = startYear; y <= endYear; y++) years.push(y);
 
   return years.map((year) => {
     const { stem, branch } = getYearGanJi(year);
@@ -643,17 +650,23 @@ export function buildSajuViewModel({
       ...cell,
       age: `${period.startAge}–${period.endAge}`,
       startAge: period.startAge,
+      endAge: period.endAge,
       gz: `${cell.stem.ch}${cell.branch.ch}`,
       color: current ? hex : "var(--dim, rgba(237,231,219,0.55))",
       bg: current ? rgba(hex, dark ? 0.14 : 0.12) : "transparent",
       line: current ? rgba(hex, 0.45) : "var(--line, rgba(237,231,219,0.1))",
       bar: current ? hex : "var(--track, rgba(237,231,219,0.08))",
       current,
+      seun: buildSeunCells(
+        saju,
+        birthYear + period.startAge,
+        birthYear + period.endAge,
+        nowYear,
+        dark,
+      ),
     };
   });
   const curLuck = luck.find((l) => l.current);
-
-  const seun = buildSeunCells(saju, nowYear, dark, 2, 6);
 
   const myColor = elementColor(saju.day.stemElement, dark);
 
@@ -675,7 +688,6 @@ export function buildSajuViewModel({
     strengthGauge,
     sinsal,
     luck,
-    seun,
     colCount: pillars.length,
     myColor,
     headline: name.trim(),

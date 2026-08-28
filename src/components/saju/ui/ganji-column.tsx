@@ -8,16 +8,35 @@ export interface GanjiColumnProps {
   current: boolean;
   /** 현재 구간 강조에 쓸 색 (오행 고유색) */
   accentColor: string;
+  /** 클릭 가능하게 하려면 넘긴다 — result-panel.tsx의 대운 띠처럼 사용자가 구간을 고를 때만. */
+  onClick?: () => void;
+  /** onClick과 함께 써서 "지금 보고 있는" 구간을 아웃라인으로 표시한다 (current와는 별개 개념). */
+  selected?: boolean;
 }
 
 /**
  * 대운·세운이 공유하는 칸 — 위에서부터
  * [나이/연도] → [천간 십성] → [천간] → [지지] → [지지 십성] → [십이운성] → [십이신살].
  * result-panel.tsx의 대운 띠·세운 띠가 이 컴포넌트를 그대로 반복해 쓴다.
+ *
+ * 루트는 항상 button이다 — onClick을 안 넘기면 그냥 클릭해도 아무 일 없는 표시 전용 칸이 된다
+ * (div/button 분기 대신 이 방식을 택해 태그별 prop 타입 불일치를 피했다). 클릭 불가능한 인스턴스는
+ * tabIndex=-1로 탭 순서에서 뺀다.
  */
-export function GanjiColumn({ topLabel, cell, current, accentColor }: GanjiColumnProps) {
+export function GanjiColumn({
+  topLabel,
+  cell,
+  current,
+  accentColor,
+  onClick,
+  selected,
+}: GanjiColumnProps) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={onClick ? selected : undefined}
+      tabIndex={onClick ? undefined : -1}
       style={{
         flex: "0 0 108px",
         display: "flex",
@@ -27,7 +46,10 @@ export function GanjiColumn({ topLabel, cell, current, accentColor }: GanjiColum
         padding: "12px 8px 14px",
         borderRadius: 4,
         border: current ? `1px dashed ${accentColor}` : "1px solid var(--line)",
+        outline: selected ? "2px solid var(--fg)" : "none",
+        outlineOffset: -2,
         background: current ? `color-mix(in srgb, ${accentColor} 10%, transparent)` : "transparent",
+        cursor: onClick ? "pointer" : "default",
       }}
     >
       <div
@@ -60,7 +82,7 @@ export function GanjiColumn({ topLabel, cell, current, accentColor }: GanjiColum
         </span>
         <span style={{ fontSize: FS.micro, color: "var(--mute)" }}>{cell.sinsal}</span>
       </div>
-    </div>
+    </button>
   );
 }
 

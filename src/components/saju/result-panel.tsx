@@ -42,6 +42,13 @@ export function ResultPanel({ viewModel, sinsalDetails, onReset }: ResultPanelPr
     return () => observer.disconnect();
   }, []);
 
+  // 대운 띠에서 클릭한 구간 — 세운 띠는 이 구간의 10년을 그대로 보여준다. 기본값은 현재 대운.
+  const [selectedStartAge, setSelectedStartAge] = useState(
+    viewModel.luck.find((l) => l.current)?.startAge ?? viewModel.luck[0]?.startAge ?? 0,
+  );
+  const selectedLuck =
+    viewModel.luck.find((l) => l.startAge === selectedStartAge) ?? viewModel.luck[0];
+
   return (
     <section style={{ width: "100%", maxWidth: 1100 }}>
       <div
@@ -715,6 +722,8 @@ export function ResultPanel({ viewModel, sinsalDetails, onReset }: ResultPanelPr
               topLabel={String(l.startAge)}
               cell={l}
               current={l.current}
+              selected={l.startAge === selectedStartAge}
+              onClick={() => setSelectedStartAge(l.startAge)}
               accentColor={l.color}
             />
           ))}
@@ -765,6 +774,19 @@ export function ResultPanel({ viewModel, sinsalDetails, onReset }: ResultPanelPr
           >
             세운 — 올해를 중심으로
           </h2>
+          {selectedLuck && (
+            <span
+              style={{
+                fontFamily: FONT_MONO,
+                fontSize: FS.body,
+                letterSpacing: "0.12em",
+                color: "var(--dim)",
+              }}
+            >
+              {selectedLuck.gz} 대운 · {selectedLuck.startAge}–{selectedLuck.endAge}세 ·{" "}
+              {selectedLuck.seun[0]?.year}–{selectedLuck.seun.at(-1)?.year}년
+            </span>
+          )}
         </div>
         <div
           className={styles.luckScroll}
@@ -775,7 +797,7 @@ export function ResultPanel({ viewModel, sinsalDetails, onReset }: ResultPanelPr
             paddingBottom: 12,
           }}
         >
-          {viewModel.seun.map((s, i) => (
+          {(selectedLuck?.seun ?? []).map((s, i) => (
             <GanjiColumn
               key={i}
               topLabel={String(s.year)}
