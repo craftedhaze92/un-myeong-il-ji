@@ -9,6 +9,7 @@ export * from './calendar';
 // 공통 유틸리티
 export * from './constants';
 export * from './helpers';
+export * from './korean'; // 조사(이/가, 을/를 등) 처리
 
 // 새로운 추가 기능
 export * from './daeun_analysis'; // 대운 (10년 운세)
