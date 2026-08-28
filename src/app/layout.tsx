@@ -16,6 +16,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "운명일지",
   description: "사주팔자 만세력 및 운세 서비스",
+  openGraph: {
+    title: "운명일지",
+    description: "사주팔자 만세력 및 운세 서비스",
+    url: "/",
+    siteName: "운명일지",
+    images: [{ url: "/unmyeongilji_img_512x512.png", width: 512, height: 512 }],
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "운명일지",
+    description: "사주팔자 만세력 및 운세 서비스",
+    images: ["/unmyeongilji_img_512x512.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
