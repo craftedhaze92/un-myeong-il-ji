@@ -8,6 +8,7 @@ import type { SajuData, WuXing } from '../types/index';
 import { analyzeSeyun } from './seyun_analysis';
 import { analyzeWolun } from './wolun_analysis';
 import { getDaeunByYear, analyzeDaeun, type DaeunAnalysis } from './daeun_analysis';
+import { josa } from './korean';
 
 /**
  * 결정 타입
@@ -489,7 +490,7 @@ function generateTimingSummary(
     bestYear: year,
     bestMonth: month,
     bestSeason: season,
-    overallAdvice: `${bestTiming.period}이(가) ${decisionType}에 가장 적합한 시기입니다. ${bestTiming.yongsinSupport}.`,
+    overallAdvice: `${josa(bestTiming.period, "이/가")} ${decisionType}에 가장 적합한 시기입니다. ${bestTiming.yongsinSupport}.`,
     urgency,
   };
 }
@@ -509,9 +510,9 @@ function generateBriefAdvice(
   } else if (rating === '보통') {
     return `신중한 검토 후 진행하세요.`;
   } else if (rating === '주의') {
-    return `${decisionType}은 연기하는 것이 좋습니다.`;
+    return `${josa(decisionType, "은/는")} 연기하는 것이 좋습니다.`;
   } else {
-    return `${decisionType}을 피해야 하는 시기입니다.`;
+    return `${josa(decisionType, "을/를")} 피해야 하는 시기입니다.`;
   }
 }
 
@@ -578,10 +579,10 @@ export function evaluateSpecificDate(
     score,
     rating,
     recommendation: rating === '최적기' || rating === '좋음'
-      ? `${decisionType}을 진행하기 좋은 날입니다.`
+      ? `${josa(decisionType, "을/를")} 진행하기 좋은 날입니다.`
       : rating === '보통'
       ? '가능하지만 신중히 검토하세요.'
-      : `${decisionType}을 연기하는 것이 좋습니다.`,
+      : `${josa(decisionType, "을/를")} 연기하는 것이 좋습니다.`,
     reasons: [
       `월운 점수: ${score}점`,
       wolunAnalysis.element === yongsin ? '용신 지원' : '보통',

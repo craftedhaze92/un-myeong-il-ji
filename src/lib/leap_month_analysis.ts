@@ -4,6 +4,7 @@
  */
 
 import type { SajuData, WuXing, HeavenlyStem, EarthlyBranch } from '../types/index';
+import { josa } from './korean';
 
 export interface LeapMonthAnalysis {
   isLeapMonth: boolean;
@@ -111,7 +112,7 @@ function calculateLeapMonthElementAdjustments(sajuData: SajuData): LeapMonthAnal
       element: keMonthElement,
       originalStrength: keOriginalStrength,
       adjustedStrength: Math.round(keAdjustedStrength * 10) / 10,
-      reason: `월령 ${monthElement}이(가) 약해지면서 ${keMonthElement} 오행이 상대적으로 강화됩니다`,
+      reason: `월령 ${josa(monthElement, "이/가")} 약해지면서 ${keMonthElement} 오행이 상대적으로 강화됩니다`,
     });
   }
 
@@ -165,7 +166,7 @@ function getLeapMonthRecommendations(sajuData: SajuData): string[] {
   const monthElement = sajuData.month.branchElement;
   const 生monthElement = getShengElement(monthElement);
 
-  recommendations.push(`월령 ${monthElement}을(를) 보강하기 위해 ${生monthElement} 오행을 활용하세요`);
+  recommendations.push(`월령 ${josa(monthElement, "을/를")} 보강하기 위해 ${生monthElement} 오행을 활용하세요`);
   recommendations.push('명리학 전문가의 정기적인 상담을 통해 윤달의 특성을 잘 이해하고 활용하세요');
   recommendations.push('전통 문화와 역사에 관심을 가지면 자신의 정체성을 더 잘 이해할 수 있습니다');
 
@@ -184,7 +185,7 @@ function getLeapMonthWarnings(sajuData: SajuData): string[] {
   const monthElement = sajuData.month.branchElement;
   const 克monthElement = getKeElement(monthElement);
 
-  warnings.push(`월령 ${monthElement}을(를) 극(克)하는 ${克monthElement} 오행을 과도하게 사용하지 마세요`);
+  warnings.push(`월령 ${josa(monthElement, "을/를")} 극(克)하는 ${克monthElement} 오행을 과도하게 사용하지 마세요`);
   warnings.push('중요한 결정을 내릴 때는 충분한 시간을 두고 신중하게 판단하세요');
 
   return warnings;

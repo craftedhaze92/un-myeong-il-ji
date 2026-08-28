@@ -8,6 +8,7 @@ import type {
   SajuData
 } from '../types/index';
 import { analyzeIljin, type IljinAnalysis } from './iljin_analysis';
+import { josa } from './korean';
 
 /**
  * 택일 목적
@@ -301,7 +302,8 @@ function generateCautions(
   }
 
   if (iljin.unsuitableActivities.length > 0) {
-    cautions.push(`${iljin.unsuitableActivities.join(', ')}는 피할 것`);
+    const activitiesText = iljin.unsuitableActivities.join(', ');
+    cautions.push(`${josa(activitiesText, "은/는")} 피할 것`);
   }
 
   if (cautions.length === 0) {
@@ -327,7 +329,7 @@ function generateAvoidReason(
   }
 
   if (iljin.rating === '대흉일' || iljin.rating === '흉일') {
-    return `${iljin.rating}로 ${purpose}에 부적합`;
+    return `${josa(iljin.rating, "으로/로")} ${purpose}에 부적합`;
   }
 
   return '해당 목적에 적합하지 않은 날';

@@ -11,6 +11,7 @@ import type {
   WuXing
 } from '../types/index';
 import { getEarthlyBranchFromYear } from './helpers';
+import { josa } from './korean';
 
 /**
  * 방위 (8방위)
@@ -172,7 +173,7 @@ function determineUnluckyDirections(saju: SajuData): PungsuAnalysis['unluckyDire
   return [
     {
       direction: elementDirections[controllingElement],
-      reason: `${controllingElement} 오행이 ${dayElement}를 극함`,
+      reason: `${controllingElement} 오행이 ${josa(dayElement, "을/를")} 극함`,
       avoid: ['침실', '서재', '주요 활동 공간'],
     },
   ];
