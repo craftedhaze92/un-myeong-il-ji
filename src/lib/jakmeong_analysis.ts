@@ -9,6 +9,7 @@ import type {
   SajuData,
   WuXing
 } from '../types/index';
+import { NAMING_HANJA_TABLE, type NamingHanjaEntry } from '../data/naming_hanja_table';
 
 /**
  * 한글 자음의 오행 분류
@@ -33,8 +34,15 @@ export interface JakmeongAnalysis {
   name: string;
   characters: {
     char: string;
-    strokes: number;
+    /** 사용자가 입력한 한자(있을 때만) */
+    hanja?: string;
+    /** 사전에서 찾은 실제 획수(원획). 한자가 없거나 사전에 없으면 undefined — 가짜 값을 채우지 않는다. */
+    strokes?: number;
     element: WuXing;
+    /** element가 자원오행(한자 기반)인지 발음오행(초성 기반)인지 — 두 체계를 섞어 쓰지 않고 글자 단위로 명시한다. */
+    elementSource: '자원' | '발음';
+    /** elementSource === '자원'일 때만 의미 있음: 부수가 오행에 직접 대응하는 등 근거가 명확한지 */
+    elementVerified?: boolean;
     meaning?: string;
   }[];
 
@@ -52,16 +60,24 @@ export interface JakmeongAnalysis {
     補益Elements: WuXing[]; // 보완하는 오행
   };
 
-  // 획수 분석 (성명학)
-  strokeAnalysis: {
-    totalStrokes: number;
-    heavenGround: number; // 천격
-    personalGround: number; // 인격
-    earthGround: number; // 지격
-    outerGround: number; // 외격
-    totalGround: number; // 총격
-    fortune: string;
-  };
+  /**
+   * 획수 분석(오격 성명학: 천격/인격/지격/외격/총격). 성(1글자)+이름(2글자) 총 3글자 모두
+   * 한자가 주어지고 사전에 있어야 계산한다 — 하나라도 없으면 가짜 숫자를 채우는 대신
+   * available: false로 그 이유를 밝힌다. 복성(2음절 성)은 지원하지 않는다(첫 글자를 성으로 간주).
+   */
+  strokeAnalysis:
+    | {
+        available: true;
+        heavenGround: number; // 천격
+        personalGround: number; // 인격
+        earthGround: number; // 지격
+        outerGround: number; // 외격
+        totalGround: number; // 총격
+        fortune: string;
+        /** 세 글자 모두 확실한(strokesVerified) 획수인지 — 하나라도 아니면 보정치가 섞인 것 */
+        allVerified: boolean;
+      }
+    | { available: false; reason: string };
 
   // 발음 분석
   pronunciation: {
@@ -110,19 +126,44 @@ export interface NameRecommendation {
 
 /**
  * 이름 분석
+ *
+ * @param hanja fullName과 정확히 같은 글자 수일 때만 사용한다(선택). 부분 입력이나 길이가
+ * 다른 입력은 조용히 무시하고 발음오행 경로로 전부 폴백한다 — 섞어 쓰면 오격 계산이 애매해진다.
  */
 export function analyzeName(
   fullName: string,
-  saju: SajuData
+  saju: SajuData,
+  hanja?: string,
 ): JakmeongAnalysis {
-  // 1. 각 글자 분석
   const chars = fullName.split('');
-  const characters = chars.map(char => ({
-    char,
-    strokes: getStrokeCount(char),
-    element: getCharacterElement(char),
-    meaning: getCharacterMeaning(char),
-  }));
+  const hanjaChars = hanja && hanja.length === chars.length ? hanja.split('') : null;
+
+  // 1. 각 글자 분석 — 한자가 주어지고 사전에 있으면 자원오행(실제 획수 포함), 아니면 발음오행.
+  const characters = chars.map((char, i) => {
+    const hanjaChar = hanjaChars?.[i];
+    const hanjaEntry: NamingHanjaEntry | undefined = hanjaChar ? NAMING_HANJA_TABLE[hanjaChar] : undefined;
+
+    if (hanjaChar && hanjaEntry) {
+      return {
+        char,
+        hanja: hanjaChar,
+        strokes: hanjaEntry.strokes,
+        element: hanjaEntry.element,
+        elementSource: '자원' as const,
+        elementVerified: hanjaEntry.elementVerified,
+        meaning: hanjaEntry.meaning,
+      };
+    }
+    return {
+      char,
+      hanja: hanjaChar,
+      // 사전에 없으면 획수는 undefined로 둔다 — 예전처럼 getStrokeCount로 가짜 값을 채우지 않는다.
+      strokes: undefined,
+      element: getCharacterElement(char),
+      elementSource: '발음' as const,
+      meaning: getCharacterMeaning(char),
+    };
+  });
 
   // 2. 오행 구성
   const elements = characters.map(c => c.element);
@@ -131,9 +172,8 @@ export function analyzeName(
   // 3. 사주와의 조화
   const harmonyWithSaju = analyzeHarmonyWithSaju(elements, saju);
 
-  // 4. 획수 분석
-  const strokes = characters.map(c => c.strokes);
-  const strokeAnalysis = analyzeStrokes(strokes);
+  // 4. 획수 분석(오격) — 실제 한자 획수가 있을 때만 계산
+  const strokeAnalysis = analyzeStrokes(characters);
 
   // 5. 발음 분석
   const pronunciation = analyzePronunciation(fullName);
@@ -334,9 +374,11 @@ function analyzeHarmonyWithSaju(
   const sajuElements = analyzeSajuElements(saju);
   const lackedElements = findLackedElements(sajuElements);
 
-  const beneficialElements = nameElements.filter(elem =>
-    lackedElements.includes(elem)
-  );
+  // 같은 오행 글자가 이름에 두 번 나오면(예: 도·현이 둘 다 토) 중복 없이 한 번만 센다 —
+  // 그대로 두면 "부족한 토, 토 오행을 보완하여 좋음"처럼 문구가 중복된다.
+  const beneficialElements = [
+    ...new Set(nameElements.filter(elem => lackedElements.includes(elem))),
+  ];
 
   const score = beneficialElements.length > 0 ? 80 : 50;
 
@@ -357,23 +399,25 @@ function analyzeHarmonyWithSaju(
 /**
  * 획수 분석 (성명학)
  */
-function analyzeStrokes(strokes: number[]): JakmeongAnalysis['strokeAnalysis'] {
-  if (strokes.length < 3) {
-    // 성명이 3글자 미만
+function analyzeStrokes(
+  characters: JakmeongAnalysis['characters'],
+): JakmeongAnalysis['strokeAnalysis'] {
+  if (characters.length < 3) {
+    return { available: false, reason: '이름이 3글자 미만이라 오격(성명학 획수)을 계산할 수 없습니다.' };
+  }
+
+  // 오격 공식은 성(1글자) + 이름 첫 두 글자만 쓴다(복성·4글자 이상 이름은 지원하지 않음).
+  const first3 = characters.slice(0, 3);
+  const missing = first3.filter((c) => c.strokes === undefined);
+  if (missing.length > 0) {
+    const missingChars = missing.map((c) => c.hanja ?? c.char).join(', ');
     return {
-      totalStrokes: strokes.reduce((a, b) => a + b, 0),
-      heavenGround: strokes[0] || 0,
-      personalGround: 0,
-      earthGround: 0,
-      outerGround: 0,
-      totalGround: 0,
-      fortune: '분석 불가',
+      available: false,
+      reason: `'${missingChars}'의 한자 획수 정보가 없어 계산할 수 없습니다. 상용 작명 한자 사전에 있는 한자를 입력해 주세요.`,
     };
   }
 
-  const s1 = strokes[0] || 0;
-  const s2 = strokes[1] || 0;
-  const s3 = strokes[2] || 0;
+  const [s1, s2, s3] = first3.map((c) => c.strokes as number);
 
   const heavenGround = s1 + 1; // 천격 (성 + 1)
   const personalGround = s1 + s2; // 인격 (성 + 이름 첫자)
@@ -381,7 +425,7 @@ function analyzeStrokes(strokes: number[]): JakmeongAnalysis['strokeAnalysis'] {
   const outerGround = s1 + s3 + 1; // 외격
   const totalGround = s1 + s2 + s3; // 총격
 
-  // 간단한 길흉 판단 (실제로는 더 복잡)
+  // 81수리 길흉표 — 기존 값을 그대로 쓴다(이번 작업 범위 밖: 이 표 자체의 검증은 하지 않음)
   const isGood = (n: number) => [1, 3, 5, 7, 8, 11, 13, 15, 16, 21, 23, 24, 25, 31, 32, 33, 35, 37, 39, 41, 45, 47, 48, 52, 57, 61, 63, 65, 67, 68, 81].includes(n % 81);
 
   const goods = [heavenGround, personalGround, earthGround, outerGround, totalGround]
@@ -393,14 +437,19 @@ function analyzeStrokes(strokes: number[]): JakmeongAnalysis['strokeAnalysis'] {
   else if (goods >= 2) fortune = '평';
   else fortune = '흉';
 
+  const allVerified = first3.every(
+    (c) => c.hanja !== undefined && NAMING_HANJA_TABLE[c.hanja]?.strokesVerified === true,
+  );
+
   return {
-    totalStrokes: totalGround,
+    available: true,
     heavenGround,
     personalGround,
     earthGround,
     outerGround,
     totalGround,
     fortune,
+    allVerified,
   };
 }
 
@@ -436,9 +485,11 @@ function evaluateOverall(
   if (wuxing.isFavorable) score += 20;
   score += harmony.score * 0.3;
 
-  if (strokes.fortune === '대길') score += 15;
-  else if (strokes.fortune === '길') score += 10;
-  else if (strokes.fortune === '흉') score -= 10;
+  if (strokes.available) {
+    if (strokes.fortune === '대길') score += 15;
+    else if (strokes.fortune === '길') score += 10;
+    else if (strokes.fortune === '흉') score -= 10;
+  }
 
   if (pronunciation.easyToPronounce) score += 5;
   if (pronunciation.easyToWrite) score += 5;
@@ -459,12 +510,12 @@ function evaluateOverall(
 
   if (wuxing.isFavorable) strengths.push('오행 균형');
   if (harmony.score >= 70) strengths.push('사주 보완');
-  if (strokes.fortune === '대길' || strokes.fortune === '길') strengths.push('획수 길함');
+  if (strokes.available && (strokes.fortune === '대길' || strokes.fortune === '길')) strengths.push('획수 길함');
   if (pronunciation.easyToPronounce) strengths.push('발음 좋음');
 
   if (!wuxing.isFavorable) weaknesses.push('오행 불균형');
   if (harmony.score < 50) weaknesses.push('사주와 무관');
-  if (strokes.fortune === '흉') weaknesses.push('획수 흉');
+  if (strokes.available && strokes.fortune === '흉') weaknesses.push('획수 흉');
   if (!pronunciation.easyToPronounce) weaknesses.push('발음 어려움');
 
   return {
