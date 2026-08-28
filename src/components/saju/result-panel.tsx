@@ -6,13 +6,15 @@ import styles from "./saju.module.css";
 import { ElementCycle } from "./ui/element-cycle";
 import { StrengthGauge } from "./ui/strength-gauge";
 import { GanjiColumn } from "./ui/ganji-column";
-import type { SinSalDetailVM } from "./reading-view-model";
+import type { SinSalCombinedVM, SinSalDetailVM } from "./reading-view-model";
 import type { SajuViewModel } from "./view-model";
 
 export interface ResultPanelProps {
   viewModel: SajuViewModel;
   /** 풀이(명식 탭)에 있던 신살 상세 — "신살 — 특별한 자리" 카드 옆으로 옮겨와 여기서만 그린다 */
   sinsalDetails: SinSalDetailVM[];
+  /** 신살이 2개 이상일 때만 오는 길신/흉신 조합 요약 (sin_sal.ts#interpretBySinSal) */
+  sinsalCombined?: SinSalCombinedVM;
   onReset: () => void;
 }
 
@@ -21,7 +23,12 @@ export interface ResultPanelProps {
  * 그대로 옮긴 것. 입력 폼(saju-app.tsx)과 풀이 패널(reading-panel.tsx)에서 분리해
  * 파일 하나가 3000줄을 넘기지 않게 한다.
  */
-export function ResultPanel({ viewModel, sinsalDetails, onReset }: ResultPanelProps) {
+export function ResultPanel({
+  viewModel,
+  sinsalDetails,
+  sinsalCombined,
+  onReset,
+}: ResultPanelProps) {
   // 오른쪽 열(용신 + 신살 카드)의 높이를 왼쪽 열(오행과 십성 + 신강신약)에 맞춘다.
   // 순수 CSS(flex:1 + min-height:0 + overflow:auto)만으로는 "형제 컬럼 높이만큼만
   // 채우고 넘치면 스크롤"을 만들 수 없다 — 이 섹션 전체가 페이지 흐름 속 auto-height라
@@ -609,6 +616,33 @@ export function ResultPanel({ viewModel, sinsalDetails, onReset }: ResultPanelPr
                   paddingRight: 4,
                 }}
               >
+                {/* 예전엔 이 요약 블록이 스크롤 영역 밖(flexShrink: 0)에 별도로 있어서,
+                    종합 조언 문구가 길어지면 카드 높이를 넘어 아래 콘텐츠와 겹쳐 보였다.
+                    스크롤 영역 맨 앞 항목으로 옮겨 개별 신살 목록과 함께 스크롤되게 한다. */}
+                {sinsalCombined && (
+                  <div
+                    style={{
+                      fontSize: FS.body,
+                      lineHeight: 1.75,
+                      paddingBottom: 12,
+                      borderBottom: "1px solid var(--line)",
+                      color: "var(--dim)",
+                    }}
+                  >
+                    {sinsalCombined.blessingNames.length > 0 && (
+                      <div>
+                        <span style={{ color: "var(--mute)" }}>길신:</span>{" "}
+                        {sinsalCombined.blessingNames.join(", ")}
+                      </div>
+                    )}
+                    {sinsalCombined.warningNames.length > 0 && (
+                      <div>
+                        <span style={{ color: "var(--mute)" }}>흉신:</span>{" "}
+                        {sinsalCombined.warningNames.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {sinsalDetails.map((s, i) => (
                   <div key={i}>
                     <div
