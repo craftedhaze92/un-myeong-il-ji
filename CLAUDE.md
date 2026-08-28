@@ -2,21 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Commands
-
-패키지 매니저는 **pnpm**(`pnpm-lock.yaml`, `pnpm-workspace.yaml` 존재 — npm/yarn 대신 사용).
-
-```bash
-pnpm dev                              # next dev --turbopack
-pnpm build
-pnpm lint                             # eslint
-pnpm typecheck                        # next typegen && tsc --noEmit (타입 라우트 생성 후 체크 — 순서 중요)
-pnpm test                             # vitest run (전체)
-pnpm test:watch                       # vitest (watch)
-pnpm vitest run src/lib/saju.test.ts  # 단일 파일
-pnpm vitest run -t "절입"              # 이름 패턴 필터 (describe/it 제목 매칭)
-```
-
 ## Architecture
 
 ### 계산 파이프라인 — 단일 진입점
@@ -51,10 +36,21 @@ pnpm vitest run -t "절입"              # 이름 패턴 필터 (describe/it 제
 
 **같은 값을 구하는 함수가 근사판/정밀판으로 쌍을 이루는 경우가 많다** — 반드시 정밀판을 써야 한다:
 - `getCurrentSolarTerm`(±1일 오차 고정 날짜표) vs `getCurrentSolarTermPrecise`/`getPreviousJieSolarTermByInstant`(실제 timestamp)
-- `earthly_branches.ts#calculateJiJangGanStrength`(정적 테이블) vs `jijanggan_precise.ts#calculateJiJangGanStrengthPrecise`(절기 기반)
+- `earthly_branches.ts#calculateJiJangGanStrength`(절기 인덱스 4구간 근사, `saju.ts`가 실제 쓰는 함수)
+  vs `jijanggan_precise.ts#calculateJiJangGanStrengthPrecise`(절기 시작일로부터 경과 일수 기반 정밀
+  계산) — **후자는 저장소 어디서도 import되지 않는 죽은 코드다.** `saju.ts:146-151`은 항상 전자를
+  쓴다. 이 파일 이름만 보고 "정밀판이 이미 연결돼 있겠지"라고 넘겨짚지 말 것 — 더 정확한 계산이
+  필요하면 `jijanggan_precise.ts`를 실제로 배선하는 작업이 별도로 필요하다.
 
 `saju.ts`가 근사 함수를 쓰다가 절입 당일 경계에서 월주가 틀리는 버그가 실제로 있었다(`saju.test.ts`의
 "절입 경계 회귀 테스트" 참고). **절기·월건 관련 로직을 만지거나 리뷰할 때는 어느 쪽 함수를 쓰는지부터 확인할 것.**
+
+`earthly_branches.ts#calculateJiJangGanStrength`에는 별개로 **월 인덱스 기준 불일치 버그**가 있었다
+(수정 완료) — 파라미터 `monthIndex`는 `saju.ts#getPreciseSolarTermMonthIndex`가 주는 "인(寅)월=0"
+기준인데, 함수 내부에서 `EARTHLY_BRANCHES`의 "자(子)=0" 기준 인덱스와 보정 없이 직접 뺐다. 2칸
+어긋나 있어서 당령(當令, 지금 이 달의 지지)인데도 "먼 시기"로 계산돼 지장간 세력이 과소 계상됐다
+— `saju.ts:240`의 `(monthIndex + 2) % 12` 보정을 그대로 적용해서 고쳤다. 이 함수를 다시 만질 때는
+두 인덱스 기준이 다르다는 것부터 기억할 것.
 
 ### `src/tools/` — 예전 MCP 핸들러, 현재 미연결
 
@@ -72,6 +68,71 @@ route.ts도 없어 현재 아무 곳에서도 호출되지 않는다** — 죽�
 인라인 서브클래스로 존재한다(대체로 템플릿 문자열). 별도로 `src/lib/yongsin/`(4개 알고리즘 레지스트리,
 `selector.ts`)과 `src/lib/yong_sin.ts`(레거시, `YongSinAnalysis`)가 **경쟁하는 두 용신 구현**으로 공존하며
 둘 다 `analyze_saju` 도구에서 접근 가능하다. 용신 로직을 고칠 땐 어느 쪽인지 먼저 확인할 것.
+
+### 오행 분포·십이운성·십이신살 — 신규 계산 모듈 (결과 패널 벤치마크 보강)
+
+`result-panel.tsx`의 "오행과 십성"·"신강신약"·대운/세운 십성·십이운성 표시를 위해 추가한 모듈들.
+
+- `src/lib/element_distribution.ts` — 오행 오각형과 오른쪽 십성 상세 리스트가 **같은 분모**를
+  쓰도록, 오행 카운트를 독자적으로 세지 않고 `ten_gods.ts#calculateTenGodsDistribution`의
+  결과를 오행별로 묶어서 역산한다(`groupTenGodsByElement`). 오행 판정(발달/부족/적정)은
+  `data/wuxing.ts#analyzeWuXingBalance`의 임계값(평균의 1.5배/0.5배)을 그대로 재사용 — 새 기준을
+  만들지 않았다.
+- `ten_gods.ts#calculateTenGodsDistribution`에 `{ includeDayMaster: true }` 옵션이 추가됐다.
+  **기본값은 여전히 일간 자신과 일간과 같은 천간을 분포에서 제외**한다(기존 호출부 무변경) —
+  오행 파이차트처럼 8글자(시간 미상이면 6글자) 전체가 분모여야 하는 곳만 이 옵션을 켠다.
+  지장간 세력(`calculateJiJangGanStrength`)이 절기 근접도에 따라 40~100 사이로 변하므로,
+  `includeDayMaster: true`를 켜도 총합이 정확히 8/6으로 떨어지지는 않는다 — 정확한 합계를
+  검증하려면 지장간 세력이 100으로 딱 떨어지는 통제된 합성 명식이 필요하다
+  (`element_distribution.test.ts`/`ten_gods.test.ts` 참고).
+- `src/lib/twelve_stages.ts` — 십이운성(장생~양). 음간의 순역에는 두 학파가 있는데, 이 저장소는
+  벤치마크 서비스(점신) 화면을 역산해 검증한 "음간 역행" 학파를 따른다.
+- `src/lib/twelve_sinsal.ts` — 십이신살(겁살~화개살). `sin_sal.ts`의 `SinSal`(천을귀인 등
+  15종, 별개 체계)과 혼동하지 말 것. 기준 지지는 일지가 기본값(현대 명리 대세).
+- 신강신약 게이지의 신약/중화/신강 3구간 경계값은 `day_master_strength.ts#STRENGTH_BAND_THRESHOLDS`
+  하나가 유일한 출처다 — `analyzeDayMasterStrength`의 레벨 판정(medium>=40, strong>=65)과
+  다른 값을 게이지에 하드코딩하면 라벨과 게이지가 서로 다른 말을 하게 된다.
+
+### 격국(格局) — 세 번째 독립 구현이 하나 더 있다
+
+화면(명식 탭)의 격국은 `gyeok_guk.ts#determineGyeokGuk`가 낸다. 종격(종왕격 등, `checkSpecialGyeokGuk`)이
+아니면 **월지 지장간 투출법**(정기→중기→여기 순으로 연간·월간·시간 중 하나와 같은 게 있으면 그
+지장간을, 없으면 무투용본기로 정기를 그대로 격의 기준으로 삼음, `determineMonthBranchTenGod`)으로
+십성을 정하고 `mapTenGodToGyeokGuk`로 격국 이름에 매핑한다. **예전에는 월지를 전혀 안 보고
+`sajuData.tenGodsDistribution`(사주 전체 십성 가중합) 최빈값을 그대로 썼다** — `GYEOK_GUK_INFO`의
+각 설명("정관이 월지에 투출하여...")과 어긋나는 주석-구현 불일치 버그였다(수정 완료,
+`gyeok_guk.test.ts` 참고). `src/lib/interpreters/ziping_interpreter.ts#determineGeokGuk`는 이 파일과
+**전혀 무관한 세 번째 구현**으로, 일간조차 안 보고 월지 오행만으로 룩업한다(유파 해석 텍스트에만
+쓰임, 화면 표시는 `gyeok_guk.ts` 결과) — 격국 로직을 고칠 땐 어느 파일인지 먼저 확인할 것.
+
+### 직업 추천 — 발달 오행(강점) + 용신(보완 방향) 블렌드, career_matcher.ts 실제 연결
+
+`career_recommendation.ts#recommendCareer`의 오행별 적성 점수는 두 독립 신호의 평균이다:
+`strengthScore`(그 오행이 명식에서 얼마나 발달했는지 — `element_distribution.ts`와 동일 소스라
+오행과 십성 카드의 %·발달 배지와 항상 같은 숫자를 말한다)와 `yongsinScore`(용신과의 일치/생조/상극).
+**예전에는 용신 점수만 썼고, 오행이 강할수록(발달할수록) 오히려 감점(-10)했다** — 실제로 그 오행이
+발달해 잘 다루는 사람에게 "이 분야는 안 맞다"는 결과가 나오는 문제가 있었다.
+
+카테고리별 구체적 직업 목록(`specificJobs`)은 이제 **`career_matcher.ts#CareerMatcher`를 실제로
+호출**해서 만든다(예전엔 이 파일 전체가 저장소 어디서도 import되지 않는 죽은 코드였다). 카테고리별
+직업은 `ELEMENT_CAREERS[element].jobsByCategory[category]`(오행 자체 데이터, 카테고리를 키로
+명시적으로 매핑 — **예전엔 `jobs: string[]` 평평한 배열을 categories 개수로 기계적으로 등분해서
+배정하다가 5개 오행 전부에서 어긋나 있었다**, 예: 화 오행의 "예술/문화"에 "프로그래머"가 들어가던
+회귀)과, `career_matcher.ts`가 `modern_careers.ts#MODERN_CAREERS_DB`(십성·오행 태그가 붙은 개별
+직업 500+ 라는 주석과 달리 **실제로는 IT/기술·금융/경제 두 카테고리, 21개뿐**)에서 점수 매긴 결과를
+합쳐서 만든다 — 카테고리 이름이 두 파일에서 서로 달라(`career_recommendation.ts`의
+"금융/재무" vs `modern_careers.ts`의 "금융/경제" 등) `MODERN_CATEGORY_MAP`으로 연결한다.
+
+`CareerMatcher.matchCareers`는 원래 내부에서 `yongsin/selector.ts#YongSinSelector`(4-알고리즘
+레지스트리)로 용신을 **자체 재계산**했다 — 화면에 이미 표시 중인 용신(`saju.yongSin`, `saju.ts`가
+실제로 쓰는 레거시 `yong_sin.ts#selectYongSin` 결과)과 다른 값이 나올 수 있는 "경쟁하는 두 용신
+구현" 함정(바로 위 유파 절 참고)이 여기도 있었다. `CareerMatchOptions.yongSinOverride`를 추가해
+`saju.yongSin`을 그대로 넘기도록 고쳤다 — 이 옵션 없이 `CareerMatcher`를 새로 호출하는 코드를
+추가하면 똑같은 불일치가 재발한다.
+
+`src/data/modern_careers.ts#CAREER_BY_ELEMENT`/`CAREER_BY_TEN_GOD`는 위 흐름과 무관한
+**여전히 죽은 코드**다(정의부만 있고 어디서도 안 쓰임) — `MODERN_CAREERS_DB`(위 흐름에서 실제로
+쓰임)와 혼동하지 말 것.
 
 ### 캐싱
 
