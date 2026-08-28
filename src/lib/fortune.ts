@@ -80,8 +80,17 @@ function analyzeGeneralFortune(
         }
 
         const traits = data.personality.slice(0, numTraits).join(', ');
-        const intensity = ratio >= 2.5 ? '매우 강한' : ratio >= 2.0 ? '강한' : '뚜렷한';
 
+        // 강한 오행이 2개 이상이면 오행마다 강도 수식어(뚜렷한/강한/매우 강한)를 붙이지
+        // 않는다 — 뒤 문장이 "복합적으로 나타나 다채롭고 입체적인 성격을 형성"이라고 이미
+        // 강함/풍부함을 표현하는데, 여러 오행의 세력 비율이 같은 구간에 들면 똑같은
+        // 수식어가 그대로 반복돼("뚜렷한 ... 뚜렷한") 읽는 흐름을 끊었다. 강한 오행이
+        // 1개뿐일 때는 반복될 일이 없으므로 그대로 강도를 표현한다.
+        if (balance.strong.length > 1) {
+          return `${element}(${data.hanja}) 기운의 영향으로 ${traits} 등의 특성`;
+        }
+
+        const intensity = ratio >= 2.5 ? '매우 강한' : ratio >= 2.0 ? '강한' : '뚜렷한';
         return `${element}(${data.hanja}) 기운의 ${intensity} 영향으로 ${traits} 등의 특성`;
       });
     const strongDescText = joinKoreanList(strongDesc);
@@ -139,13 +148,13 @@ function analyzeGeneralFortune(
     });
 
     if (tenGodsStrengths.length > 0) {
-      positiveParts.push(`십성 분석에서 ${tenGodsStrengths.join('. 또한 ')}.`);
+      positiveParts.push(`십성 분석에서 ${tenGodsStrengths.join('. ')}.`);
     }
     if (tenGodsWeaknesses.length > 0) {
-      negativeParts.push(`다만 ${tenGodsWeaknesses.join('. 또한 ')}. 주의가 필요합니다.`);
+      negativeParts.push(`다만 ${tenGodsWeaknesses.join('. ')}. 주의가 필요합니다.`);
     }
     if (tenGodsAdvice.length > 0) {
-      adviceParts.push(`십성의 균형을 위해 ${tenGodsAdvice.slice(0, 2).join('. 또한 ')}.`);
+      adviceParts.push(`십성의 균형을 위해 ${tenGodsAdvice.slice(0, 2).join('. ')}.`);
     }
   }
 
@@ -164,7 +173,7 @@ function analyzeGeneralFortune(
     }
 
     if (sinSalAnalysis.specialAdvice.length > 0) {
-      const special = sinSalAnalysis.specialAdvice.slice(0, 2).join('. 아울러 ');
+      const special = sinSalAnalysis.specialAdvice.slice(0, 2).join('. ');
       adviceParts.push(`신살의 작용을 조화롭게 다루기 위해 ${special}.`);
     }
   }
@@ -265,10 +274,10 @@ function analyzeCareerFortune(
     }
 
     if (tenGodsParts.length > 0) {
-      positiveParts.push(`십성 분석에서 ${tenGodsParts.join('. 또한 ')}.`);
+      positiveParts.push(`십성 분석에서 ${tenGodsParts.join('. ')}.`);
     }
     if (tenGodsAdvice.length > 0) {
-      adviceParts.push(tenGodsAdvice.join('. 아울러 ') + '.');
+      adviceParts.push(tenGodsAdvice.join('. ') + '.');
     }
 
     // 비견/겁재 과다 시 주의사항
@@ -372,10 +381,10 @@ function analyzeWealthFortune(
     }
 
     if (tenGodsParts.length > 0) {
-      positiveParts.push(`십성 분석 결과 ${tenGodsParts.join('. 또한 ')}.`);
+      positiveParts.push(`십성 분석 결과 ${tenGodsParts.join('. ')}.`);
     }
     if (tenGodsAdvice.length > 0) {
-      adviceParts.push(tenGodsAdvice.join('. 아울러 ') + '.');
+      adviceParts.push(tenGodsAdvice.join('. ') + '.');
     }
 
     // 비견/겁재: 재물 경쟁, 나눔
@@ -583,10 +592,10 @@ function analyzeLoveFortune(
     }
 
     if (spouseParts.length > 0) {
-      positiveParts.push(`십성 분석에서 ${spouseParts.join('. 또한 ')}.`);
+      positiveParts.push(`십성 분석에서 ${spouseParts.join('. ')}.`);
     }
     if (spouseAdvice.length > 0) {
-      adviceParts.push(spouseAdvice.join('. 또한 ') + '.');
+      adviceParts.push(spouseAdvice.join('. ') + '.');
     }
 
     // 식상(食傷) 과다: 배우자성 극함
