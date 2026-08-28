@@ -3,17 +3,18 @@
  * 사주의 불균형을 조절하고 운을 개선하는 핵심 오행 분석
  */
 
-import type { SajuData, WuXing } from '../types/index';
-import { analyzeLeapMonthBirth } from './leap_month_analysis';
+import type { SajuData, WuXing } from "../types/index";
+import { analyzeLeapMonthBirth } from "./leap_month_analysis";
+import { josa } from "./korean";
 
 export interface YongSinAnalysis {
-  primaryYongSin: WuXing;        // 주 용신
-  secondaryYongSin?: WuXing;     // 보조 용신 (희신의 일부)
-  xiSin: WuXing[];               // 희신(喜神) - 용신을 돕는 오행
-  jiSin: WuXing[];               // 기신(忌神) - 피해야 할 오행
-  chouSin: WuXing[];             // 수신(仇神) - 용신을 극하는 오행
-  dayMasterStrength: 'very_strong' | 'strong' | 'medium' | 'weak' | 'very_weak';
-  reasoning: string;              // 용신 선정 이유
+  primaryYongSin: WuXing; // 주 용신
+  secondaryYongSin?: WuXing; // 보조 용신 (희신의 일부)
+  xiSin: WuXing[]; // 희신(喜神) - 용신을 돕는 오행
+  jiSin: WuXing[]; // 기신(忌神) - 피해야 할 오행
+  chouSin: WuXing[]; // 수신(仇神) - 용신을 극하는 오행
+  dayMasterStrength: "very_strong" | "strong" | "medium" | "weak" | "very_weak";
+  reasoning: string; // 용신 선정 이유
   leapMonthAnalysis?: {
     isLeapMonth: boolean;
     specialCharacteristics: string[];
@@ -49,34 +50,88 @@ const WU_XING_ATTRIBUTES: Record<
   }
 > = {
   목: {
-    colors: ['초록색', '청록색', '연두색'],
-    directions: ['동쪽'],
-    careers: ['교육', '출판', '섬유', '목재', '종이', '인쇄', '꽃/식물 사업', '환경'],
-    activities: ['산책', '등산', '원예', '독서', '글쓰기', '학습'],
+    colors: ["초록색", "청록색", "연두색"],
+    directions: ["동쪽"],
+    careers: [
+      "교육",
+      "출판",
+      "섬유",
+      "목재",
+      "종이",
+      "인쇄",
+      "꽃/식물 사업",
+      "환경",
+    ],
+    activities: ["산책", "등산", "원예", "독서", "글쓰기", "학습"],
   },
   화: {
-    colors: ['빨간색', '주황색', '보라색', '분홍색'],
-    directions: ['남쪽'],
-    careers: ['요리', '전기', '광고', '방송', '예술', '연예', 'IT', '교육', '에너지'],
-    activities: ['운동', '사교 활동', '공연 관람', '창작 활동', '여행'],
+    colors: ["빨간색", "주황색", "보라색", "분홍색"],
+    directions: ["남쪽"],
+    careers: [
+      "요리",
+      "전기",
+      "광고",
+      "방송",
+      "예술",
+      "연예",
+      "IT",
+      "교육",
+      "에너지",
+    ],
+    activities: ["운동", "사교 활동", "공연 관람", "창작 활동", "여행"],
   },
   토: {
-    colors: ['노란색', '갈색', '황토색', '베이지'],
-    directions: ['중앙', '남서', '북동'],
-    careers: ['건설', '부동산', '농업', '도자기', '중개', '물류', '보관', '컨설팅'],
-    activities: ['명상', '요가', '전통 문화', '농사', '부동산 투자', '중재'],
+    colors: ["노란색", "갈색", "황토색", "베이지"],
+    directions: ["중앙", "남서", "북동"],
+    careers: [
+      "건설",
+      "부동산",
+      "농업",
+      "도자기",
+      "중개",
+      "물류",
+      "보관",
+      "컨설팅",
+    ],
+    activities: ["명상", "요가", "전통 문화", "농사", "부동산 투자", "중재"],
   },
   금: {
-    colors: ['흰색', '금색', '은색', '회색'],
-    directions: ['서쪽'],
-    careers: ['금융', '은행', '회계', '법조', '금속', '기계', '자동차', '정밀 산업'],
-    activities: ['금융 투자', '골프', '등산', '정리 정돈', '법률 공부', '계획 수립'],
+    colors: ["흰색", "금색", "은색", "회색"],
+    directions: ["서쪽"],
+    careers: [
+      "금융",
+      "은행",
+      "회계",
+      "법조",
+      "금속",
+      "기계",
+      "자동차",
+      "정밀 산업",
+    ],
+    activities: [
+      "금융 투자",
+      "골프",
+      "등산",
+      "정리 정돈",
+      "법률 공부",
+      "계획 수립",
+    ],
   },
   수: {
-    colors: ['검은색', '남색', '파란색'],
-    directions: ['북쪽'],
-    careers: ['물류', '유통', '무역', '수산', '음료', '화학', '연구', '의료', '정보통신'],
-    activities: ['수영', '낚시', '여행', '연구', '학습', '명상', '휴식'],
+    colors: ["검은색", "남색", "파란색"],
+    directions: ["북쪽"],
+    careers: [
+      "물류",
+      "유통",
+      "무역",
+      "수산",
+      "음료",
+      "화학",
+      "연구",
+      "의료",
+      "정보통신",
+    ],
+    activities: ["수영", "낚시", "여행", "연구", "학습", "명상", "휴식"],
   },
 };
 
@@ -85,7 +140,7 @@ const WU_XING_ATTRIBUTES: Record<
  */
 export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
   // 1. 일간 강약 판단
-  const strengthLevel = sajuData.dayMasterStrength?.level || 'medium';
+  const strengthLevel = sajuData.dayMasterStrength?.level || "medium";
   const dayStemElement = sajuData.day.stemElement;
 
   let primaryYongSin: WuXing;
@@ -93,10 +148,10 @@ export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
   let xiSin: WuXing[] = [];
   let jiSin: WuXing[] = [];
   let chouSin: WuXing[] = [];
-  let reasoning = '';
+  let reasoning = "";
 
   // 2. 용신 선정 로직
-  if (strengthLevel === 'very_strong' || strengthLevel === 'strong') {
+  if (strengthLevel === "very_strong" || strengthLevel === "strong") {
     // 일간이 강함 → 설(洩), 극(克)하는 오행이 용신
     // 설기: 일간이 생(生)하는 오행 (식상)
     // 극: 일간을 극(克)하는... 아니 일간이 극하는 오행 (재성)
@@ -112,8 +167,8 @@ export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
     jiSin = [dayStemElement, getShengMeElement(dayStemElement)]; // 비겁, 인성은 기신
     chouSin = [getShengMeElement(dayStemElement)]; // 인성은 수신(용신을 극함)
 
-    reasoning = `일간(${dayStemElement})이 ${strengthLevel === 'very_strong' ? '매우 ' : ''}강하므로, 일간의 힘을 설(洩)하거나 소모시키는 ${shengElement}(식상)과 ${keElement}(재성)을 용신으로 삼습니다.`;
-  } else if (strengthLevel === 'weak' || strengthLevel === 'very_weak') {
+    reasoning = `${josa(`일간(${dayStemElement})`, "이/가")} ${strengthLevel === "very_strong" ? "매우 " : ""}강하므로, 일간의 힘을 설(洩)하거나 소모시키는 ${josa(`${shengElement}(식상)`, "과/와")} ${josa(`${keElement}(재성)`, "을/를")} 용신으로 삼습니다.`;
+  } else if (strengthLevel === "weak" || strengthLevel === "very_weak") {
     // 일간이 약함 → 생(生)하거나 동일 오행이 용신
     // 생기: 일간을 생(生)하는 오행 (인성)
     // 동일: 일간과 동일 오행 (비겁)
@@ -127,7 +182,7 @@ export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
     jiSin = [getKeElement(dayStemElement), getKeMeElement(dayStemElement)]; // 재성, 관살은 기신
     chouSin = [getKeElement(dayStemElement)]; // 재성은 수신(용신인 인성을 극함)
 
-    reasoning = `일간(${dayStemElement})이 ${strengthLevel === 'very_weak' ? '매우 ' : ''}약하므로, 일간을 생(生)하는 ${shengMeElement}(인성)과 일간과 같은 ${dayStemElement}(비겁)을 용신으로 삼습니다.`;
+    reasoning = `${josa(`일간(${dayStemElement})`, "이/가")} ${strengthLevel === "very_weak" ? "매우 " : ""}약하므로, 일간을 생(生)하는 ${josa(`${shengMeElement}(인성)`, "과/와")} 일간과 같은 ${josa(`${dayStemElement}(비겁)`, "을/를")} 용신으로 삼습니다.`;
   } else {
     // medium - 중화
     // 중화된 경우는 조후용신(계절 조율)이나 통관용신 사용
@@ -140,7 +195,7 @@ export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
     jiSin = [getKeElement(weakestElement)];
     chouSin = [getKeMeElement(weakestElement)];
 
-    reasoning = `사주가 중화되어 있으므로, 가장 약한 오행인 ${weakestElement}를 보강하여 균형을 맞춥니다.`;
+    reasoning = `사주가 중화되어 있으므로, 가장 약한 오행인 ${josa(weakestElement, "을/를")} 보강하여 균형을 맞춥니다.`;
   }
 
   // 3. 윤달 출생자 특수 분석
@@ -151,7 +206,7 @@ export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
     primaryYongSin,
     secondaryYongSin,
     jiSin,
-    leapMonthAnalysis
+    leapMonthAnalysis,
   );
 
   return {
@@ -173,11 +228,11 @@ export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
  */
 function getShengElement(element: WuXing): WuXing {
   const shengMap: Record<WuXing, WuXing> = {
-    목: '화',
-    화: '토',
-    토: '금',
-    금: '수',
-    수: '목',
+    목: "화",
+    화: "토",
+    토: "금",
+    금: "수",
+    수: "목",
   };
   return shengMap[element];
 }
@@ -187,11 +242,11 @@ function getShengElement(element: WuXing): WuXing {
  */
 function getShengMeElement(element: WuXing): WuXing {
   const shengMeMap: Record<WuXing, WuXing> = {
-    목: '수', // 수생목
-    화: '목', // 목생화
-    토: '화', // 화생토
-    금: '토', // 토생금
-    수: '금', // 금생수
+    목: "수", // 수생목
+    화: "목", // 목생화
+    토: "화", // 화생토
+    금: "토", // 토생금
+    수: "금", // 금생수
   };
   return shengMeMap[element];
 }
@@ -202,11 +257,11 @@ function getShengMeElement(element: WuXing): WuXing {
  */
 function getKeElement(element: WuXing): WuXing {
   const keMap: Record<WuXing, WuXing> = {
-    목: '토',
-    화: '금',
-    토: '수',
-    금: '목',
-    수: '화',
+    목: "토",
+    화: "금",
+    토: "수",
+    금: "목",
+    수: "화",
   };
   return keMap[element];
 }
@@ -216,11 +271,11 @@ function getKeElement(element: WuXing): WuXing {
  */
 function getKeMeElement(element: WuXing): WuXing {
   const keMeMap: Record<WuXing, WuXing> = {
-    목: '금', // 금극목
-    화: '수', // 수극화
-    토: '목', // 목극토
-    금: '화', // 화극금
-    수: '토', // 토극수
+    목: "금", // 금극목
+    화: "수", // 수극화
+    토: "목", // 목극토
+    금: "화", // 화극금
+    수: "토", // 토극수
   };
   return keMeMap[element];
 }
@@ -231,10 +286,13 @@ function getKeMeElement(element: WuXing): WuXing {
 function findWeakestElement(sajuData: SajuData): WuXing {
   const wuxingCount = sajuData.wuxingCount;
 
-  let weakestElement: WuXing = '목';
-  let minCount = wuxingCount['목'];
+  let weakestElement: WuXing = "목";
+  let minCount = wuxingCount["목"];
 
-  for (const [element, count] of Object.entries(wuxingCount) as [WuXing, number][]) {
+  for (const [element, count] of Object.entries(wuxingCount) as [
+    WuXing,
+    number,
+  ][]) {
     if (count < minCount) {
       minCount = count;
       weakestElement = element;
@@ -263,10 +321,12 @@ function generateRecommendations(
     lifePathInterpretation: string;
     recommendations: string[];
     warnings: string[];
-  } | null
-): YongSinAnalysis['recommendations'] {
+  } | null,
+): YongSinAnalysis["recommendations"] {
   const primary = WU_XING_ATTRIBUTES[primaryYongSin];
-  const secondary = secondaryYongSin ? WU_XING_ATTRIBUTES[secondaryYongSin] : null;
+  const secondary = secondaryYongSin
+    ? WU_XING_ATTRIBUTES[secondaryYongSin]
+    : null;
 
   // 기신(피해야 할 오행)의 속성
   const cautionAttributes = jiSin.map((element) => WU_XING_ATTRIBUTES[element]);
@@ -287,8 +347,8 @@ function generateRecommendations(
   const cautions: string[] = [];
 
   cautionAttributes.forEach((attr, index) => {
-    cautions.push(`${jiSin[index]} 오행(${attr.colors.join(', ')})은 피하세요`);
-    cautions.push(`${attr.directions.join(', ')} 방향 이동은 신중하게`);
+    cautions.push(`${jiSin[index]} 오행(${attr.colors.join(", ")})은 피하세요`);
+    cautions.push(`${attr.directions.join(", ")} 방향 이동은 신중하게`);
   });
 
   // 윤달 출생자인 경우 추가 주의사항
@@ -311,7 +371,9 @@ function generateRecommendations(
 export function generateYongSinAdvice(yongSin: YongSinAnalysis): string[] {
   const advice: string[] = [];
 
-  advice.push(`주 용신은 ${yongSin.primaryYongSin} 오행입니다. ${yongSin.reasoning}`);
+  advice.push(
+    `주 용신은 ${yongSin.primaryYongSin} 오행입니다. ${yongSin.reasoning}`,
+  );
 
   // 윤달 출생자 특성 추가
   if (yongSin.leapMonthAnalysis && yongSin.leapMonthAnalysis.isLeapMonth) {
@@ -320,7 +382,7 @@ export function generateYongSinAdvice(yongSin: YongSinAnalysis): string[] {
 
     if (yongSin.leapMonthAnalysis.specialCharacteristics.length > 0) {
       advice.push(
-        `특별한 성향: ${yongSin.leapMonthAnalysis.specialCharacteristics.slice(0, 2).join('. ')}`
+        `특별한 성향: ${yongSin.leapMonthAnalysis.specialCharacteristics.slice(0, 2).join(". ")}`,
       );
     }
 
@@ -328,33 +390,32 @@ export function generateYongSinAdvice(yongSin: YongSinAnalysis): string[] {
       const adjustment = yongSin.leapMonthAnalysis.elementAdjustments[0];
       if (adjustment) {
         advice.push(
-          `오행 조정: ${adjustment.element} ${adjustment.originalStrength} → ${adjustment.adjustedStrength} (${adjustment.reason})`
+          `오행 조정: ${adjustment.element} ${adjustment.originalStrength} → ${adjustment.adjustedStrength} (${adjustment.reason})`,
         );
       }
     }
   }
 
   if (yongSin.recommendations.colors.length > 0) {
-    advice.push(
-      `길한 색상: ${yongSin.recommendations.colors.slice(0, 3).join(', ')}을 활용하세요`
-    );
+    const colorsText = yongSin.recommendations.colors.slice(0, 3).join(", ");
+    advice.push(`길한 색상: ${josa(colorsText, "을/를")} 활용하세요`);
   }
 
   if (yongSin.recommendations.directions.length > 0) {
     advice.push(
-      `유리한 방향: ${yongSin.recommendations.directions.join(', ')} 방향이 길합니다`
+      `유리한 방향: ${yongSin.recommendations.directions.join(", ")} 방향이 길합니다`,
     );
   }
 
-  if (yongSin.recommendations.careers.length > 0) {
-    advice.push(
-      `적합한 직업: ${yongSin.recommendations.careers.slice(0, 4).join(', ')} 등`
-    );
-  }
+  // if (yongSin.recommendations.careers.length > 0) {
+  //   advice.push(
+  //     `적합한 직업: ${yongSin.recommendations.careers.slice(0, 4).join(', ')} 등`
+  //   );
+  // }
 
   if (yongSin.recommendations.activities.length > 0) {
     advice.push(
-      `권장 활동: ${yongSin.recommendations.activities.slice(0, 3).join(', ')} 등`
+      `권장 활동: ${yongSin.recommendations.activities.slice(0, 3).join(", ")} 등`,
     );
   }
 
@@ -366,7 +427,7 @@ export function generateYongSinAdvice(yongSin: YongSinAnalysis): string[] {
   if (yongSin.leapMonthAnalysis && yongSin.leapMonthAnalysis.isLeapMonth) {
     if (yongSin.leapMonthAnalysis.recommendations.length > 0) {
       advice.push(
-        `윤달 특별 권장: ${yongSin.leapMonthAnalysis.recommendations.slice(0, 2).join('. ')}`
+        `윤달 특별 권장: ${yongSin.leapMonthAnalysis.recommendations.slice(0, 2).join(". ")}`,
       );
     }
   }

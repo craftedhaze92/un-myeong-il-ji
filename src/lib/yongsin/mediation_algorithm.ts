@@ -10,6 +10,7 @@
 import type { SajuData, WuXing } from '../../types/index';
 import type { YongSinAlgorithm, YongSinResult } from './base';
 import { WuXingRelations } from './base';
+import { josa } from '../korean';
 
 /**
  * 오행 충돌 정보
@@ -64,7 +65,7 @@ export class MediationYongSinAlgorithm implements YongSinAlgorithm {
     // 수신: 중재 용신을 극하는 오행
     const chouSin: WuXing[] = [WuXingRelations.getKeMeElement(primaryYongSin)];
 
-    const reasoning = `${mainConflict.element1}(${wuxingCount[mainConflict.element1]}개)과 ${mainConflict.element2}(${wuxingCount[mainConflict.element2]}개)이 충돌합니다. ${primaryYongSin} 오행이 ${mainConflict.element1}을 설기(洩氣)하고 ${mainConflict.element2}를 생조(生助)하여 중재하므로 용신으로 삼습니다.`;
+    const reasoning = `${josa(`${mainConflict.element1}(${wuxingCount[mainConflict.element1]}개)`, "과/와")} ${josa(`${mainConflict.element2}(${wuxingCount[mainConflict.element2]}개)`, "이/가")} 충돌합니다. ${primaryYongSin} 오행이 ${josa(mainConflict.element1, "을/를")} 설기(洩氣)하고 ${josa(mainConflict.element2, "을/를")} 생조(生助)하여 중재하므로 용신으로 삼습니다.`;
 
     // 신뢰도: 충돌 강도와 중재 효과에 따라
     const confidence = this.calculateMediationConfidence(mainConflict, dayStemElement);
@@ -207,7 +208,7 @@ export class MediationYongSinAlgorithm implements YongSinAlgorithm {
       xiSin: secondaryYongSin ? [primaryYongSin, secondaryYongSin] : [primaryYongSin],
       jiSin: [WuXingRelations.getKeMeElement(primaryYongSin)],
       chouSin: [WuXingRelations.getKeElement(primaryYongSin)],
-      reasoning: `충돌이 없어 강약용신 방식으로 ${primaryYongSin}을 선택합니다.`,
+      reasoning: `충돌이 없어 강약용신 방식으로 ${josa(primaryYongSin, "을/를")} 선택합니다.`,
       method: this.method,
       confidence: 0.5,
     };

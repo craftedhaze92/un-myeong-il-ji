@@ -11,6 +11,7 @@
 import type { SajuData, WuXing } from '../../types/index';
 import type { YongSinAlgorithm, YongSinResult } from './base';
 import { WuXingRelations } from './base';
+import { josa } from '../korean';
 
 /**
  * 사주 병증 유형
@@ -155,7 +156,7 @@ export class DiseaseYongSinAlgorithm implements YongSinAlgorithm {
         type: 'conflict',
         problematicElement: keMeElement,
         severity,
-        diagnosis: `일간(${dayStemElement})을 극하는 ${keMeElement} 오행이 많습니다(${keMeCount}개).`,
+        diagnosis: `${josa(`일간(${dayStemElement})`, "을/를")} 극하는 ${keMeElement} 오행이 많습니다(${keMeCount}개).`,
         cure,
       });
     }
@@ -174,7 +175,7 @@ export class DiseaseYongSinAlgorithm implements YongSinAlgorithm {
         type: 'stagnation',
         problematicElement: keElement,
         severity,
-        diagnosis: `${keElement}(재성)이 과다하여 ${shengMeElement}(인성)을 극합니다.`,
+        diagnosis: `${josa(`${keElement}(재성)`, "이/가")} 과다하여 ${josa(`${shengMeElement}(인성)`, "을/를")} 극합니다.`,
         cure,
       });
     }
@@ -208,7 +209,7 @@ export class DiseaseYongSinAlgorithm implements YongSinAlgorithm {
       xiSin: secondaryYongSin ? [primaryYongSin, secondaryYongSin] : [primaryYongSin],
       jiSin: [WuXingRelations.getKeMeElement(primaryYongSin)],
       chouSin: [WuXingRelations.getKeElement(primaryYongSin)],
-      reasoning: `특별한 병증이 없어 강약용신 방식으로 ${primaryYongSin}을 선택합니다.`,
+      reasoning: `특별한 병증이 없어 강약용신 방식으로 ${josa(primaryYongSin, "을/를")} 선택합니다.`,
       method: this.method,
       confidence: 0.6,
     };

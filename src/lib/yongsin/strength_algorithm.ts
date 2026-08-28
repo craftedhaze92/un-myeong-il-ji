@@ -10,6 +10,7 @@
 import type { SajuData, WuXing } from '../../types/index';
 import type { YongSinAlgorithm, YongSinResult } from './base';
 import { WuXingRelations } from './base';
+import { josa } from '../korean';
 
 export class StrengthYongSinAlgorithm implements YongSinAlgorithm {
   readonly name = '강약용신';
@@ -40,7 +41,7 @@ export class StrengthYongSinAlgorithm implements YongSinAlgorithm {
       jiSin = [dayStemElement, WuXingRelations.getShengMeElement(dayStemElement)]; // 비겁, 인성
       chouSin = [WuXingRelations.getShengMeElement(dayStemElement)]; // 인성
 
-      reasoning = `일간(${dayStemElement})이 ${strengthLevel === 'very_strong' ? '매우 ' : ''}강하므로, 일간의 힘을 설기(洩氣)하는 ${shengElement}(식상)과 ${keElement}(재성)을 용신으로 삼습니다.`;
+      reasoning = `${josa(`일간(${dayStemElement})`, "이/가")} ${strengthLevel === 'very_strong' ? '매우 ' : ''}강하므로, 일간의 힘을 설기(洩氣)하는 ${josa(`${shengElement}(식상)`, "과/와")} ${josa(`${keElement}(재성)`, "을/를")} 용신으로 삼습니다.`;
       confidence = strengthLevel === 'very_strong' ? 0.9 : 0.8;
 
     } else if (strengthLevel === 'weak' || strengthLevel === 'very_weak') {
@@ -57,7 +58,7 @@ export class StrengthYongSinAlgorithm implements YongSinAlgorithm {
       ];
       chouSin = [WuXingRelations.getKeElement(dayStemElement)]; // 재성
 
-      reasoning = `일간(${dayStemElement})이 ${strengthLevel === 'very_weak' ? '매우 ' : ''}약하므로, 일간을 생조(生助)하는 ${shengMeElement}(인성)과 ${dayStemElement}(비겁)을 용신으로 삼습니다.`;
+      reasoning = `${josa(`일간(${dayStemElement})`, "이/가")} ${strengthLevel === 'very_weak' ? '매우 ' : ''}약하므로, 일간을 생조(生助)하는 ${josa(`${shengMeElement}(인성)`, "과/와")} ${josa(`${dayStemElement}(비겁)`, "을/를")} 용신으로 삼습니다.`;
       confidence = strengthLevel === 'very_weak' ? 0.9 : 0.8;
 
     } else {
@@ -69,7 +70,7 @@ export class StrengthYongSinAlgorithm implements YongSinAlgorithm {
       jiSin = [WuXingRelations.getKeElement(weakestElement)];
       chouSin = [WuXingRelations.getKeMeElement(weakestElement)];
 
-      reasoning = `사주가 중화되어 있으므로, 가장 약한 오행인 ${weakestElement}를 보강하여 균형을 맞춥니다.`;
+      reasoning = `사주가 중화되어 있으므로, 가장 약한 오행인 ${josa(weakestElement, "을/를")} 보강하여 균형을 맞춥니다.`;
       confidence = 0.6; // 중화는 다른 알고리즘 고려 필요
     }
 

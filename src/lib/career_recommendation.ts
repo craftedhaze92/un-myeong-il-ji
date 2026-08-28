@@ -5,6 +5,15 @@
  */
 
 import type { SajuData, WuXing, HeavenlyStem, TenGod } from '../types/index';
+import { josa } from './korean';
+import {
+  calculateElementDistribution,
+  getElementStatusMap,
+  type ElementStatus,
+} from './element_distribution';
+import { CareerMatcher, type CareerMatch } from './career_matcher';
+import type { CareerCategory as ModernCareerCategory } from '../data/modern_careers';
+import { DEFAULT_PRESETS } from '../data/school_presets';
 
 /**
  * 직업 카테고리
@@ -46,10 +55,15 @@ export interface CareerRecommendation {
     alternativeSuggestion: string;
   }[];
 
-  /** 오행별 직업 적성 */
+  /** 오행별 직업 적성 — 발달 오행(타고난 강점)과 용신(보완 방향) 두 관점을 블렌드한다 */
   elementalAffinity: {
     element: WuXing;
-    affinity: number; // 0-100
+    affinity: number; // 0-100, (strengthScore + yongsinScore) / 2
+    /** 명식에서 이 오행이 얼마나 발달했는지 (element_distribution.ts와 동일 소스) */
+    strengthScore: number; // 0-100
+    /** 용신과의 관계(일치/생조/상극) */
+    yongsinScore: number; // 0-100
+    developedStatus: ElementStatus; // '발달' | '적정' | '부족'
     careers: string[];
   }[];
 
@@ -74,50 +88,90 @@ export interface CareerRecommendation {
 }
 
 /**
- * 오행별 직업 매핑
+ * 오행별 직업 매핑 — 카테고리별로 직업을 명시적으로 매핑한다.
+ *
+ * 예전에는 오행마다 `jobs: string[]` 평평한 배열 하나를 두고, jobsForCategory가 이 배열을
+ * categories.length만큼 기계적으로 등분(chunk)해서 카테고리에 배정했다. 원 배열의 직업 순서가
+ * categories 순서와 미리 정확히 안 맞으면 엉뚱한 직업이 엉뚱한 카테고리에 배정됐다 — 실제로
+ * 5개 오행 전부에서 어긋나 있었다(예: 화 오행의 "예술/문화" 슬롯에 "프로그래머"가, "IT/기술"
+ * 슬롯에 "영업사원·강사·MC"가 배정되던 회귀). 카테고리를 키로 직접 매핑하면 배열 순서에
+ * 의존하지 않으므로 이런 어긋남이 구조적으로 불가능해진다.
  */
-const ELEMENT_CAREERS: Record<WuXing, { categories: CareerCategory[]; jobs: string[] }> = {
+// 테스트(career_recommendation.test.ts)에서 5개 오행 × 카테고리 매핑을 직접 순회 검증하려고 export한다.
+export const ELEMENT_CAREERS: Record<
+  WuXing,
+  { categories: CareerCategory[]; jobsByCategory: Partial<Record<CareerCategory, string[]>> }
+> = {
   '목': {
     categories: ['교육/연구', '예술/문화', '의료/보건', '농업/환경'],
-    jobs: [
-      '교사', '교수', '연구원', '작가', '예술가', '디자이너',
-      '한의사', '약사', '상담사', '조경사', '농부', '환경운동가',
-      '출판 편집자', '큐레이터', '원예사', '산림 관리자'
-    ],
+    jobsByCategory: {
+      '교육/연구': ['교사', '교수', '연구원', '출판 편집자'],
+      '예술/문화': ['작가', '예술가', '디자이너', '큐레이터'],
+      '의료/보건': ['한의사', '약사', '상담사'],
+      '농업/환경': ['조경사', '농부', '환경운동가', '원예사', '산림 관리자'],
+    },
   },
   '화': {
     categories: ['언론/미디어', '예술/문화', 'IT/기술', '서비스/영업'],
-    jobs: [
-      '방송인', '기자', '마케터', '광고 기획자', '배우', '가수',
-      '프로그래머', '디지털 마케터', '영업사원', '강사', 'MC',
-      '유튜버', '인플루언서', '이벤트 기획자', '홍보 담당자'
-    ],
+    jobsByCategory: {
+      '언론/미디어': ['방송인', '기자', 'MC', '홍보 담당자'],
+      '예술/문화': ['배우', '가수', '유튜버'],
+      'IT/기술': ['프로그래머', '디지털 마케터'],
+      '서비스/영업': ['마케터', '광고 기획자', '영업사원', '강사', '인플루언서', '이벤트 기획자'],
+    },
   },
   '토': {
     categories: ['건설/부동산', '경영/관리', '금융/재무', '농업/환경'],
-    jobs: [
-      '부동산 중개인', '건축가', '토목 기사', 'CEO', '경영 컨설턴트',
-      '회계사', '세무사', '은행원', '농업 경영인', '부동산 개발자',
-      '자산 관리사', '감정평가사', '도시 계획가', '물류 관리자'
-    ],
+    jobsByCategory: {
+      '건설/부동산': ['부동산 중개인', '건축가', '토목 기사', '부동산 개발자', '도시 계획가'],
+      '경영/관리': ['CEO', '경영 컨설턴트', '물류 관리자'],
+      '금융/재무': ['회계사', '세무사', '은행원', '자산 관리사', '감정평가사'],
+      '농업/환경': ['농업 경영인'],
+    },
   },
   '금': {
     categories: ['금융/재무', '법률/행정', '안전/보안', '제조/생산'],
-    jobs: [
-      '변호사', '검사', '판사', '경찰', '군인', '금융 애널리스트',
-      '투자 전문가', '공무원', '회계사', '감사', '기계 기술자',
-      '금속 가공업자', '보안 전문가', '품질 관리자', '법무사'
-    ],
+    jobsByCategory: {
+      '금융/재무': ['금융 애널리스트', '투자 전문가', '회계사', '감사'],
+      '법률/행정': ['변호사', '검사', '판사', '공무원', '법무사'],
+      '안전/보안': ['경찰', '군인', '보안 전문가'],
+      '제조/생산': ['기계 기술자', '금속 가공업자', '품질 관리자'],
+    },
   },
   '수': {
     categories: ['IT/기술', '의료/보건', '종교/상담', '서비스/영업'],
-    jobs: [
-      '의사', '간호사', '약사', '수의사', '심리 상담사', '철학자',
-      'IT 개발자', '데이터 과학자', '연구원', '물류 관리자',
-      '종교인', '명리학자', '작가', '번역가', '수산업자', '바리스타'
-    ],
+    jobsByCategory: {
+      'IT/기술': ['IT 개발자', '데이터 과학자', '연구원'],
+      '의료/보건': ['의사', '간호사', '약사', '수의사'],
+      '종교/상담': ['심리 상담사', '철학자', '종교인', '명리학자'],
+      '서비스/영업': ['물류 관리자', '작가', '번역가', '수산업자', '바리스타'],
+    },
   },
 } as const;
+
+/**
+ * career_recommendation.ts의 CareerCategory ↔ modern_careers.ts의 CareerCategory 매핑.
+ * 두 파일이 카테고리 이름을 서로 다르게 쓴다("금융/재무" vs "금융/경제" 등) — 같은 뜻인데
+ * 이름이 다른 경우만 연결한다. modern_careers.ts#MODERN_CAREERS_DB는 지금 IT/기술·금융/경제
+ * 두 카테고리만 실제 데이터가 있어서(21개), 나머지 매핑은 당장은 빈 배열로 귀결돼
+ * ELEMENT_CAREERS 폴백으로 넘어간다 — modern_careers.ts가 나중에 채워지면 이 표를 손대지
+ * 않아도 자동으로 반영되는 구조다. 종교/상담·안전/보안은 modern_careers.ts에 대응 카테고리가
+ * 없어 매핑하지 않는다(자동으로 폴백).
+ */
+const MODERN_CATEGORY_MAP: Partial<Record<CareerCategory, ModernCareerCategory[]>> = {
+  'IT/기술': ['IT/기술'],
+  '금융/재무': ['금융/경제'],
+  '법률/행정': ['법률/행정'],
+  '교육/연구': ['교육/연구'],
+  '예술/문화': ['예술/문화'],
+  '의료/보건': ['의료/건강'],
+  '제조/생산': ['제조/생산'],
+  '건설/부동산': ['건설/부동산'],
+  '농업/환경': ['농업/환경'],
+  '경영/관리': ['경영/컨설팅'],
+  '언론/미디어': ['미디어/방송'],
+  '서비스/영업': ['서비스/유통', '마케팅/광고'],
+};
 
 /**
  * 십성별 직업 특성 및 적합 직군
@@ -475,8 +529,35 @@ export function recommendCareer(saju: SajuData): CareerRecommendation {
   // 2. 오행별 적성 계산
   const elementalAffinity = calculateElementalAffinity(saju, yongsin);
 
-  // 3. 직업 추천 생성 (십성 + 오행 통합)
-  const recommendations = generateRecommendations(saju, yongsin, elementalAffinity, tenGodsAnalysis);
+  // 2-1. modern_careers.ts의 실제 직업 DB(career_matcher.ts)에서 개별 직업 매칭 —
+  // 오행 강도는 element_distribution.ts(지장간 가중, 오행과 십성 카드와 동일 소스)로
+  // 맞추기 위해 wuxingCount만 얕게 바꿔치기해서 넘긴다. 용신은 saju.yongSin(화면에 이미
+  // 표시 중인 값, saju.ts가 실제로 쓰는 legacy yong_sin.ts 결과)을 그대로 넘겨서
+  // CareerMatcher가 내부 YongSinSelector(4-알고리즘 레지스트리, 별개 구현)로 다시 계산해
+  // 다른 용신을 내는 불일치를 막는다. saju.yongSin이 없으면 override 없이 기존 동작 유지.
+  const modernMatches = CareerMatcher.matchCareers(
+    { ...saju, wuxingCount: calculateElementDistribution(saju).counts },
+    DEFAULT_PRESETS.modern_professional,
+    {
+      minScore: 0,
+      maxResults: 100,
+      yongSinOverride: saju.yongSin
+        ? {
+            primaryYongSin: saju.yongSin.primaryYongSin,
+            secondaryYongSin: saju.yongSin.secondaryYongSin,
+          }
+        : undefined,
+    }
+  );
+
+  // 3. 직업 추천 생성 (십성 + 오행 + modern DB 통합)
+  const recommendations = generateRecommendations(
+    saju,
+    yongsin,
+    elementalAffinity,
+    tenGodsAnalysis,
+    modernMatches
+  );
 
   // 4. 피해야 할 직업
   const jobsToAvoid = identifyJobsToAvoid(saju, yongsin);
@@ -501,58 +582,86 @@ export function recommendCareer(saju: SajuData): CareerRecommendation {
 }
 
 /**
- * 오행별 적성 계산
+ * 오행별 적성 계산 — "타고난 강점"(발달 오행)과 "보완이 필요한 방향"(용신) 두 관점을
+ * 독립적으로 점수화한 뒤 평균해서 블렌드한다.
+ *
+ * 예전에는 용신 점수만 쓰면서 오행이 강할수록(발달할수록) 오히려 -10을 주는 억부용신
+ * 단일 기준이었다 — 실제로 그 오행이 발달해 잘 다루는 사람에게도 "이 분야는 안 맞다"는
+ * 결과가 나오는 문제가 있었다. strengthScore는 오행과 십성 카드(pentagon)와 동일한
+ * element_distribution.ts#calculateElementDistribution(지장간 가중 %)를 그대로 써서,
+ * 화면에 보이는 발달/부족 배지와 여기 점수가 항상 같은 명식을 말하게 한다.
  */
 function calculateElementalAffinity(
   saju: SajuData,
   yongsin: WuXing
 ): CareerRecommendation['elementalAffinity'] {
   const elements: WuXing[] = ['목', '화', '토', '금', '수'];
+  const dist = calculateElementDistribution(saju);
+  const statusMap = getElementStatusMap(dist.counts);
 
   return elements.map((element) => {
-    let affinity = 50; // 기본 점수
+    // 발달 오행(강점) 점수 — 평균 20%를 기준으로 스케일. 40%면 만점, 0%면 0점.
+    const strengthScore = Math.max(
+      0,
+      Math.min(100, Math.round((dist.pct[element] ?? 0) * 2.5))
+    );
 
-    // 용신과 같으면 +40
+    // 용신(보완 방향) 점수 — 일치/생조/상극 관계
+    let yongsinScore = 50;
     if (element === yongsin) {
-      affinity += 40;
+      yongsinScore += 40;
+    } else if (generates(element, yongsin)) {
+      yongsinScore += 20;
+    } else if (controls(element, yongsin)) {
+      yongsinScore -= 30;
     }
+    yongsinScore = Math.max(0, Math.min(100, yongsinScore));
 
-    // 용신을 생하면 +20
-    if (generates(element, yongsin)) {
-      affinity += 20;
-    }
-
-    // 용신을 극하면 -30
-    if (controls(element, yongsin)) {
-      affinity -= 30;
-    }
-
-    // 사주 내 해당 오행 강도에 따라 조정
-    const strength = getElementStrength(saju, element);
-    if (strength > 2) {
-      affinity -= 10; // 너무 강하면 감점
-    } else if (strength < 1) {
-      affinity += 15; // 약하면 보완 필요
-    }
-
-    affinity = Math.max(0, Math.min(100, affinity));
+    const affinity = Math.round((strengthScore + yongsinScore) / 2);
 
     return {
       element,
       affinity,
-      careers: ELEMENT_CAREERS[element].jobs.slice(0, 5),
+      strengthScore,
+      yongsinScore,
+      developedStatus: statusMap[element],
+      careers: Object.values(ELEMENT_CAREERS[element].jobsByCategory).flat().slice(0, 5),
     };
   }).sort((a, b) => b.affinity - a.affinity);
 }
 
 /**
- * 직업 추천 생성 (십성 + 오행 통합)
+ * 직업 추천 생성 (십성 + 오행 + modern DB 통합)
  */
+/**
+ * 카테고리별 구체적 직업 3개를 고른다 — modern_careers.ts(career_matcher.ts로 매칭한 개별
+ * 직업 점수)를 먼저 쓰고, 그 카테고리에 modern 데이터가 없거나 3개를 못 채우면
+ * ELEMENT_CAREERS의 카테고리 매핑으로 나머지를 채운다. modern DB에서 나온 직업이 있으면
+ * 그 중 가장 점수 높은 직업의 recommendationReason도 같이 돌려줘서 reason 문구에 붙인다.
+ */
+function pickSpecificJobs(
+  category: CareerCategory,
+  elementData: { jobsByCategory: Partial<Record<CareerCategory, string[]>> },
+  modernMatches: CareerMatch[]
+): { jobs: string[]; modernReason?: string } {
+  const modernCategories = MODERN_CATEGORY_MAP[category] ?? [];
+  const sortedModernMatches = modernMatches
+    .filter((m) => modernCategories.includes(m.career.category))
+    .sort((a, b) => b.matchScore - a.matchScore);
+
+  const modernJobs = sortedModernMatches.map((m) => m.career.name);
+  const fallbackJobs = elementData.jobsByCategory[category] ?? [];
+  const jobs = Array.from(new Set([...modernJobs, ...fallbackJobs])).slice(0, 3);
+
+  return { jobs, modernReason: sortedModernMatches[0]?.career.recommendationReason };
+}
+
 function generateRecommendations(
   _saju: SajuData,
   yongsin: WuXing,
   elementalAffinity: CareerRecommendation['elementalAffinity'],
-  tenGodsAnalysis: TenGodsCareerAnalysis
+  tenGodsAnalysis: TenGodsCareerAnalysis,
+  modernMatches: CareerMatch[]
 ): CareerRecommendation['recommendations'] {
   const recommendations: CareerRecommendation['recommendations'] = [];
 
@@ -577,24 +686,38 @@ function generateRecommendations(
 
       const isYongsin = element === yongsin;
       const isTenGodsMatch = tenGodsAnalysis.suitableCategories.includes(category);
+      const { jobs: specificJobs, modernReason } = pickSpecificJobs(category, elementData, modernMatches);
 
-      let reason = '';
-      if (isYongsin && isTenGodsMatch) {
-        reason = `용신(${yongsin})과 일치하고, 십성(${tenGodsAnalysis.dominantTenGod}) 특성에도 매우 적합합니다.`;
-      } else if (isYongsin) {
-        reason = `용신(${yongsin})과 일치하여 매우 유리합니다.`;
-      } else if (isTenGodsMatch) {
-        reason = `십성(${tenGodsAnalysis.dominantTenGod}) 특성에 잘 맞습니다.`;
-      } else {
-        reason = `${element} 기운이 적성에 맞습니다.`;
+      // 발달 오행(타고난 강점)과 용신(보완 방향) 두 관점을 각각 문장으로 만들어 이어붙인다 —
+      // 조합마다 문장을 따로 쓰면 경우의 수가 폭발하므로, 해당하는 절만 골라 join한다.
+      const reasonClauses: string[] = [];
+      if (affinity.developedStatus === '발달') {
+        reasonClauses.push(`${element} 기운이 명식에서 발달해 타고난 강점입니다`);
+      } else if (affinity.developedStatus === '부족') {
+        reasonClauses.push(`${element} 기운은 명식에서 부족한 편입니다`);
       }
+      if (isYongsin) {
+        reasonClauses.push(`${josa(`용신(${yongsin})`, "과/와")} 일치해 보완 방향으로도 유리합니다`);
+      } else if (generates(element, yongsin)) {
+        reasonClauses.push(`${josa(`용신(${yongsin})`, "을/를")} 생조해 도움이 됩니다`);
+      } else if (controls(element, yongsin)) {
+        reasonClauses.push(`${josa(`용신(${yongsin})`, "을/를")} 극해 다소 불리할 수 있습니다`);
+      }
+      if (isTenGodsMatch) {
+        reasonClauses.push(`십성(${tenGodsAnalysis.dominantTenGod}) 특성에도 잘 맞습니다`);
+      }
+      if (modernReason) {
+        reasonClauses.push(modernReason);
+      }
+      const reason =
+        reasonClauses.length > 0
+          ? `${reasonClauses.join(". ")}.`
+          : `${element} 기운이 적성에 맞습니다.`;
 
       recommendations.push({
         category,
         score: Math.max(0, Math.min(100, score)),
-        specificJobs: elementData.jobs.filter((_job) =>
-          ELEMENT_CAREERS[element].categories.includes(category)
-        ).slice(0, 3),
+        specificJobs,
         reason,
         yongsinAlignment: isYongsin ? '용신 일치' : generates(element, yongsin) ? '용신 생조' : '보통',
         strength: score >= 80 ? '매우 적합' : score >= 60 ? '적합' : score >= 40 ? '보통' : '부적합',
@@ -626,7 +749,7 @@ function identifyJobsToAvoid(
     elementData.categories.forEach((category) => {
       jobsToAvoid.push({
         category,
-        reason: `${element} 기운이 용신(${yongsin})을 극하여 불리합니다.`,
+        reason: `${element} 기운이 ${josa(`용신(${yongsin})`, "을/를")} 극하여 불리합니다.`,
         alternativeSuggestion: `대신 ${yongsin} 관련 직업을 고려하세요.`,
       });
     });
@@ -775,24 +898,3 @@ function controls(from: WuXing, to: WuXing): boolean {
   return cycle[from] === to;
 }
 
-/**
- * 사주 내 특정 오행의 강도 계산
- */
-function getElementStrength(saju: SajuData, element: WuXing): number {
-  let count = 0;
-  // 천간 4개 체크 (간단한 버전)
-  const stems = [saju.year.stem, saju.month.stem, saju.day.stem, saju.hour.stem];
-  const stemElements: Record<HeavenlyStem, WuXing> = {
-    '갑': '목', '을': '목',
-    '병': '화', '정': '화',
-    '무': '토', '기': '토',
-    '경': '금', '신': '금',
-    '임': '수', '계': '수',
-  };
-
-  stems.forEach((stem) => {
-    if (stemElements[stem] === element) count++;
-  });
-
-  return count;
-}

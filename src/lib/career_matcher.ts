@@ -44,6 +44,16 @@ export interface CareerMatchOptions {
   maxResults?: number;
   /** 카테고리 필터 */
   categoryFilter?: string[];
+  /**
+   * 이미 계산된 용신을 그대로 쓰고 싶을 때 넘긴다 — 없으면 기존처럼
+   * YongSinSelector(4-알고리즘 레지스트리)로 자체 계산한다.
+   *
+   * saju.ts가 실제로 쓰는 용신은 레거시 yong_sin.ts#selectYongSin이 낸 값(saju.yongSin)이다.
+   * 여기서 YongSinSelector로 다시 계산하면 "용신 — 필요한 것" 카드와 직업 탭이 서로 다른
+   * 용신을 말하는 불일치가 생길 수 있다 — 호출부가 saju.yongSin을 갖고 있으면 반드시
+   * 이 옵션으로 넘겨서 같은 용신을 쓰게 해야 한다.
+   */
+  yongSinOverride?: { primaryYongSin: WuXing; secondaryYongSin?: WuXing };
 }
 
 /**
@@ -64,10 +74,11 @@ export class CareerMatcher {
       minScore = 60,
       maxResults = 20,
       categoryFilter,
+      yongSinOverride,
     } = options;
 
-    // 용신 결정
-    const yongSinResult = YongSinSelector.select(sajuData, settings.yongSinMethod);
+    // 용신 결정 — 호출부가 이미 계산한 용신을 넘겼으면 그걸 그대로 쓴다(위 옵션 설명 참고)
+    const yongSinResult = yongSinOverride ?? YongSinSelector.select(sajuData, settings.yongSinMethod);
 
     // 십성 분포 계산
     const tenGodDistribution = this.calculateTenGodDistribution(sajuData);
