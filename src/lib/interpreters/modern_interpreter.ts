@@ -83,11 +83,13 @@ export class ModernInterpreter extends BaseSchoolInterpreter {
       wuxingCount: { 목: 2, 화: 2, 토: 2, 금: 2, 수: 2 },
       dayMasterStrength: { level: 'medium', score: 50, analysis: '' },
       birthDate: '1990-01-01',
+      solarBirthDate: '1990-01-01',
       birthTime: '00:00',
       birthCity: '서울',
       calendar: 'solar' as const,
       isLeapMonth: false,
       gender: 'male' as const,
+      unknownHour: false,
       tenGods: [],
     };
   }

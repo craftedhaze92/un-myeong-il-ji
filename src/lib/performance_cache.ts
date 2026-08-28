@@ -144,9 +144,10 @@ export function generateSajuCacheKey(
   calendar: string,
   isLeapMonth: boolean,
   gender: string,
-  birthCity: string
+  birthCity: string,
+  unknownHour: boolean = false
 ): string {
-  return `saju:${birthDate}:${birthTime}:${calendar}:${isLeapMonth}:${gender}:${birthCity}`;
+  return `saju:${birthDate}:${birthTime}:${calendar}:${isLeapMonth}:${gender}:${birthCity}:${unknownHour}`;
 }
 
 export function generateDaeUnCacheKey(

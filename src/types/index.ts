@@ -65,13 +65,22 @@ export interface SajuPillars {
 // 사주팔자 전체 데이터
 export interface SajuData {
   // 기본 정보
-  birthDate: string; // YYYY-MM-DD
+  birthDate: string; // YYYY-MM-DD (사용자가 입력한 원본 — 음력이면 음력 날짜)
+  /**
+   * 양력으로 환산한 출생일 (YYYY-MM-DD). 양력 입력이면 birthDate와 동일.
+   * 절기 거리·만 나이 등 시간축 계산(대운수, 세운 나이 매칭 등)은 반드시 이 값을 써야 한다 —
+   * birthDate를 양력으로 가정해 쓰면 음력 입력 시 최대 한 달가량 어긋난다.
+   */
+  solarBirthDate: string;
   birthTime: string; // HH:MM
   /** 경도 보정에 사용한 시군구명 (longitude_table 키). 미입력 시 서울 */
   birthCity: string;
   calendar: CalendarType;
   isLeapMonth: boolean;
   gender: Gender;
+  /** 시(時)를 모르는 명식인지 여부. true면 hour 필드는 표시용으로만 계산되고
+   *  오행·십성·신살·격국·용신 등 모든 후속 분석에서 제외된다. */
+  unknownHour: boolean;
 
   // 사주 사기둥
   year: Pillar; // 연주 (年柱)
@@ -114,7 +123,8 @@ export interface SajuData {
       secondary?: { stem: HeavenlyStem; strength: number };
       residual?: { stem: HeavenlyStem; strength: number };
     };
-    hour: {
+    /** 시간 미상(unknownHour) 명식은 시주 지장간을 계산하지 않는다 */
+    hour?: {
       primary: { stem: HeavenlyStem; strength: number };
       secondary?: { stem: HeavenlyStem; strength: number };
       residual?: { stem: HeavenlyStem; strength: number };

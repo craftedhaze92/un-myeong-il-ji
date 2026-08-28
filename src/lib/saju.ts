@@ -35,9 +35,11 @@ export function calculateSaju(
   calendar: CalendarType,
   isLeapMonth: boolean,
   gender: Gender,
-  birthCity?: string
+  birthCity?: string,
+  options?: { unknownHour?: boolean }
 ): SajuData {
   const resolvedBirthCity = resolveBirthCityForSaju(birthCity);
+  const unknownHour = options?.unknownHour ?? false;
 
   // 캐시 체크
   const cacheKey = generateSajuCacheKey(
@@ -46,7 +48,8 @@ export function calculateSaju(
     calendar,
     isLeapMonth,
     gender,
-    resolvedBirthCity
+    resolvedBirthCity,
+    unknownHour
   );
   const cached = sajuCache.get(cacheKey);
   if (cached) {
@@ -75,7 +78,7 @@ export function calculateSaju(
   // 시주 계산
   const hourPillar = calculateHourPillar(adjustedDate, dayPillar);
 
-  // 오행 개수 세기
+  // 오행 개수 세기 (시간 미상이면 시주는 표시용으로만 계산하고 집계에서 제외)
   const wuxingCount: Record<WuXing, number> = {
     목: 0,
     화: 0,
@@ -84,8 +87,11 @@ export function calculateSaju(
     수: 0,
   };
 
-  // 사주 사기둥의 오행 카운트
-  [yearPillar, monthPillar, dayPillar, hourPillar].forEach((pillar) => {
+  const pillarsForAnalysis = unknownHour
+    ? [yearPillar, monthPillar, dayPillar]
+    : [yearPillar, monthPillar, dayPillar, hourPillar];
+
+  pillarsForAnalysis.forEach((pillar) => {
     wuxingCount[pillar.stemElement]++;
     wuxingCount[pillar.branchElement]++;
   });
@@ -93,7 +99,7 @@ export function calculateSaju(
   // 강약 분석
   const strongElements: WuXing[] = [];
   const weakElements: WuXing[] = [];
-  const average = 8 / 5; // 총 8개 / 5개 오행
+  const average = (pillarsForAnalysis.length * 2) / 5; // 표시된 글자 수(기둥당 2자) / 5개 오행
 
   for (const [element, count] of Object.entries(wuxingCount) as [WuXing, number][]) {
     if (count > average * 1.5) {
@@ -105,11 +111,13 @@ export function calculateSaju(
 
   const sajuData: SajuData = {
     birthDate,
+    solarBirthDate: solarDate,
     birthTime,
     birthCity: resolvedBirthCity,
     calendar,
     isLeapMonth,
     gender,
+    unknownHour,
     year: yearPillar,
     month: monthPillar,
     day: dayPillar,
@@ -127,17 +135,20 @@ export function calculateSaju(
   // 신살 계산
   sajuData.sinSals = findSinSals(sajuData);
 
-  // 지지 관계 분석
-  const branches = [yearPillar.branch, monthPillar.branch, dayPillar.branch, hourPillar.branch];
+  // 지지 관계 분석 (시간 미상이면 시지는 가짜 값이므로 삼합·삼형 등 판정에서 뺀다)
+  const branches = unknownHour
+    ? [yearPillar.branch, monthPillar.branch, dayPillar.branch]
+    : [yearPillar.branch, monthPillar.branch, dayPillar.branch, hourPillar.branch];
   sajuData.branchRelations = analyzeBranchRelations(branches);
 
-  // 지장간 세력 계산 (월주와 동일한 정밀 절기 기준)
+  // 지장간 세력 계산 (월주와 동일한 정밀 절기 기준). 시간 미상이면 시주 지장간은
+  // 십성 분포 등 후속 계산에서 제외되도록 비워둔다.
   const monthIndex = getPreciseSolarTermMonthIndex(adjustedDate);
   sajuData.jiJangGan = {
     year: calculateJiJangGanStrength(yearPillar.branch, monthIndex),
     month: calculateJiJangGanStrength(monthPillar.branch, monthIndex),
     day: calculateJiJangGanStrength(dayPillar.branch, monthIndex),
-    hour: calculateJiJangGanStrength(hourPillar.branch, monthIndex),
+    hour: unknownHour ? undefined : calculateJiJangGanStrength(hourPillar.branch, monthIndex),
   };
 
   // 월령 득실 판단

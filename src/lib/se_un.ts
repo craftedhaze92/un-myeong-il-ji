@@ -8,6 +8,7 @@ import { getHeavenlyStemByIndex } from '../data/heavenly_stems';
 import { getEarthlyBranchByIndex } from '../data/earthly_branches';
 import { analyzeElementInteraction } from '../data/wuxing';
 import { getManAgeForFortuneYear } from '../utils/date';
+import { josa } from './korean';
 
 /**
  * 세운(歲運) 한 해 정보
@@ -43,8 +44,11 @@ export interface SeUnYear {
 /**
  * 특정 연도의 간지 계산
  * 갑자년(1984)을 기준으로 계산
+ *
+ * export된 이유: result-panel.tsx의 세운 띠는 간지만 필요한데 analyzeSeUn은 운세 서술까지
+ * 만들어 무겁다. 뷰모델에서 간지만 가볍게 뽑아 쓰기 위해 승격했다.
  */
-function getYearGanJi(year: number): { stem: HeavenlyStem; branch: EarthlyBranch } {
+export function getYearGanJi(year: number): { stem: HeavenlyStem; branch: EarthlyBranch } {
   // 1984년 = 갑자년 (甲子年)
   const baseYear = 1984;
   const yearDiff = year - baseYear;
@@ -86,7 +90,8 @@ export function analyzeSeUn(
   sajuData: SajuData,
   targetYear: number
 ): SeUnYear {
-  const age = getManAgeForFortuneYear(sajuData.birthDate, targetYear);
+  // 만 나이는 양력 환산일 기준으로 재야 한다 — 음력 입력이면 birthDate는 음력 날짜라 어긋난다.
+  const age = getManAgeForFortuneYear(sajuData.solarBirthDate, targetYear);
 
   const yearGanJi = getYearGanJi(targetYear);
   const stemData = getHeavenlyStemByIndex(
@@ -171,7 +176,8 @@ function analyzeYearElementBalance(
   );
 
   if (weak.length > 0) {
-    return `${dominant} 기운이 강하고 ${weak.join(', ')} 기운이 약하여 불균형한 상태입니다. ${weak.join(', ')}을 보완하는 것이 좋습니다.`;
+    const weakText = weak.join(', ');
+    return `${dominant} 기운이 강하고 ${weakText} 기운이 약하여 불균형한 상태입니다. ${josa(weakText, "을/를")} 보완하는 것이 좋습니다.`;
   }
 
   return `${dominant} 기운이 강한 한 해입니다.`;

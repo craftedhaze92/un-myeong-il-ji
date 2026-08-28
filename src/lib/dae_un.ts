@@ -27,9 +27,9 @@ export function calculateDaeUn(
   sajuData: SajuData,
   lifespan: number = 120
 ): DaeUnPeriod[] {
-  // 캐시 체크
+  // 캐시 체크 (절기 거리 계산 기준인 양력 환산일로 키를 만든다)
   const cacheKey = generateDaeUnCacheKey(
-    sajuData.birthDate,
+    sajuData.solarBirthDate,
     sajuData.birthTime,
     sajuData.birthCity,
     sajuData.year.stem,
@@ -121,8 +121,10 @@ export function getDaeUnAtAge(
  */
 function calculateDaeUnStartAge(sajuData: SajuData): number {
   // 만세력 기준: 출생일시를 정확히 반영 (대한민국 벽시계·썸머타임 반영)
+  // 절기 거리 계산이므로 양력 환산일(solarBirthDate)을 써야 한다 — birthDate는 음력 입력 시
+  // 음력 날짜 문자열이라 그대로 쓰면 절기 거리가 최대 한 달가량 어긋난다.
   const birthDate = getAdjustedBirthInstantForSaju(
-    sajuData.birthDate,
+    sajuData.solarBirthDate,
     sajuData.birthTime,
     sajuData.birthCity
   );
