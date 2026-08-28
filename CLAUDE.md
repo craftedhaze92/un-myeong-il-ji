@@ -65,9 +65,30 @@ route.ts도 없어 현재 아무 곳에서도 호출되지 않는다** — 죽�
 
 `types/interpretation.ts`의 5개 유파 코드(`ziping`/`dts`/`qtbj`/`modern`/`shensha`) 중 `ziping`·`modern`만
 `src/lib/interpreters/`에 전용 파일이 있고 나머지 셋은 `interpreters/index.ts` 안에 `BaseSchoolInterpreter`의
-인라인 서브클래스로 존재한다(대체로 템플릿 문자열). 별도로 `src/lib/yongsin/`(4개 알고리즘 레지스트리,
-`selector.ts`)과 `src/lib/yong_sin.ts`(레거시, `YongSinAnalysis`)가 **경쟁하는 두 용신 구현**으로 공존하며
-둘 다 `analyze_saju` 도구에서 접근 가능하다. 용신 로직을 고칠 땐 어느 쪽인지 먼저 확인할 것.
+인라인 서브클래스로 존재한다(대체로 템플릿 문자열). 세 인라인 해석기는 전달받은 사주를 쓰지 않고
+`createSimpleSajuData`로 `wuxingCount` 균등분포·`dayMasterStrength` 고정값(`medium`/50점)인 **가짜 명식**을
+만들어 넘긴다(`interpreters/index.ts:47-65, 101-119, 153-171`) — 단순 미연결이 아니라 구조적으로 못 쓰는
+상태라, 나중에 살리려면 배선이 아니라 재작성이 필요하다. 화면에서는 사용하지 않는다(범위 제외).
+
+별도로 `src/lib/yongsin/`(4개 알고리즘 레지스트리, `selector.ts`)과 `src/lib/yong_sin.ts`(레거시,
+`YongSinAnalysis`, `saju.ts`가 실제로 쓰는 것)가 **경쟁하는 두 용신 구현**으로 공존하며 둘 다
+`analyze_saju` 도구에서 접근 가능하다. 용신 로직을 고칠 땐 어느 쪽인지 먼저 확인할 것.
+
+`yong_sin.ts#selectYongSin`은 궁통보감·자평명리·적천수 통설의 우선순위를 따른다: **전왕(종격) >
+조후(한난조습 극단) > 억부(강약 명확) > 통관(중화)**. 종격 판정은 `gyeok_guk.ts#checkSpecialGyeokGuk`을,
+조후는 `johu.ts#selectJohuYongSin`(궁통보감 조후용신표, `data/johu_table.ts`)을 재사용한다 — 세 번째
+종격 구현이나 두 번째 조후 구현을 새로 만들지 말 것. `yongsin/seasonal_algorithm.ts`(4-알고리즘
+레지스트리의 조후 알고리즘)도 같은 `johu.ts`를 쓰도록 배선돼 있다. 예전엔 중화(medium)일 때
+"사주에서 가장 적은 오행"을 그냥 용신으로 골랐는데(`findWeakestElement`, 삭제됨) 명리학적 근거가
+없었다 — 지금은 목극토처럼 팽팽히 상극하는 두 세력이 있으면 그 사이를 잇는 통관용신을, 없으면
+조후용신으로 폴백한다.
+
+`data/johu_table.ts`는 일간(10) × 월지(12) = 120칸 조후용신표(〈희용제요〉)를 담는다. 반드시 **천간
+단위**로 저장한다 — 丙火(태양)와 丁火(등불)를 오행으로 뭉개면 조후 이론 자체가 무의미해진다. 칸마다
+`verified` 플래그가 있다: 웹 검색으로 복수 출처가 실제로 일치함을 확인한 칸만 `true`이고, 나머지는
+통설을 따르되 `false`로 남겨 `johu.ts`가 신뢰도(`confidence`)를 낮춘다 — 미확정 칸을 확정처럼
+내보내지 않는다는 원칙은 `data/naming_hanja_table.ts`의 `strokesVerified`/`elementVerified`
+플래그와 같은 원칙이다(아래 "작명" 절 참고). 새 칸을 채울 때 이 규칙을 유지할 것.
 
 ### 오행 분포·십이운성·십이신살 — 신규 계산 모듈 (결과 패널 벤치마크 보강)
 
@@ -78,13 +99,23 @@ route.ts도 없어 현재 아무 곳에서도 호출되지 않는다** — 죽�
   결과를 오행별로 묶어서 역산한다(`groupTenGodsByElement`). 오행 판정(발달/부족/적정)은
   `data/wuxing.ts#analyzeWuXingBalance`의 임계값(평균의 1.5배/0.5배)을 그대로 재사용 — 새 기준을
   만들지 않았다.
-- `ten_gods.ts#calculateTenGodsDistribution`에 `{ includeDayMaster: true }` 옵션이 추가됐다.
-  **기본값은 여전히 일간 자신과 일간과 같은 천간을 분포에서 제외**한다(기존 호출부 무변경) —
-  오행 파이차트처럼 8글자(시간 미상이면 6글자) 전체가 분모여야 하는 곳만 이 옵션을 켠다.
-  지장간 세력(`calculateJiJangGanStrength`)이 절기 근접도에 따라 40~100 사이로 변하므로,
-  `includeDayMaster: true`를 켜도 총합이 정확히 8/6으로 떨어지지는 않는다 — 정확한 합계를
-  검증하려면 지장간 세력이 100으로 딱 떨어지는 통제된 합성 명식이 필요하다
+- `ten_gods.ts#calculateTenGodsDistribution`에 `{ includeDayMaster: true }` 옵션이 있다.
+  **의미가 한 번 바뀌었다**: 예전엔 `stem !== dayStem` 가드가 "일간과 같은 천간이면 무조건 제외"까지
+  겸해서, 연간이나 지장간 정기가 일간과 우연히 같은 천간이어도 통째로 걸러져
+  `distribution.비견`이 구조적으로 항상 0이었다(비견의 정의 자체가 "같은 오행+같은 음양"=같은
+  천간이라, 다른 자리의 동일 천간은 통근·비겁이지 "일간 자신"이 아니다). 지금은 그 버그를 고쳐
+  다른 자리의 동일 천간은 옵션과 무관하게 항상 정상 집계되고, `includeDayMaster`는 순수하게
+  "일주 천간 자신(1개)"을 비견에 더 얹을지만 결정한다. 오행 파이차트처럼 8글자(시간 미상이면
+  6글자) 전체가 분모여야 하는 곳만 이 옵션을 켠다. 지장간 세력(`calculateJiJangGanStrength`)이
+  절기 근접도에 따라 40~100 사이로 변하므로, 총합이 정확히 8/6으로 떨어지지는 않는다 — 정확한
+  합계를 검증하려면 지장간 세력이 100으로 딱 떨어지는 통제된 합성 명식이 필요하다
   (`element_distribution.test.ts`/`ten_gods.test.ts` 참고).
+- `day_master_strength.ts#analyzeDayMasterStrength`는 위 십성 분포 개수가 아니라, 8글자를 직접
+  순회해 자리 가중치(월지 3.0 > 일지 2.0 > 시지/월간 1.5 > 년지/년간·시간 1.0)를 곱한 아군(비겁·
+  인성)/적군(식상·재성·관성) 세력비로 재작성됐다. 득령(得令)·득지(得地)·득세(得勢) 3요소와
+  통근(通根, 일간과 같은 오행의 천간을 지지에 두었는가) 플래그도 함께 반환한다
+  (`{ deukRyeong, deukJi, deukSe, rootedAt }`). 합충(合沖)이 세력에 미치는 영향은 의도적으로
+  반영하지 않는다 — 유파마다 결론이 갈려 단일 규칙으로 못 박으면 오히려 정확도가 떨어진다.
 - `src/lib/twelve_stages.ts` — 십이운성(장생~양). 음간의 순역에는 두 학파가 있는데, 이 저장소는
   벤치마크 서비스(점신) 화면을 역산해 검증한 "음간 역행" 학파를 따른다.
 - `src/lib/twelve_sinsal.ts` — 십이신살(겁살~화개살). `sin_sal.ts`의 `SinSal`(천을귀인 등
@@ -104,6 +135,13 @@ route.ts도 없어 현재 아무 곳에서도 호출되지 않는다** — 죽�
 `gyeok_guk.test.ts` 참고). `src/lib/interpreters/ziping_interpreter.ts#determineGeokGuk`는 이 파일과
 **전혀 무관한 세 번째 구현**으로, 일간조차 안 보고 월지 오행만으로 룩업한다(유파 해석 텍스트에만
 쓰임, 화면 표시는 `gyeok_guk.ts` 결과) — 격국 로직을 고칠 땐 어느 파일인지 먼저 확인할 것.
+
+`gyeok_guk.ts`는 격 **이름**만 정한다 — 그 격이 잘 짜였는지(성격/파격)는 `gyeok_guk_quality.ts#
+analyzeGyeokGukQuality`가 별도로 판단한다(단일 책임 분리). 자평진전의 순용(順用, 재관인식은
+생조해서 씀)/역용(逆用, 살상겁인은 극제해서 씀) 구분과, 격별 파격 조건·구신(救神)을 십성 분포
+기준으로 판정해 `{ status, useType, sangSin, brokenBy, rescuedBy, explanation }`을 낸다. 종격
+(`jong_wang`/`jong_sal`/`jong_jae`)과 중화격(`balanced`)은 순용/역용 구분 자체가 적용되지 않는
+별개 체계라 `null`을 반환한다 — 이 두 파일을 합치지 말 것.
 
 ### 직업 추천 — 발달 오행(강점) + 용신(보완 방향) 블렌드, career_matcher.ts 실제 연결
 
@@ -148,6 +186,35 @@ route.ts도 없어 현재 아무 곳에서도 호출되지 않는다** — 죽�
 `calculateSaju`/`calculateDaeUn`을 **브라우저에서 직접** 호출한다 — react-query가 설치돼 있지만
 네트워크 호출 없이 로컬 계산만 한다. `view-model.ts`가 `SajuData`를 순수 프레젠테이션 VM으로 변환하고,
 `constants.ts`(테마/색상)·`fonts.ts`(한글 명조/모노 폰트 변수)가 스타일 상수를 담당한다.
+
+### 작명 — 발음오행은 한자 없이, 오격 성명학은 한자가 있어야 진짜다
+
+`jakmeong_analysis.ts#analyzeName(fullName, saju, hanja?)`는 두 오행 체계를 글자 단위로 섞어
+쓴다. 세 번째 인자 `hanja`가 `fullName`과 **길이가 같을 때만** 쓰고, 길이가 다르거나 없으면
+전부 무시한다(부분 입력 없음 — 섞어 쓰면 오격 계산이 애매해진다). 각 글자는:
+- 한자가 주어지고 `data/naming_hanja_table.ts`에 있으면 → **자원오행**(그 한자의 부수 기반
+  전통 오행)과 **실제 획수**를 씀 (`elementSource: '자원'`)
+- 없으면 → 초성(자음) 기준 **발음오행**으로 폴백 (`elementSource: '발음'`)
+
+`strokeAnalysis`(오격: 천격/인격/지격/외격/총격)는 성(1글자)+이름 앞 두 글자, 총 세 글자
+**모두**가 사전에 있어야 계산한다. 하나라도 없으면 가짜 숫자를 채우는 대신
+`{ available: false, reason }`을 낸다 — 예전엔 한자 입력 경로 자체가 없어서 `getStrokeCount`가
+한글 유니코드 코드포인트를 해싱한 임의값(3~30)을 냈고, 그래서 이 필드 전체를 화면에서
+숨겼다(`reading-view-model.ts#buildNameAnalysisVM`). 지금은 조건부로 노출한다 — `overall`·
+`pronunciation`은 여전히 숨긴다(`pronunciation.easyToWrite`가 아직 그 가짜 `getStrokeCount`를
+쓰고 있어서, 다음 기회에 정리).
+
+`data/naming_hanja_table.ts`는 **원획법(原劃法)** 기준 획수를 쓴다 — 옥편 필획과 다르다
+(삼수변 氵는 물 수 水=4획, 심방변 忄은 마음 심 心=4획 등으로 계산, 예: 河는 필획 8이지만
+원획 9). 阝(阜/邑)·辶(辵)·罒(网) 등 원획 보정이 더 복잡한 부수가 든 한자는 의도적으로
+표에서 뺐다 — 어설프게 다뤄서 틀린 값을 내느니 "사전에 없음"으로 정직하게 빠지는 편이
+낫다(성씨 鄭·陳, 이름 蓮·進 등이 이래서 없다. 복성 지지도 안 됨 — 첫 글자를 성으로 가정).
+각 항목의 `strokesVerified`/`elementVerified`는 `data/johu_table.ts`와 같은 원칙(추측을
+확정처럼 내보내지 않음) — 부수가 오행에 직접 대응하는 한자만 `elementVerified: true`.
+
+`reading-panel.tsx#MyeongsikTab`의 한자 입력은 `saju-app.tsx`의 메인 폼(`BirthFormValues`)이
+아니라 이 탭 안의 로컬 `useState`로 관리한다 — 한자는 명식 계산에 안 쓰는 부가 정보라
+`sajuCache`의 캐시 키에 영향을 주면 안 된다.
 
 ### 도메인 값은 한글 리터럴
 
