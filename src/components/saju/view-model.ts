@@ -35,6 +35,12 @@ import type {
 } from "@/types";
 import { ELEMENTS, elementColor, elementIndex, josa, rgba } from "./constants";
 
+const SINSAL_TYPE_LABEL: Record<"lucky" | "unlucky" | "neutral", string> = {
+  lucky: "길신",
+  unlucky: "흉신",
+  neutral: "중립",
+};
+
 /** 진태양시 보정값(분)을 "−32분" 형태로 표기. 마이너스는 하이픈이 아닌 U+2212(음수 기호) 사용. */
 function formatLongitudeOffset(offsetMinutes: number): string {
   if (offsetMinutes === 0) return "0분";
@@ -82,6 +88,8 @@ export interface PillarVM {
   size: number;
   stem: PillarCellVM;
   branch: PillarCellVM;
+  /** 일지 기준 십이신살(twelve_sinsal.ts). 일주 칸은 자기 자신과의 관계라 계산이 성립하지 않아 undefined. */
+  twelveSinsal?: TwelveSinSal;
 }
 
 // ── 오행과 십성 — 상생상극 오각형 ────────────────────────────────────────
@@ -146,6 +154,7 @@ export interface StrengthGaugeVM {
 export interface SinSalVM {
   name: string;
   desc: string;
+  typeLabel: string;
 }
 
 /** 대운/세운 칸에서 공유하는 간지 한 글자(천간 또는 지지) 표시 정보 */
@@ -621,6 +630,8 @@ export function buildSajuViewModel({
       size: isDay ? 90 : 76,
       stem: stemCell,
       branch: branchCell,
+      // 일주 자신은 일지 기준 계산이 성립하지 않아 표시하지 않는다(기준 자리라 무의미).
+      twelveSinsal: isDay ? undefined : getTwelveSinSal(saju.day.branch, pillar.branch),
     };
   });
 
@@ -649,12 +660,14 @@ export function buildSajuViewModel({
           return {
             name: `${info.name}(${info.hanja})`,
             desc: info.description,
+            typeLabel: SINSAL_TYPE_LABEL[info.type],
           };
         })
       : [
           {
             name: "무신살(無神煞)",
             desc: "두드러진 신살 없이 고르게 놓인 명식입니다.",
+            typeLabel: "",
           },
         ];
 

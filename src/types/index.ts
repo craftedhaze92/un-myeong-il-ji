@@ -97,6 +97,8 @@ export interface SajuData {
 
   // 신살
   sinSals?: SinSal[]; // 신살 목록
+  /** 신살이 성립한 자리까지 담은 상세 목록. sinSals는 이 목록에서 파생된다 */
+  sinSalHits?: SinSalHit[];
 
   // 지지 관계
   branchRelations?: {
@@ -207,15 +209,29 @@ export type SinSal =
   | 'mun_chang_gwi_in' // 문창귀인
   | 'hak_dang_gwi_in' // 학당귀인
   | 'geum_yeo_rok' // 금여록
+  | 'geon_rok' // 건록
+  | 'am_rok' // 암록
+  | 'tae_geuk_gwi_in' // 태극귀인 (미검증 — 단일 출처)
+  | 'bok_seong_gwi_in' // 복성귀인 (미검증 — 출처마다 표가 엇갈림)
+  | 'cheon_ju_gwi_in' // 천주귀인
+  | 'hyeop_rok' // 협록
   | 'hwa_gae_sal' // 화개살
   | 'yang_in_sal' // 양인살
   | 'do_hwa_sal' // 도화살
   | 'baek_ho_sal' // 백호살
+  | 'goe_gang_sal' // 괴강살
+  | 'hong_yeom_sal' // 홍염살
+  | 'go_sin_sal' // 고신살
   | 'yeok_ma_sal' // 역마살
-  | 'gwa_suk_sal' // 고숙살 (과숙살)
+  | 'gwa_suk_sal' // 과숙살
+  | 'cheon_ra_ji_mang' // 천라지망
   | 'gong_mang' // 공망
   | 'won_jin_sal' // 원진살
-  | 'gwi_mun_gwan_sal'; // 귀문관살
+  | 'gwi_mun_gwan_sal' // 귀문관살
+  | 'hyeon_chim_sal' // 현침살 (미검증 — 학파별로 산식이 갈림)
+  | 'geup_gak_sal' // 급각살
+  | 'tang_hwa_sal' // 탕화살 (미검증 — 학파별로 산식이 갈림)
+  | 'go_ran_sal'; // 고란살
 
 export interface SinSalInfo {
   sinSal: SinSal;
@@ -225,6 +241,23 @@ export interface SinSalInfo {
   description: string;
   effects: string[];
   advice: string[];
+  /** 신살에 배속된 오행 (참고 사이트 분류를 따름 — 산식에서 유도되는 값이 아니라 서술용 참고 정보) */
+  element: WuXing;
+  /** 성립 근거 한 문장. 예: "일간 기준, 지지에 사(巳)가 있을 때" */
+  basis: string;
+  /** 양면성 — 흉신에도 긍정적 측면이, 길신에도 주의할 점이 있다는 관점을 담는다 */
+  positive: string[];
+  negative: string[];
+  /** 분야별 해석 (직업/연애/건강) */
+  byArea: { career: string; love: string; health: string };
+  /** 복수 출처로 산식이 실제 일치함을 확인했는가 — false는 학파가 갈리는 산식이라는 내부 표시(화면 노출 없음) */
+  verified: boolean;
+}
+
+/** 신살이 성립한 자리(연/월/일/시주) */
+export interface SinSalHit {
+  sinSal: SinSal;
+  pillars: ('year' | 'month' | 'day' | 'hour')[];
 }
 
 // 운세 분석 타입

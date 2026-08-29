@@ -18,7 +18,7 @@ import { convertCalendar } from './calendar';
 import { getAdjustedBirthInstantForSaju } from '../utils/date';
 import { resolveBirthCityForSaju } from '../data/longitude_table';
 import { calculateTenGodsDistribution, generateTenGodsList } from './ten_gods';
-import { findSinSals } from './sin_sal';
+import { findSinSalHits, getSinSalInfo } from './sin_sal';
 import { analyzeDayMasterStrength } from './day_master_strength';
 import { determineGyeokGuk } from './gyeok_guk';
 import { analyzeGyeokGukQuality } from './gyeok_guk_quality';
@@ -134,7 +134,8 @@ export function calculateSaju(
   sajuData.tenGodsDistribution = calculateTenGodsDistribution(sajuData);
 
   // 신살 계산
-  sajuData.sinSals = findSinSals(sajuData);
+  sajuData.sinSalHits = findSinSalHits(sajuData);
+  sajuData.sinSals = sajuData.sinSalHits.map((hit) => hit.sinSal);
 
   // 지지 관계 분석 (시간 미상이면 시지는 가짜 값이므로 삼합·삼형 등 판정에서 뺀다)
   const branches = unknownHour
@@ -552,42 +553,22 @@ function analyzeTenGodsDistribution(saju: SajuData): string {
 function analyzeSinSals(saju: SajuData): string {
   if (!saju.sinSals || saju.sinSals.length === 0) return '';
 
-  const analysis: string[] = [];
-  const sinSalDetails: Record<string, { name: string; type: string; meaning: string; advice: string }> = {
-    cheon_eul_gwi_in: {
-      name: '천을귀인(天乙貴人)',
-      type: '길신',
-      meaning: '귀인의 도움을 받는 최고의 길성. 어려움이 있어도 주변의 도움으로 해결됩니다.',
-      advice: '겸손하게 사람들과 좋은 관계를 유지하세요.',
-    },
-    hwa_gae_sal: {
-      name: '화개살(華蓋殺)',
-      type: '중립',
-      meaning: '예술적 재능과 영적 감각이 뛰어나지만 고독한 면도 있습니다.',
-      advice: '창작이나 종교, 철학 분야에서 재능을 발휘하세요.',
-    },
-    do_hwa_sal: {
-      name: '도화살(桃花殺)',
-      type: '중립',
-      meaning: '이성에게 인기가 많고 매력적이나, 이성 관계가 복잡해질 수 있습니다.',
-      advice: '신중한 이성 관계를 유지하고, 매력을 긍정적으로 활용하세요.',
-    },
-    yeok_ma_sal: {
-      name: '역마살(驛馬殺)',
-      type: '중립',
-      meaning: '이동수가 많고 활동적이며, 변화를 좋아합니다.',
-      advice: '여행, 해외, 영업 등 이동이 많은 분야에 적합합니다.',
-    },
+  const typeLabel: Record<'lucky' | 'unlucky' | 'neutral', string> = {
+    lucky: '길신',
+    unlucky: '흉신',
+    neutral: '중립',
+  };
+  const icon: Record<'lucky' | 'unlucky' | 'neutral', string> = {
+    lucky: '✨',
+    unlucky: '⚠️',
+    neutral: '💫',
   };
 
-  saju.sinSals.forEach((sinSal) => {
-    const detail = sinSalDetails[sinSal];
-    if (detail) {
-      const icon = detail.type === '길신' ? '✨' : detail.type === '흉신' ? '⚠️' : '💫';
-      analysis.push(`${icon} ${detail.name} [${detail.type}]
-  의미: ${detail.meaning}
-  조언: ${detail.advice}`);
-    }
+  const analysis = saju.sinSals.map((sinSal) => {
+    const info = getSinSalInfo(sinSal);
+    return `${icon[info.type]} ${info.name}(${info.hanja}) [${typeLabel[info.type]}]
+  의미: ${info.description}
+  조언: ${info.advice.join(' ')}`;
   });
 
   return analysis.join('\n\n');

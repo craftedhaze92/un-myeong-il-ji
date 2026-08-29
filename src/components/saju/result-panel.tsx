@@ -143,14 +143,14 @@ export function ResultPanel({
 
       <motion.div
         variants={pillarsGridVariants}
-        className="grid grid-rows-[auto_auto_auto_auto] gap-2 pt-1 pb-8 sm:gap-4 sm:pb-10"
+        className="grid grid-rows-[auto_auto_auto_auto_auto] gap-2 pt-1 pb-8 sm:gap-4 sm:pb-10"
         style={{ gridTemplateColumns: `repeat(${viewModel.colCount}, minmax(0, 1fr))` }}
       >
         {viewModel.pillars.map((p, i) => (
           <motion.div
             key={i}
             variants={pillarColumnVariants(p.size === 90)}
-            className="row-span-4 grid grid-rows-subgrid gap-3"
+            className="row-span-5 grid grid-rows-subgrid gap-3"
           >
             <div className="flex items-baseline justify-between border-b border-line pb-2">
               <span className="font-myeongjo text-card-title" style={{ color: p.labelColor }}>
@@ -225,6 +225,18 @@ export function ResultPanel({
             <div className="text-center text-body tracking-[0.02em] text-dim">
               지장간{" "}
               <span className="font-myeongjo text-body-lg text-fg">{p.branch.hidden}</span>
+            </div>
+
+            {/* 일주 칸은 twelveSinsal이 undefined라 내용만 비운다 — subgrid 행 정렬을 맞추려면
+                이 div 자체는 4개 기둥 모두에 항상 존재해야 한다(조건부로 div까지 없애면 일주 칸의
+                이후 행이 한 칸씩 밀려 다른 기둥과 어긋난다). */}
+            <div className="text-center text-body tracking-[0.02em] text-dim">
+              {p.twelveSinsal && (
+                <>
+                  십이신살{" "}
+                  <span className="font-myeongjo text-body-lg text-fg">{p.twelveSinsal}</span>
+                </>
+              )}
             </div>
           </motion.div>
         ))}
@@ -358,11 +370,30 @@ export function ResultPanel({
                 )}
                 {sinsalDetails.map((s, i) => (
                   <div key={i}>
-                    <div className="flex items-baseline gap-2 font-myeongjo text-label font-bold">
+                    <div className="flex flex-wrap items-baseline gap-2 font-myeongjo text-label font-bold">
                       {s.name}({s.hanja})
                       <span className="font-mono-plex text-body text-mute">{s.typeLabel}</span>
                     </div>
                     <div className="mt-1 text-body leading-[1.75] text-dim">{s.description}</div>
+                    {s.positive.length > 0 && (
+                      <div className="mt-1 text-body leading-[1.75] text-dim">
+                        긍정: {s.positive.join(" · ")}
+                      </div>
+                    )}
+                    {s.negative.length > 0 && (
+                      <div className="mt-1 text-body leading-[1.75] text-mute">
+                        주의: {s.negative.join(" · ")}
+                      </div>
+                    )}
+                    <div className="mt-1 text-body leading-[1.75] text-mute">
+                      직업: {s.byArea.career}
+                    </div>
+                    <div className="mt-1 text-body leading-[1.75] text-mute">
+                      연애: {s.byArea.love}
+                    </div>
+                    <div className="mt-1 text-body leading-[1.75] text-mute">
+                      건강: {s.byArea.health}
+                    </div>
                     {s.advice.length > 0 && (
                       <div className="mt-1 text-body leading-[1.75] text-mute">
                         조언: {s.advice.join(" · ")}

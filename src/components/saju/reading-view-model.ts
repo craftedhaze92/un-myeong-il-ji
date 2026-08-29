@@ -134,6 +134,9 @@ export interface SinSalDetailVM {
   description: string;
   effects: string[];
   advice: string[];
+  positive: string[];
+  negative: string[];
+  byArea: { career: string; love: string; health: string };
 }
 
 /** 신살 개별 카드가 아니라 사주에 있는 신살 전체를 길신/흉신으로 묶어 요약한 조합 해석. */
@@ -246,6 +249,9 @@ function buildSinsalDetails(saju: SajuData): SinSalDetailVM[] {
     description: info.description,
     effects: info.effects,
     advice: info.advice,
+    positive: info.positive,
+    negative: info.negative,
+    byArea: info.byArea,
   }));
 }
 
