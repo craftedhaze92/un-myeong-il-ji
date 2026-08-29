@@ -1,6 +1,13 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { motion } from "motion/react";
 import { Tabs, Tooltip } from "radix-ui";
 import type { DaeUnPeriod } from "@/lib/dae_un";
@@ -43,25 +50,40 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "pungsu", label: "방위" },
 ];
 
+// 탭은 카드 안의 필터 버튼(PILL_BASE)과 형태부터 다르게 — 박스가 아닌 밑줄로 표현해
+// "페이지 내비게이션"과 "이 카드 안에서 고르는 값"을 한눈에 구분한다.
 const TAB_BASE =
-  "shrink-0 cursor-pointer rounded-[2px] border px-5 py-2 font-myeongjo text-body transition-all duration-200";
+  "relative shrink-0 cursor-pointer border-none bg-transparent px-1 pt-1 pb-2.5 " +
+  "font-myeongjo text-body-lg transition-colors duration-200 " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg";
 
 function tabStyle(active: boolean): CSSProperties {
   return {
-    background: active ? "var(--track)" : "transparent",
-    borderColor: active ? "var(--fg)" : "var(--line)",
-    color: active ? "var(--fg)" : "var(--dim)",
+    color: active ? "var(--fg)" : "var(--mute)",
+    fontWeight: active ? 700 : 400,
   };
 }
 
 const PILL_BASE =
-  "cursor-pointer whitespace-nowrap rounded-[2px] border px-3.5 py-2 font-mono-plex text-body";
+  "cursor-pointer whitespace-nowrap rounded-[2px] border px-3.5 py-2 font-mono-plex text-body " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg";
 
 function pillStyle(active: boolean, accent?: string): CSSProperties {
   return {
     background: active ? "var(--track)" : "transparent",
     borderColor: active ? (accent ?? "var(--fg)") : "var(--line)",
     color: active ? (accent ?? "var(--fg)") : "var(--dim)",
+  };
+}
+
+/** 클릭할 수 없는 정보 칩 — 테두리도 cursor-pointer도 없어 PILL_BASE(컨트롤)와 구분된다. */
+const BADGE_BASE =
+  "inline-flex items-center whitespace-nowrap rounded-[2px] px-2.5 py-1 font-mono-plex text-caption";
+
+function badgeStyle(strong: boolean, accent?: string): CSSProperties {
+  return {
+    background: "var(--track)",
+    color: accent ?? (strong ? "var(--fg)" : "var(--mute)"),
   };
 }
 
@@ -73,27 +95,63 @@ export function ReadingPanel({
   name,
 }: ReadingPanelProps) {
   const [tab, setTab] = useState<TabKey>("myeongsik");
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const [scrollFade, setScrollFade] = useState({ atStart: true, atEnd: false });
+
+  // 밑줄형 탭은 폭이 좁아 대부분 화면에서 스크롤이 아예 안 생기지만, 좁은 화면에서
+  // 넘칠 때만 좌/우 페이드로 "더 있음"을 알려준다.
+  useEffect(() => {
+    const el = tabListRef.current;
+    if (!el) return;
+    const update = () => {
+      setScrollFade({
+        atStart: el.scrollLeft <= 0,
+        atEnd: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1,
+      });
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   return (
     <Tooltip.Provider delayDuration={200}>
     <section className="umij-container pt-5">
       <Tabs.Root value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-        <Tabs.List
-          aria-label="풀이 탭"
-          className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0"
-        >
-          {TABS.map((t) => (
-            <Tabs.Trigger key={t.key} value={t.key} asChild>
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                className={TAB_BASE}
-                style={tabStyle(tab === t.key)}
-              >
-                {t.label}
-              </motion.button>
-            </Tabs.Trigger>
-          ))}
-        </Tabs.List>
+        <div className="sticky top-0 z-20 -mx-4 mb-5 bg-bg/85 px-4 backdrop-blur-sm sm:mx-0 sm:px-0">
+          <div className="relative">
+            <Tabs.List
+              ref={tabListRef}
+              aria-label="풀이 탭"
+              className="flex gap-6 overflow-x-auto overflow-y-hidden border-b border-line sm:gap-7"
+            >
+              {TABS.map((t) => (
+                <Tabs.Trigger key={t.key} value={t.key} asChild>
+                  <button className={TAB_BASE} style={tabStyle(tab === t.key)}>
+                    {t.label}
+                    {tab === t.key && (
+                      <motion.span
+                        layoutId="reading-tab-underline"
+                        className="absolute inset-x-0 -bottom-px h-0.5 bg-fg"
+                        transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                      />
+                    )}
+                  </button>
+                </Tabs.Trigger>
+              ))}
+            </Tabs.List>
+            {!scrollFade.atStart && (
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-linear-to-r from-bg to-transparent" />
+            )}
+            {!scrollFade.atEnd && (
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-bg to-transparent" />
+            )}
+          </div>
+        </div>
 
         <Tabs.Content value="myeongsik">
           <TabFadeIn>
@@ -182,8 +240,8 @@ function MyeongsikTab({
                 <div className="mt-2.5">
                   <div className="flex flex-wrap gap-1.5">
                     <span
-                      className={PILL_BASE}
-                      style={pillStyle(
+                      className={BADGE_BASE}
+                      style={badgeStyle(
                         true,
                         myeongsik.gyeokGuk.quality.statusLabel.startsWith("성격") ||
                           myeongsik.gyeokGuk.quality.statusLabel.startsWith("패중유구")
@@ -193,11 +251,11 @@ function MyeongsikTab({
                     >
                       {myeongsik.gyeokGuk.quality.statusLabel}
                     </span>
-                    <span className={PILL_BASE} style={pillStyle(false)}>
+                    <span className={BADGE_BASE} style={badgeStyle(false)}>
                       {myeongsik.gyeokGuk.quality.useType}
                     </span>
                     {myeongsik.gyeokGuk.quality.sangSinLabel && (
-                      <span className={PILL_BASE} style={pillStyle(false)}>
+                      <span className={BADGE_BASE} style={badgeStyle(false)}>
                         상신 {myeongsik.gyeokGuk.quality.sangSinLabel}
                       </span>
                     )}
@@ -225,17 +283,17 @@ function MyeongsikTab({
               </div>
               {myeongsik.dayMasterStrength.deukRyeong !== undefined && (
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  <span className={PILL_BASE} style={pillStyle(myeongsik.dayMasterStrength.deukRyeong)}>
+                  <span className={BADGE_BASE} style={badgeStyle(myeongsik.dayMasterStrength.deukRyeong)}>
                     {myeongsik.dayMasterStrength.deukRyeong ? "득령" : "실령"}
                   </span>
-                  <span className={PILL_BASE} style={pillStyle(!!myeongsik.dayMasterStrength.deukJi)}>
+                  <span className={BADGE_BASE} style={badgeStyle(!!myeongsik.dayMasterStrength.deukJi)}>
                     {myeongsik.dayMasterStrength.deukJi ? "득지" : "실지"}
                   </span>
-                  <span className={PILL_BASE} style={pillStyle(!!myeongsik.dayMasterStrength.deukSe)}>
+                  <span className={BADGE_BASE} style={badgeStyle(!!myeongsik.dayMasterStrength.deukSe)}>
                     {myeongsik.dayMasterStrength.deukSe ? "득세" : "실세"}
                   </span>
                   {myeongsik.dayMasterStrength.rootedAtLabels.length > 0 && (
-                    <span className={PILL_BASE} style={pillStyle(true)}>
+                    <span className={BADGE_BASE} style={badgeStyle(true)}>
                       {myeongsik.dayMasterStrength.rootedAtLabels.join("·")}지 통근
                     </span>
                   )}
@@ -256,7 +314,7 @@ function MyeongsikTab({
           <SectionCard title="용신 실천 조언">
             {myeongsik.yongSin.methodLabel && (
               <div className="mb-2.5">
-                <span className={PILL_BASE} style={pillStyle(true)}>
+                <span className={BADGE_BASE} style={badgeStyle(true)}>
                   {myeongsik.yongSin.methodLabel}
                 </span>
               </div>
@@ -314,17 +372,17 @@ function MyeongsikTab({
           </div>
           <div className="flex flex-wrap gap-2">
             {myeongsik.branchRelations.samHap && (
-              <span className={PILL_BASE} style={pillStyle(true)}>
+              <span className={BADGE_BASE} style={badgeStyle(true)}>
                 삼합 {myeongsik.branchRelations.samHap}
               </span>
             )}
             {myeongsik.branchRelations.samHyeong.map((s, i) => (
-              <span key={`h-${i}`} className={PILL_BASE} style={pillStyle(true)}>
+              <span key={`h-${i}`} className={BADGE_BASE} style={badgeStyle(true)}>
                 {s}
               </span>
             ))}
             {myeongsik.branchRelations.yukHae.map((s, i) => (
-              <span key={`y-${i}`} className={PILL_BASE} style={pillStyle(true)}>
+              <span key={`y-${i}`} className={BADGE_BASE} style={badgeStyle(true)}>
                 {s}
               </span>
             ))}
@@ -386,21 +444,21 @@ function MyeongsikTab({
             <div className="mt-4.5 border-t border-line pt-3.5">
               <div className="mb-2 font-myeongjo text-subtitle font-bold">성명학 획수(오격)</div>
               <div className="mb-2 flex flex-wrap gap-1.5">
-                <span className={PILL_BASE} style={pillStyle(true)}>
+                <span className={BADGE_BASE} style={badgeStyle(true)}>
                   천격 {nameVm.strokeAnalysis.heavenGround}
                 </span>
-                <span className={PILL_BASE} style={pillStyle(true)}>
+                <span className={BADGE_BASE} style={badgeStyle(true)}>
                   인격 {nameVm.strokeAnalysis.personalGround}
                 </span>
-                <span className={PILL_BASE} style={pillStyle(true)}>
+                <span className={BADGE_BASE} style={badgeStyle(true)}>
                   지격 {nameVm.strokeAnalysis.earthGround}
                 </span>
-                <span className={PILL_BASE} style={pillStyle(true)}>
+                <span className={BADGE_BASE} style={badgeStyle(true)}>
                   외격 {nameVm.strokeAnalysis.outerGround}
                 </span>
                 <span
-                  className={PILL_BASE}
-                  style={pillStyle(
+                  className={BADGE_BASE}
+                  style={badgeStyle(
                     true,
                     nameVm.strokeAnalysis.fortune === "흉" ? "var(--danger)" : undefined,
                   )}
@@ -651,7 +709,7 @@ function FlowTab({
         <BulletList items={seyunDetail.challenges} tone="negative" />
         <BulletList items={seyunDetail.advice} />
 
-        <div className="mt-3 overflow-x-auto">
+        <div className="mt-3 overflow-x-auto overflow-y-hidden">
           <div className="grid min-w-[420px] grid-cols-12 gap-1">
             {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
               const favorable = seyunDetail.favorableMonths.includes(month);
@@ -704,8 +762,8 @@ function FlowTab({
           {wolunDetail.keywords.map((k, i) => (
             <span
               key={i}
-              className={PILL_BASE}
-              style={pillStyle(true, elementColor(wolunDetail.element, dark))}
+              className={BADGE_BASE}
+              style={badgeStyle(true, elementColor(wolunDetail.element, dark))}
             >
               {k}
             </span>
@@ -726,12 +784,12 @@ function FlowTab({
         {(wolunDetail.luckyDates.length > 0 || wolunDetail.unluckyDates.length > 0) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {wolunDetail.luckyDates.map((d) => (
-              <span key={`l-${d}`} className={PILL_BASE} style={pillStyle(true)}>
+              <span key={`l-${d}`} className={BADGE_BASE} style={badgeStyle(true)}>
                 길일 {d}일
               </span>
             ))}
             {wolunDetail.unluckyDates.map((d) => (
-              <span key={`u-${d}`} className={PILL_BASE} style={pillStyle(true, "var(--danger)")}>
+              <span key={`u-${d}`} className={BADGE_BASE} style={badgeStyle(true, "var(--danger)")}>
                 흉일 {d}일
               </span>
             ))}
@@ -1182,14 +1240,14 @@ function TodayTab({ saju }: { saju: SajuData }) {
       <SectionCard title="적합한 활동 · 피해야 할 활동">
         <div className="mb-3 flex flex-wrap gap-2">
           {vm.suitableActivities.map((a, i) => (
-            <span key={`s-${i}`} className={PILL_BASE} style={pillStyle(true)}>
+            <span key={`s-${i}`} className={BADGE_BASE} style={badgeStyle(true)}>
               {a}
             </span>
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
           {vm.unsuitableActivities.map((a, i) => (
-            <span key={`u-${i}`} className={PILL_BASE} style={pillStyle(true, "var(--danger)")}>
+            <span key={`u-${i}`} className={BADGE_BASE} style={badgeStyle(true, "var(--danger)")}>
               {a}
             </span>
           ))}
@@ -1207,7 +1265,7 @@ function TodayTab({ saju }: { saju: SajuData }) {
       </SectionCard>
 
       <SectionCard title="오늘의 12시진">
-        <div className={cn("flex gap-2 overflow-x-auto pb-1")}>
+        <div className={cn("flex gap-2 overflow-x-auto overflow-y-hidden pb-1")}>
           {vm.hours.map((h, i) => (
             <div
               key={i}
