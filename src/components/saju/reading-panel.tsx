@@ -322,11 +322,6 @@ function MyeongsikTab({
             <div className="mb-3 text-body leading-[1.75] text-dim">
               {myeongsik.yongSin.reasoning}
             </div>
-            {myeongsik.yongSin.lowConfidenceNote && (
-              <div className="mb-3 text-small leading-[1.6] text-mute">
-                ⓘ {myeongsik.yongSin.lowConfidenceNote}
-              </div>
-            )}
             <BulletList items={myeongsik.yongSin.advice} />
           </SectionCard>
         )}

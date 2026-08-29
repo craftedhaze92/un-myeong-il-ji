@@ -177,8 +177,6 @@ export interface MyeongsikVM {
     reasoning: string;
     advice: string[];
     methodLabel?: string;
-    /** 확정도가 낮은 경우(궁통보감 조후용신표 미검증 칸 등) 화면에 표기할 문구 */
-    lowConfidenceNote?: string;
   };
   sinsal: SinSalDetailVM[];
   /** 신살이 2개 이상일 때만 채워지는 조합 요약 — 신살 1개 이하는 개별 카드와 중복이라 뺀다. */
@@ -323,10 +321,6 @@ export function buildMyeongsikViewModel(saju: SajuData): MyeongsikVM {
           reasoning: saju.yongSin.reasoning,
           advice: generateYongSinAdvice(yongSinAnalysis),
           methodLabel: saju.yongSin.method ? YONGSIN_METHOD_LABEL[saju.yongSin.method] : undefined,
-          lowConfidenceNote:
-            saju.yongSin.confidence !== undefined && saju.yongSin.confidence < 0.6
-              ? "궁통보감 조후용신표에서 아직 복수 출처로 대조되지 않은 항목이라 확정도가 낮습니다."
-              : undefined,
         }
       : undefined,
     sinsal: buildSinsalDetails(saju),
