@@ -63,6 +63,41 @@ describe('지지 십성은 지장간 본기 기준이어야 한다 — 子를 �
   });
 });
 
+describe('명식 4기둥의 십이운성(twelveStage) — 일간 기준(봉법)이라 십이신살과 달리 일주 칸도 값이 있다', () => {
+  const vm = buildSajuViewModel({
+    name: '',
+    saju,
+    daeUn: [],
+    hasHour: true,
+    gender: 'male',
+    dark: true,
+    nowYear: 2024,
+  });
+  const byLabel = (labelEn: string) => vm.pillars.find((p) => p.labelEn === labelEn)!;
+
+  it('4기둥 모두 twelveStage가 채워진다 — 일주 칸도 undefined가 아니다', () => {
+    for (const p of vm.pillars) {
+      expect(p.twelveStage).toBeDefined();
+    }
+  });
+
+  // 일간 무(戊)는 화토동법으로 병화(丙)와 같은 표를 쓴다 — 장생은 인(寅).
+  // 자축인묘진사오미신유술해 순행(양간)으로 인(2)에서 세면
+  // 년지 자=태, 월지 축=양, 일지 오=제왕, 시지 인=장생.
+  it('무토 기준 화토동법(병화 표)으로 년=태·월=양·일=제왕·시=장생이 나온다', () => {
+    expect(byLabel('연주').twelveStage).toBe('태');
+    expect(byLabel('월주').twelveStage).toBe('양');
+    expect(byLabel('일주').twelveStage).toBe('제왕');
+    expect(byLabel('시주').twelveStage).toBe('장생');
+  });
+
+  it('twelveStageDescription이 TWELVE_STAGE_INFO의 해당 설명과 일치한다', () => {
+    expect(byLabel('일주').twelveStageDescription).toBe(
+      '기운이 가장 왕성한 정점. 주도권과 결단력이 최고조에 이르는 자리.',
+    );
+  });
+});
+
 describe('대운 지지 십성도 명식 카드와 같은 지장간 본기 기준이다', () => {
   // 대운/세운 지지는 saju.jiJangGan(출생 사주 전용)에 들어있지 않으므로 view-model.ts가
   // extractJiJangGan의 본기(자=계)를 직접 쓴다. 명식 카드(연지 자)와 같은 지지를 대운에

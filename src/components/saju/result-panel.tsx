@@ -143,14 +143,14 @@ export function ResultPanel({
 
       <motion.div
         variants={pillarsGridVariants}
-        className="grid grid-rows-[auto_auto_auto_auto_auto] gap-2 pt-1 pb-8 sm:gap-4 sm:pb-10"
+        className="grid grid-rows-[auto_auto_auto_auto_auto_auto] gap-2 pt-1 pb-8 sm:gap-4 sm:pb-10"
         style={{ gridTemplateColumns: `repeat(${viewModel.colCount}, minmax(0, 1fr))` }}
       >
         {viewModel.pillars.map((p, i) => (
           <motion.div
             key={i}
             variants={pillarColumnVariants(p.size === 90)}
-            className="row-span-5 grid grid-rows-subgrid gap-3"
+            className="row-span-6 grid grid-rows-subgrid gap-3"
           >
             <div className="flex items-baseline justify-between border-b border-line pb-2">
               <span className="font-myeongjo text-card-title" style={{ color: p.labelColor }}>
@@ -227,15 +227,38 @@ export function ResultPanel({
               <span className="font-myeongjo text-body-lg text-fg">{p.branch.hidden}</span>
             </div>
 
-            {/* 일주 칸은 twelveSinsal이 undefined라 내용만 비운다 — subgrid 행 정렬을 맞추려면
+            {/* 십이운성은 일간 기준(봉법)이라 십이신살과 달리 일주 칸도 값이 있다 — 조건부 렌더
+                없이 지장간 바로 아래에 둔다. 값이 없는 십이신살을 이 뒤(마지막 행)로 보내야
+                일주 칸에서 빈 줄이 값들 사이에 끼지 않는다. 라벨은 대운·세운 칸(ganji-column.tsx)
+                과 맞춰 붙이지 않고 값만 보여준다. */}
+            <div className="text-center text-body tracking-[0.02em]">
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild>
+                  <span className="cursor-help font-myeongjo text-body-lg text-fg">
+                    {p.twelveStage}
+                  </span>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content
+                    side="top"
+                    sideOffset={6}
+                    className="z-50 max-w-[220px] rounded-[2px] border border-line bg-surface px-2.5 py-1.5 text-micro text-fg shadow-md"
+                  >
+                    {p.twelveStageDescription}
+                    <Tooltip.Arrow className="fill-surface" />
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </div>
+
+            {/* 일주 칸은 twelveSinsal이 undefined라 내용만 비운다 — 마지막 행이라 비어도
+                카드 맨 끝의 여백일 뿐 다른 값 사이에 끼지 않는다. subgrid 행 정렬을 맞추려면
                 이 div 자체는 4개 기둥 모두에 항상 존재해야 한다(조건부로 div까지 없애면 일주 칸의
-                이후 행이 한 칸씩 밀려 다른 기둥과 어긋난다). */}
-            <div className="text-center text-body tracking-[0.02em] text-dim">
+                이후 행이 한 칸씩 밀려 다른 기둥과 어긋난다 — 지금은 마지막 행이라 해당 없지만,
+                뒤에 행이 추가되면 다시 문제가 되므로 이 div는 유지한다). */}
+            <div className="text-center text-body tracking-[0.02em]">
               {p.twelveSinsal && (
-                <>
-                  십이신살{" "}
-                  <span className="font-myeongjo text-body-lg text-fg">{p.twelveSinsal}</span>
-                </>
+                <span className="font-myeongjo text-body-lg text-fg">{p.twelveSinsal}</span>
               )}
             </div>
           </motion.div>

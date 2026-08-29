@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getTwelveStage, TWELVE_STAGE_ORDER } from './twelve_stages';
+import { getTwelveStage, TWELVE_STAGE_INFO, TWELVE_STAGE_ORDER } from './twelve_stages';
 import type { EarthlyBranch } from '../types/index';
 
 // 12지지를 자축인묘진사오미신유술해 순서로 나열 — 아래 기대 배열과 zip해서 비교한다.
@@ -71,5 +71,35 @@ describe('점신(占神) 벤치마크 화면 회귀 — 신금(음간) 일간의
     expect(getTwelveStage('신', '묘')).toBe('절');
     expect(getTwelveStage('신', '진')).toBe('묘');
     expect(getTwelveStage('신', '사')).toBe('사');
+  });
+});
+
+describe('TWELVE_STAGE_INFO 데이터 정합성 — energy·band 필드를 손으로 채우다 어긋나는 사고 방지', () => {
+  it('TWELVE_STAGE_ORDER의 12단계 전부가 TWELVE_STAGE_INFO에 키로 존재한다', () => {
+    for (const stage of TWELVE_STAGE_ORDER) {
+      expect(TWELVE_STAGE_INFO[stage]).toBeDefined();
+    }
+  });
+
+  it('energy가 1~12를 중복 없이 정확히 한 번씩 채운다', () => {
+    const energies = TWELVE_STAGE_ORDER.map((s) => TWELVE_STAGE_INFO[s].energy);
+    expect(new Set(energies).size).toBe(12);
+    expect([...energies].sort((a, b) => a - b)).toEqual(
+      Array.from({ length: 12 }, (_, i) => i + 1),
+    );
+  });
+
+  it('band와 energy 구간이 서로 어긋나지 않는다 (9~12=왕, 5~8=평, 1~4=쇠)', () => {
+    for (const stage of TWELVE_STAGE_ORDER) {
+      const { energy, band } = TWELVE_STAGE_INFO[stage];
+      if (energy >= 9) expect(band).toBe('왕');
+      else if (energy >= 5) expect(band).toBe('평');
+      else expect(band).toBe('쇠');
+    }
+  });
+
+  it('통설 3분류: 왕 그룹은 정확히 {장생, 관대, 건록, 제왕}이다', () => {
+    const wangGroup = TWELVE_STAGE_ORDER.filter((s) => TWELVE_STAGE_INFO[s].band === '왕');
+    expect(new Set(wangGroup)).toEqual(new Set(['장생', '관대', '건록', '제왕']));
   });
 });

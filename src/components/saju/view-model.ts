@@ -90,6 +90,13 @@ export interface PillarVM {
   branch: PillarCellVM;
   /** 일지 기준 십이신살(twelve_sinsal.ts). 일주 칸은 자기 자신과의 관계라 계산이 성립하지 않아 undefined. */
   twelveSinsal?: TwelveSinSal;
+  /**
+   * 일간 기준 십이운성(twelve_stages.ts, 봉법). 십이신살과 달리 일간이 일지를 만나는
+   * 관계도 성립하므로 일주 칸을 포함해 4기둥 모두 값이 있다.
+   */
+  twelveStage: TwelveStage;
+  /** 십이운성 한 줄 설명 (twelve_stages.ts#TWELVE_STAGE_INFO) — 칸에 마우스오버 시 툴팁으로 표시 */
+  twelveStageDescription: string;
 }
 
 // ── 오행과 십성 — 상생상극 오각형 ────────────────────────────────────────
@@ -621,6 +628,8 @@ export function buildSajuViewModel({
       pillar.branch,
     );
 
+    const pillarStage = getTwelveStage(saju.day.stem, pillar.branch);
+
     return {
       label: meta.label,
       labelEn: meta.labelEn,
@@ -632,6 +641,9 @@ export function buildSajuViewModel({
       branch: branchCell,
       // 일주 자신은 일지 기준 계산이 성립하지 않아 표시하지 않는다(기준 자리라 무의미).
       twelveSinsal: isDay ? undefined : getTwelveSinSal(saju.day.branch, pillar.branch),
+      // 십이운성은 일간 ↔ 각 지지(봉법)라 일주 칸도 값이 나온다 — isDay 분기 없음.
+      twelveStage: pillarStage,
+      twelveStageDescription: TWELVE_STAGE_INFO[pillarStage].description,
     };
   });
 
