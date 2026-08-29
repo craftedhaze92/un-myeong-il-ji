@@ -14,11 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://un-myeong-il-ji.vercel.app"),
   title: "운명일지",
   description: "사주팔자 만세력 및 운세 서비스",
   openGraph: {
     title: "운명일지",
-    description: "사주팔자 만세력 및 운세 서비스",
+    description: "사주 볼 때마다 다른 말 하는 사람 말고, 데이터로 보는 내 운명.",
     url: "/",
     siteName: "운명일지",
     images: [{ url: "/unmyeongilji_img_512x512.png", width: 512, height: 512 }],
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "운명일지",
-    description: "사주팔자 만세력 및 운세 서비스",
+    description: "사주 볼 때마다 다른 말 하는 사람 말고, 데이터로 보는 내 운명.",
     images: ["/unmyeongilji_img_512x512.png"],
   },
 };
