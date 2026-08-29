@@ -1,6 +1,8 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { motion, type Variants } from "motion/react";
+import { Tooltip } from "radix-ui";
 import { cn } from "@/lib/utils";
 import styles from "./saju.module.css";
 import { ElementCycle } from "./ui/element-cycle";
@@ -17,6 +19,52 @@ export interface ResultPanelProps {
   sinsalCombined?: SinSalCombinedVM;
   onReset: () => void;
 }
+
+/**
+ * 결과 화면 등장 연출 — 예전엔 saju.module.css의 키프레임(stamp/slotIn/fadeUp)과
+ * 이 파일 곳곳의 하드코딩된 1.1s~1.35s가 서로 암묵적으로만 맞춰져 있었다. motion의
+ * staggerChildren으로 통합해 순서를 배열 인덱스에서 자동 계산하게 한다.
+ */
+const revealContainer: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.12, delayChildren: 0.05 } },
+};
+const revealItem: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+};
+const pillarsGridVariants: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: "easeOut", staggerChildren: 0.06 },
+  },
+};
+function pillarColumnVariants(emphasize: boolean): Variants {
+  return {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.1, delayChildren: emphasize ? 0.05 : 0 } },
+  };
+}
+const cardSlotVariants: Variants = {
+  hidden: { opacity: 0, scaleY: 0.55 },
+  show: {
+    opacity: 1,
+    scaleY: 1,
+    transition: { duration: 0.35, ease: "easeOut", delayChildren: 0.15 },
+  },
+};
+const cardStampVariants: Variants = {
+  hidden: { opacity: 0, y: -12, scale: 1.09, filter: "blur(7px)" },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    filter: "blur(0px)",
+    transition: { duration: 0.5, ease: [0.18, 0.9, 0.24, 1] },
+  },
+};
 
 /**
  * 명식 카드·오행 레이더·십성·신살·용신·대운 띠 — saju-app.tsx에 있던 결과 화면을
@@ -58,10 +106,16 @@ export function ResultPanel({
     viewModel.luck.find((l) => l.startAge === selectedStartAge) ?? viewModel.luck[0];
 
   return (
-    <section className="umij-container">
-      <div
-        className={cn(styles.fadeUp, "flex flex-wrap items-end justify-between gap-8 py-10 pb-8 sm:py-[54px] sm:pb-8")}
-        style={{ animationDelay: "1.1s" }}
+    <Tooltip.Provider delayDuration={200}>
+      <motion.section
+        className="umij-container"
+        variants={revealContainer}
+        initial="hidden"
+        animate="show"
+      >
+      <motion.div
+        variants={revealItem}
+        className="flex flex-wrap items-end justify-between gap-8 py-10 pb-8 sm:py-[54px] sm:pb-8"
       >
         <div>
           <h1
@@ -76,21 +130,28 @@ export function ResultPanel({
           <span className="font-mono-plex text-body tracking-[0.13em] text-dim">
             {viewModel.birthLine}
           </span>
-          <button
+          <motion.button
             onClick={onReset}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
             className="cursor-pointer rounded-[2px] border border-line bg-transparent px-4 py-2.5 text-[13px] text-dim hover:text-fg"
           >
             다시 입력
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
 
-      <div
-        className="grid gap-2 pt-1 pb-8 sm:gap-4 sm:pb-10"
+      <motion.div
+        variants={pillarsGridVariants}
+        className="grid grid-rows-[auto_auto_auto_auto] gap-2 pt-1 pb-8 sm:gap-4 sm:pb-10"
         style={{ gridTemplateColumns: `repeat(${viewModel.colCount}, minmax(0, 1fr))` }}
       >
         {viewModel.pillars.map((p, i) => (
-          <div key={i} className="flex flex-col gap-3">
+          <motion.div
+            key={i}
+            variants={pillarColumnVariants(p.size === 90)}
+            className="row-span-4 grid grid-rows-subgrid gap-3"
+          >
             <div className="flex items-baseline justify-between border-b border-line pb-2">
               <span className="font-myeongjo text-card-title" style={{ color: p.labelColor }}>
                 {p.label}
@@ -103,13 +164,13 @@ export function ResultPanel({
               </span>
             </div>
 
-            <div className={styles.slot} style={{ animationDelay: `${p.slotDelay}ms` }}>
-              <div
+            <motion.div variants={cardSlotVariants} className={styles.slot}>
+              <motion.div
+                variants={cardStampVariants}
                 className={styles.stampCard}
                 style={{
                   background: p.stem.bg,
                   border: `1px solid ${p.stem.line}`,
-                  animationDelay: `${p.delayA}ms`,
                 }}
               >
                 <div
@@ -121,22 +182,24 @@ export function ResultPanel({
                 >
                   {p.stem.ch}
                 </div>
-                <div className="mt-4 flex items-baseline justify-between">
-                  <span className="font-mono-plex text-body text-dim">
+                <div className="mt-4 flex flex-col items-center gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                  <span className="font-mono-plex text-body whitespace-nowrap text-dim">
                     {p.stem.ko} {p.stem.el}
                   </span>
-                  <span className="font-batang text-body text-fg">{p.stem.god}</span>
+                  <span className="font-batang text-body whitespace-nowrap text-fg">
+                    {p.stem.god}
+                  </span>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
-            <div className={styles.slot} style={{ animationDelay: `${p.slotDelay}ms` }}>
-              <div
+            <motion.div variants={cardSlotVariants} className={styles.slot}>
+              <motion.div
+                variants={cardStampVariants}
                 className={styles.stampCard}
                 style={{
                   background: p.branch.bg,
                   border: `1px solid ${p.branch.line}`,
-                  animationDelay: `${p.delayB}ms`,
                 }}
               >
                 <div
@@ -148,26 +211,28 @@ export function ResultPanel({
                 >
                   {p.branch.ch}
                 </div>
-                <div className="mt-4 flex items-baseline justify-between">
-                  <span className="font-mono-plex text-body text-dim">
+                <div className="mt-4 flex flex-col items-center gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                  <span className="font-mono-plex text-body whitespace-nowrap text-dim">
                     {p.branch.ko} {p.branch.el}
                   </span>
-                  <span className="font-batang text-body text-fg">{p.branch.god}</span>
+                  <span className="font-batang text-body whitespace-nowrap text-fg">
+                    {p.branch.god}
+                  </span>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             <div className="text-center text-body tracking-[0.02em] text-dim">
               지장간{" "}
               <span className="font-myeongjo text-body-lg text-fg">{p.branch.hidden}</span>
             </div>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
-      <div
-        className={cn(styles.fadeUp, "flex flex-col gap-5 pb-5 lg:flex-row lg:items-start")}
-        style={{ animationDelay: "1.2s" }}
+      <motion.div
+        variants={revealItem}
+        className="flex flex-col gap-5 pb-5 lg:flex-row lg:items-start"
       >
         <div ref={leftColRef} className="flex min-h-0 flex-col gap-5 lg:flex-[1.05]">
           <div className="flex flex-col rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-[30px]">
@@ -312,11 +377,11 @@ export function ResultPanel({
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div
-        className={cn(styles.fadeUp, "rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-5")}
-        style={{ animationDelay: "1.3s" }}
+      <motion.div
+        variants={revealItem}
+        className="rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-5"
       >
         <div className="mb-4.5 flex flex-wrap items-baseline justify-between gap-5">
           <h2 className="m-0 font-batang text-card-title font-bold">대운 — 10년의 계절</h2>
@@ -334,17 +399,18 @@ export function ResultPanel({
               selected={l.startAge === selectedStartAge}
               onClick={() => setSelectedStartAge(l.startAge)}
               accentColor={l.color}
+              selectionLayoutId="daeun-selected"
             />
           ))}
         </div>
         <div className="flex gap-2 pt-1 font-mono-plex text-body tracking-[0.08em] text-mute">
           {viewModel.luckFoot}
         </div>
-      </div>
+      </motion.div>
 
-      <div
-        className={cn(styles.fadeUp, "mt-5 rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-5")}
-        style={{ animationDelay: "1.35s" }}
+      <motion.div
+        variants={revealItem}
+        className="mt-5 rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-5"
       >
         <div className="mb-4.5 flex flex-wrap items-baseline justify-between gap-5">
           <h2 className="m-0 font-batang text-card-title font-bold">세운 — 올해를 중심으로</h2>
@@ -366,7 +432,8 @@ export function ResultPanel({
             />
           ))}
         </div>
-      </div>
-    </section>
+      </motion.div>
+      </motion.section>
+    </Tooltip.Provider>
   );
 }

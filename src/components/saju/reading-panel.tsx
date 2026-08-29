@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { motion } from "motion/react";
+import { Tabs, Tooltip } from "radix-ui";
 import type { DaeUnPeriod } from "@/lib/dae_un";
 import { cn } from "@/lib/utils";
 import type { SajuData } from "@/types";
@@ -72,37 +74,72 @@ export function ReadingPanel({
   const [tab, setTab] = useState<TabKey>("myeongsik");
 
   return (
+    <Tooltip.Provider delayDuration={200}>
     <section className="umij-container pt-5">
-      <div
-        role="tablist"
-        aria-label="풀이 탭"
-        className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0"
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={TAB_BASE}
-            style={tabStyle(tab === t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs.Root value={tab} onValueChange={(v) => setTab(v as TabKey)}>
+        <Tabs.List
+          aria-label="풀이 탭"
+          className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0"
+        >
+          {TABS.map((t) => (
+            <Tabs.Trigger key={t.key} value={t.key} asChild>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                className={TAB_BASE}
+                style={tabStyle(tab === t.key)}
+              >
+                {t.label}
+              </motion.button>
+            </Tabs.Trigger>
+          ))}
+        </Tabs.List>
 
-      {tab === "myeongsik" && (
-        <MyeongsikTab vm={readingVM} saju={saju} name={name} dark={dark} />
-      )}
-      {tab === "life" && <LifeTab vm={readingVM} />}
-      {tab === "flow" && (
-        <FlowTab saju={saju} daeUn={daeUn} vm={readingVM} dark={dark} />
-      )}
-      {tab === "career" && <CareerTab vm={readingVM} dark={dark} />}
-      {tab === "today" && <TodayTab saju={saju} />}
-      {tab === "pungsu" && <PungsuTab saju={saju} dark={dark} />}
+        <Tabs.Content value="myeongsik">
+          <TabFadeIn>
+            <MyeongsikTab vm={readingVM} saju={saju} name={name} dark={dark} />
+          </TabFadeIn>
+        </Tabs.Content>
+        <Tabs.Content value="life">
+          <TabFadeIn>
+            <LifeTab vm={readingVM} />
+          </TabFadeIn>
+        </Tabs.Content>
+        <Tabs.Content value="flow">
+          <TabFadeIn>
+            <FlowTab saju={saju} daeUn={daeUn} vm={readingVM} dark={dark} />
+          </TabFadeIn>
+        </Tabs.Content>
+        <Tabs.Content value="career">
+          <TabFadeIn>
+            <CareerTab vm={readingVM} dark={dark} />
+          </TabFadeIn>
+        </Tabs.Content>
+        <Tabs.Content value="today">
+          <TabFadeIn>
+            <TodayTab saju={saju} />
+          </TabFadeIn>
+        </Tabs.Content>
+        <Tabs.Content value="pungsu">
+          <TabFadeIn>
+            <PungsuTab saju={saju} dark={dark} />
+          </TabFadeIn>
+        </Tabs.Content>
+      </Tabs.Root>
     </section>
+    </Tooltip.Provider>
+  );
+}
+
+/** 탭 콘텐츠가 마운트될 때마다(=탭 전환마다) 살짝 떠오르는 진입 연출. */
+function TabFadeIn({ children }: { children: ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -482,15 +519,17 @@ function FlowTab({
       <SectionCard title="대운 — 10년의 계절">
         <div className="mb-4.5 flex flex-wrap gap-2">
           {vm.flow.daeunOptions.map((o) => (
-            <button
+            <motion.button
               key={o.startAge}
               onClick={() => setSelectedStartAge(o.startAge)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
               className={PILL_BASE}
               style={pillStyle(o.startAge === selectedStartAge, elementColor(o.element, dark))}
             >
               {o.startAge}–{o.endAge} {o.pillar}
               {o.isCurrent ? " ·현재" : ""}
-            </button>
+            </motion.button>
           ))}
         </div>
         {daeunDetail && (
@@ -519,14 +558,19 @@ function FlowTab({
       <SectionCard title="세운 — 올해를 중심으로">
         <div className="mb-3 flex h-[72px] items-end gap-1.5">
           {vm.flow.seyunSpark.map((point) => (
-            <button
+            <motion.button
               key={point.year}
               onClick={() => setSelectedYear(point.year)}
               title={`${point.year} ${point.pillar} · ${point.score}점`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               className="flex flex-1 cursor-pointer flex-col items-center justify-end gap-1 border-none bg-transparent p-0"
             >
-              <div
-                className="w-full rounded-sm"
+              <motion.div
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="w-full origin-bottom rounded-sm"
                 style={{
                   height: Math.max(4, (point.score / 100) * 48),
                   background: point.year === selectedYear ? "var(--fg)" : "var(--track)",
@@ -538,7 +582,7 @@ function FlowTab({
               >
                 {point.year}
               </span>
-            </button>
+            </motion.button>
           ))}
         </div>
 
@@ -567,12 +611,14 @@ function FlowTab({
               const cautious = seyunDetail.cautiousMonths.includes(month);
               const selected = month === selectedMonth;
               return (
-                <button
+                <motion.button
                   key={month}
                   type="button"
                   onClick={() => setSelectedMonth(month)}
                   aria-pressed={selected}
                   title={favorable ? "유리한 달" : cautious ? "주의할 달" : undefined}
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.94 }}
                   className="cursor-pointer rounded-[2px] border py-1.5 text-center font-mono-plex text-micro"
                   style={{
                     color: favorable ? "var(--fg)" : cautious ? "var(--danger)" : "var(--mute)",
@@ -583,7 +629,7 @@ function FlowTab({
                   }}
                 >
                   {month}월
-                </button>
+                </motion.button>
               );
             })}
           </div>
@@ -649,14 +695,16 @@ function FlowTab({
       <SectionCard title="시기 조언">
         <div className="mb-4.5 flex flex-wrap gap-2">
           {DECISION_TYPES.map((d) => (
-            <button
+            <motion.button
               key={d}
               onClick={() => setSelectedDecision((cur) => (cur === d ? null : d))}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
               className={PILL_BASE}
               style={pillStyle(selectedDecision === d)}
             >
               {d}
-            </button>
+            </motion.button>
           ))}
         </div>
 
@@ -698,20 +746,35 @@ function FlowTab({
               <div className="mb-2 font-batang text-small font-bold">12개월 예보</div>
               <div className="flex h-[60px] items-end gap-1">
                 {timingVm.monthlyForecast.map((m, i) => (
-                  <div
-                    key={i}
-                    title={`${m.yearMonth} ${m.rating} · ${m.briefAdvice}`}
-                    className="flex-1 rounded-sm"
-                    style={{
-                      height: `${Math.max(6, m.score)}%`,
-                      background:
-                        m.rating === "최적기" || m.rating === "좋음"
-                          ? "var(--fg)"
-                          : m.rating === "불가" || m.rating === "주의"
-                            ? "var(--danger)"
-                            : "var(--track)",
-                    }}
-                  />
+                  <Tooltip.Root key={i}>
+                    <Tooltip.Trigger asChild>
+                      <motion.div
+                        initial={{ scaleY: 0 }}
+                        animate={{ scaleY: 1 }}
+                        transition={{ duration: 0.3, delay: i * 0.02, ease: "easeOut" }}
+                        className="flex-1 origin-bottom rounded-sm"
+                        style={{
+                          height: `${Math.max(6, m.score)}%`,
+                          background:
+                            m.rating === "최적기" || m.rating === "좋음"
+                              ? "var(--fg)"
+                              : m.rating === "불가" || m.rating === "주의"
+                                ? "var(--danger)"
+                                : "var(--track)",
+                        }}
+                      />
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content
+                        side="top"
+                        sideOffset={6}
+                        className="z-50 max-w-[220px] rounded-[2px] border border-line bg-surface px-2.5 py-1.5 text-micro text-fg shadow-md"
+                      >
+                        {`${m.yearMonth} ${m.rating} · ${m.briefAdvice}`}
+                        <Tooltip.Arrow className="fill-surface" />
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
                 ))}
               </div>
             </div>
@@ -809,14 +872,16 @@ function PungsuTab({ saju, dark }: { saju: SajuData; dark: boolean }) {
       >
         <div className="mb-4 flex flex-wrap gap-2">
           {vm.spaceAdvice.map((s) => (
-            <button
+            <motion.button
               key={s.spaceType}
               onClick={() => setSelectedSpace(s.spaceType)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
               className={PILL_BASE}
               style={pillStyle(selectedSpace === s.spaceType)}
             >
               {s.spaceType}
-            </button>
+            </motion.button>
           ))}
         </div>
         {space && (
@@ -990,15 +1055,33 @@ function TodayTab({ saju }: { saju: SajuData }) {
         subtitle={vm.dateLabel}
         titleRight={
           <div className="flex gap-2">
-            <button onClick={() => setDayOffset((v) => v - 1)} className={PILL_BASE} style={pillStyle(false)}>
+            <motion.button
+              onClick={() => setDayOffset((v) => v - 1)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              className={PILL_BASE}
+              style={pillStyle(false)}
+            >
               ← 어제
-            </button>
-            <button onClick={() => setDayOffset(0)} className={PILL_BASE} style={pillStyle(dayOffset === 0)}>
+            </motion.button>
+            <motion.button
+              onClick={() => setDayOffset(0)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              className={PILL_BASE}
+              style={pillStyle(dayOffset === 0)}
+            >
               오늘
-            </button>
-            <button onClick={() => setDayOffset((v) => v + 1)} className={PILL_BASE} style={pillStyle(false)}>
+            </motion.button>
+            <motion.button
+              onClick={() => setDayOffset((v) => v + 1)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              className={PILL_BASE}
+              style={pillStyle(false)}
+            >
               내일 →
-            </button>
+            </motion.button>
           </div>
         }
       >

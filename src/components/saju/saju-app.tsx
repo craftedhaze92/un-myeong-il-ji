@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { calculateDaeUn, type DaeUnPeriod } from "@/lib/dae_un";
 import { formatErrorForUser } from "@/lib/error_handler";
 import { calculateSaju } from "@/lib/saju";
@@ -125,80 +126,102 @@ export function SajuApp() {
   );
 
   return (
-    <div className={cn(styles.root, sajuFontVariables, dark && "dark")}>
-      <div
-        className={cn(
-          "flex min-h-screen flex-col items-center bg-bg px-4 pb-24 font-sans font-normal text-fg",
-          "transition-colors duration-[400ms] ease-in-out sm:px-6 lg:px-8",
-        )}
-        style={{ fontFamily: "var(--font-plex-sans), sans-serif" }}
-      >
-        <header className="umij-container flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 border-b border-line py-6 pb-[18px] sm:pt-7">
-          <div className="flex items-baseline gap-3">
-            <span className="font-myeongjo text-section font-extrabold tracking-[0.02em]">
-              運命日誌
-            </span>
-            <span className="text-body tracking-[0.06em] text-dim">운명일지</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="hidden text-body tracking-[0.04em] text-dim sm:inline">
-              {viewModel ? viewModel.headerNote : "사주팔자"}
-            </span>
-            <button
-              onClick={toggleTheme}
-              title="배경 전환"
-              className="flex cursor-pointer items-center gap-1.5 rounded-[2px] border border-line bg-transparent px-2.5 py-1.5 font-myeongjo text-[13px] text-dim hover:text-fg"
-            >
-              <span className="block size-2 rounded-full bg-fg" />
-              {dark ? "먹지" : "한지"}
-            </button>
-          </div>
-        </header>
+    <MotionConfig reducedMotion="user">
+      <div className={cn(styles.root, sajuFontVariables, dark && "dark")}>
+        <div
+          className={cn(
+            "flex min-h-screen flex-col items-center bg-bg px-4 pb-24 font-sans font-normal text-fg",
+            "transition-colors duration-[400ms] ease-in-out sm:px-6 lg:px-8",
+          )}
+          style={{ fontFamily: "var(--font-plex-sans), sans-serif" }}
+        >
+          <header className="umij-container flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 border-b border-line py-6 pb-[18px] sm:pt-7">
+            <div className="flex items-baseline gap-3">
+              <span className="font-myeongjo text-section font-extrabold tracking-[0.02em]">
+                運命日誌
+              </span>
+              <span className="text-body tracking-[0.06em] text-dim">운명일지</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="hidden text-body tracking-[0.04em] text-dim sm:inline">
+                {viewModel ? viewModel.headerNote : "사주팔자"}
+              </span>
+              <motion.button
+                onClick={toggleTheme}
+                title="배경 전환"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex cursor-pointer items-center gap-1.5 rounded-[2px] border border-line bg-transparent px-2.5 py-1.5 font-myeongjo text-[13px] text-dim hover:text-fg"
+              >
+                <span className="block size-2 rounded-full bg-fg" />
+                {dark ? "먹지" : "한지"}
+              </motion.button>
+            </div>
+          </header>
 
-        {!viewModel && (
-          <section className="w-full max-w-[640px] pt-10 text-center sm:pt-[68px]">
-            <h1 className="mb-3.5 font-myeongjo text-hero leading-[1.25] font-extrabold tracking-[-0.01em]">
-              태어난 순간을 적어주세요
-            </h1>
-            <p className="mb-12 text-label leading-[1.7] text-dim sm:mb-[62px]">
-              시(時)를 모르면 시·분을 비워도 됩니다 — 시주 없이 삼주로 봅니다.
-            </p>
+          <AnimatePresence mode="wait" initial={false}>
+            {!viewModel && (
+              <motion.section
+                key="form"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="w-full max-w-[640px] pt-10 text-center sm:pt-[68px]"
+              >
+                <h1 className="mb-3.5 font-myeongjo text-hero leading-[1.25] font-extrabold tracking-[-0.01em]">
+                  태어난 순간을 적어주세요
+                </h1>
+                <p className="mb-12 text-label leading-[1.7] text-dim sm:mb-[62px]">
+                  시(時)를 모르면 시·분을 비워도 됩니다 — 시주 없이 삼주로 봅니다.
+                </p>
 
-            <BirthForm values={form} onChange={updateForm} />
+                <BirthForm values={form} onChange={updateForm} />
 
-            <button
-              onClick={submit}
-              disabled={!name.trim()}
-              className={cn(
-                "w-full rounded-[2px] border-none bg-fg px-8 py-3.5 font-batang text-subtitle font-bold tracking-[0.04em] text-bg sm:w-auto sm:px-[54px] sm:py-[17px]",
-                name.trim() ? "cursor-pointer opacity-100" : "cursor-not-allowed opacity-40",
-              )}
-            >
-              운명 일지 보기
-            </button>
-            {error && <p className="mt-[18px] text-small text-danger">{error}</p>}
-          </section>
-        )}
+                <motion.button
+                  onClick={submit}
+                  disabled={!name.trim()}
+                  whileHover={name.trim() ? { scale: 1.02 } : undefined}
+                  whileTap={name.trim() ? { scale: 0.98 } : undefined}
+                  className={cn(
+                    "w-full rounded-[2px] border-none bg-fg px-8 py-3.5 font-batang text-subtitle font-bold tracking-[0.04em] text-bg sm:w-auto sm:px-[54px] sm:py-[17px]",
+                    name.trim() ? "cursor-pointer opacity-100" : "cursor-not-allowed opacity-40",
+                  )}
+                >
+                  운명 일지 보기
+                </motion.button>
+                {error && <p className="mt-[18px] text-small text-danger">{error}</p>}
+              </motion.section>
+            )}
 
-        {result && viewModel && readingViewModel && (
-          <>
-            <ResultPanel
-              viewModel={viewModel}
-              sinsalDetails={readingViewModel.myeongsik.sinsal}
-              sinsalCombined={readingViewModel.myeongsik.sinsalCombined}
-              onReset={resetAll}
-            />
-            <ReadingPanel
-              saju={result.saju}
-              daeUn={result.daeUn}
-              readingVM={readingViewModel}
-              dark={dark}
-              name={result.name}
-            />
-            <CompatibilitySection mySaju={result.saju} myName={result.name} />
-          </>
-        )}
+            {result && viewModel && readingViewModel && (
+              <motion.div
+                key="result"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="w-full"
+              >
+                <ResultPanel
+                  viewModel={viewModel}
+                  sinsalDetails={readingViewModel.myeongsik.sinsal}
+                  sinsalCombined={readingViewModel.myeongsik.sinsalCombined}
+                  onReset={resetAll}
+                />
+                <ReadingPanel
+                  saju={result.saju}
+                  daeUn={result.daeUn}
+                  readingVM={readingViewModel}
+                  dark={dark}
+                  name={result.name}
+                />
+                <CompatibilitySection mySaju={result.saju} myName={result.name} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </MotionConfig>
   );
 }

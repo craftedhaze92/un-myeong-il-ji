@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "motion/react";
+import { Toggle, ToggleGroup } from "radix-ui";
 import { KOREA_CITY_LONGITUDE } from "@/data/longitude_table";
 import {
   SajuError,
@@ -249,42 +251,53 @@ export function BirthForm({
       </div>
 
       <div className="mb-6 flex flex-wrap justify-center gap-2">
-        <button
-          onClick={() => onChange({ calendarType: "solar" })}
-          className={pillBtnClass(calendarType === "solar")}
+        <ToggleGroup.Root
+          type="single"
+          value={calendarType}
+          onValueChange={(v) => v && onChange({ calendarType: v as CalendarType })}
+          className="flex flex-wrap justify-center gap-2"
         >
-          양력
-        </button>
-        <button
-          onClick={() => onChange({ calendarType: "lunar" })}
-          className={pillBtnClass(calendarType === "lunar")}
-        >
-          음력
-        </button>
+          <ToggleGroup.Item value="solar" asChild>
+            <motion.button whileTap={{ scale: 0.95 }} className={pillBtnClass(calendarType === "solar")}>
+              양력
+            </motion.button>
+          </ToggleGroup.Item>
+          <ToggleGroup.Item value="lunar" asChild>
+            <motion.button whileTap={{ scale: 0.95 }} className={pillBtnClass(calendarType === "lunar")}>
+              음력
+            </motion.button>
+          </ToggleGroup.Item>
+        </ToggleGroup.Root>
         {calendarType === "lunar" && (
-          <button
-            onClick={() => onChange({ isLeapMonth: !isLeapMonth })}
-            className={cn(pillBtnClass(isLeapMonth), "text-small")}
+          <Toggle.Root
+            pressed={isLeapMonth}
+            onPressedChange={(v) => onChange({ isLeapMonth: v })}
+            asChild
           >
-            윤달
-          </button>
+            <motion.button whileTap={{ scale: 0.95 }} className={cn(pillBtnClass(isLeapMonth), "text-small")}>
+              윤달
+            </motion.button>
+          </Toggle.Root>
         )}
       </div>
 
-      <div className="mb-12 flex justify-center gap-2 sm:mb-[54px]">
-        <button
-          onClick={() => onChange({ gender: "male" })}
-          className={pillBtnClass(gender === "male")}
-        >
-          남
-        </button>
-        <button
-          onClick={() => onChange({ gender: "female" })}
-          className={pillBtnClass(gender === "female")}
-        >
-          여
-        </button>
-      </div>
+      <ToggleGroup.Root
+        type="single"
+        value={gender}
+        onValueChange={(v) => v && onChange({ gender: v as Gender })}
+        className="mb-12 flex justify-center gap-2 sm:mb-[54px]"
+      >
+        <ToggleGroup.Item value="male" asChild>
+          <motion.button whileTap={{ scale: 0.95 }} className={pillBtnClass(gender === "male")}>
+            남
+          </motion.button>
+        </ToggleGroup.Item>
+        <ToggleGroup.Item value="female" asChild>
+          <motion.button whileTap={{ scale: 0.95 }} className={pillBtnClass(gender === "female")}>
+            여
+          </motion.button>
+        </ToggleGroup.Item>
+      </ToggleGroup.Root>
     </>
   );
 }

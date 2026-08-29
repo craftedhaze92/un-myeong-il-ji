@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "motion/react";
 import type { ElementCycleVM } from "../view-model";
 
 export interface ElementCycleProps {
@@ -95,8 +98,14 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
           />
         ))}
 
-        {cycle.nodes.map((n) => (
-          <g key={n.key}>
+        {cycle.nodes.map((n, i) => (
+          <motion.g
+            key={n.key}
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.05, duration: 0.4, ease: "easeOut" }}
+            style={{ transformOrigin: `${n.cx}px ${n.cy}px` }}
+          >
             <circle cx={n.cx} cy={n.cy} r={n.r} fill="var(--surface)" stroke="var(--line)" strokeWidth={1} />
             {n.pct > 0 && (
               <circle
@@ -134,7 +143,7 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
                 {n.ch}
               </text>
             </g>
-          </g>
+          </motion.g>
         ))}
       </svg>
     </div>

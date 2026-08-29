@@ -1,3 +1,7 @@
+"use client";
+
+import { motion } from "motion/react";
+import { Tooltip } from "radix-ui";
 import { cn } from "@/lib/utils";
 import type { GanjiCellVM } from "../view-model";
 
@@ -12,6 +16,12 @@ export interface GanjiColumnProps {
   onClick?: () => void;
   /** onClick과 함께 써서 "지금 보고 있는" 구간을 아웃라인으로 표시한다 (current와는 별개 개념). */
   selected?: boolean;
+  /**
+   * 같은 그룹(예: 대운 띠) 안의 GanjiColumn들이 공유하는 motion layoutId. 넘기면 selected가
+   * 옮겨갈 때 아웃라인이 즉시 점프하지 않고 motion이 FLIP으로 슬라이드시킨다. 표시 전용
+   * 인스턴스(onClick 없음, 예: 세운 띠)에는 넘기지 않는다.
+   */
+  selectionLayoutId?: string;
 }
 
 /**
@@ -30,24 +40,34 @@ export function GanjiColumn({
   accentColor,
   onClick,
   selected,
+  selectionLayoutId,
 }: GanjiColumnProps) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
       aria-pressed={onClick ? selected : undefined}
       tabIndex={onClick ? undefined : -1}
+      whileHover={onClick ? { scale: 1.03 } : undefined}
+      whileTap={onClick ? { scale: 0.97 } : undefined}
       className={cn(
-        "flex flex-[0_0_84px] flex-col items-center gap-1.5 rounded px-2 pt-3 pb-3.5 sm:flex-[0_0_108px]",
+        "relative flex flex-[0_0_84px] flex-col items-center gap-1.5 rounded px-2 pt-3 pb-3.5 sm:flex-[0_0_108px]",
         onClick ? "cursor-pointer" : "cursor-default",
       )}
       style={{
         border: current ? `1px dashed ${accentColor}` : "1px solid var(--line)",
-        outline: selected ? "2px solid var(--fg)" : "none",
-        outlineOffset: -2,
         background: current ? `color-mix(in srgb, ${accentColor} 10%, transparent)` : "transparent",
       }}
     >
+      {selected && (
+        <motion.div
+          layoutId={selectionLayoutId}
+          transition={{ type: "spring", stiffness: 500, damping: 40 }}
+          className="pointer-events-none absolute inset-0 rounded"
+          style={{ outline: "2px solid var(--fg)", outlineOffset: -2 }}
+        />
+      )}
+
       <div
         className="font-mono-plex text-subtitle font-bold"
         style={{ color: current ? accentColor : "var(--fg)" }}
@@ -61,12 +81,24 @@ export function GanjiColumn({
       <div className="text-micro text-dim">{cell.branchGod}</div>
 
       <div className="mt-1 flex flex-col items-center gap-0.5">
-        <span title={cell.stageDescription} className="font-myeongjo text-micro text-fg">
-          {cell.stage}
-        </span>
+        <Tooltip.Root>
+          <Tooltip.Trigger asChild>
+            <span className="font-myeongjo text-micro text-fg">{cell.stage}</span>
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content
+              side="top"
+              sideOffset={6}
+              className="z-50 max-w-[220px] rounded-[2px] border border-line bg-surface px-2.5 py-1.5 text-micro text-fg shadow-md"
+            >
+              {cell.stageDescription}
+              <Tooltip.Arrow className="fill-surface" />
+            </Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
         <span className="text-micro text-mute">{cell.sinsal}</span>
       </div>
-    </button>
+    </motion.button>
   );
 }
 

@@ -78,10 +78,8 @@ export interface PillarVM {
   label: string;
   labelEn: string;
   labelColor: string;
+  /** 90이면 일주(day column) — 등장 애니메이션에서 강조 대상 판별에도 재사용한다. */
   size: number;
-  slotDelay: number;
-  delayA: number;
-  delayB: number;
   stem: PillarCellVM;
   branch: PillarCellVM;
 }
@@ -584,7 +582,7 @@ export function buildSajuViewModel({
     ? ["hour", "day", "month", "year"]
     : ["day", "month", "year"];
 
-  const pillars: PillarVM[] = order.map((key, i) => {
+  const pillars: PillarVM[] = order.map((key) => {
     const pillar: Pillar = saju[key];
     const meta = PILLAR_META[key];
     const stemHanja = getHeavenlyStemByKorean(pillar.stem)!.hanja;
@@ -621,9 +619,6 @@ export function buildSajuViewModel({
         ? elementColor(pillar.stemElement, dark)
         : "var(--dim, rgba(237,231,219,0.55))",
       size: isDay ? 90 : 76,
-      slotDelay: 40 + i * 30,
-      delayA: 190 + i * 70 + (isDay ? 20 : 0),
-      delayB: 230 + i * 70 + (isDay ? 20 : 0),
       stem: stemCell,
       branch: branchCell,
     };

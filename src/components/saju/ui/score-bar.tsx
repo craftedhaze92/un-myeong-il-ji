@@ -1,3 +1,7 @@
+"use client";
+
+import { motion } from "motion/react";
+
 export interface ScoreBarProps {
   label?: string;
   score: number; // 0-100
@@ -26,9 +30,12 @@ export function ScoreBar({ label, score, color = "var(--fg)" }: ScoreBarProps) {
         aria-label={label}
         className="relative h-1.5 overflow-hidden rounded-[3px] bg-track"
       >
-        <div
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
           className="absolute inset-y-0 left-0 rounded-[3px]"
-          style={{ width: `${pct}%`, background: color }}
+          style={{ background: color }}
         />
       </div>
     </div>

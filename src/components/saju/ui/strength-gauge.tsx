@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import type { StrengthGaugeVM } from "../view-model";
 
@@ -17,12 +20,15 @@ export function StrengthGauge({ gauge }: StrengthGaugeProps) {
         <svg viewBox="0 0 200 200" className="block h-full w-full">
           <path d={gauge.trackD} fill="none" stroke="var(--track)" strokeWidth={14} strokeLinecap="round" />
           {gauge.progressD && (
-            <path
+            <motion.path
               d={gauge.progressD}
               fill="none"
               stroke={gauge.color}
               strokeWidth={14}
               strokeLinecap="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
             />
           )}
           <circle cx={gauge.capX} cy={gauge.capY} r={9} fill={gauge.color} stroke="var(--bg)" strokeWidth={2} />
