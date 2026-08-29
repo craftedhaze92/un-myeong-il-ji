@@ -1,4 +1,3 @@
-import { FONT_MONO, FONT_MYEONGJO, FS } from "../constants";
 import type { ElementCycleVM } from "../view-model";
 
 export interface ElementCycleProps {
@@ -18,9 +17,9 @@ const STATUS_LABEL_COLOR: Record<string, string> = {
  */
 export function ElementCycle({ cycle }: ElementCycleProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", gap: 20, fontSize: FS.body, color: "var(--dim)" }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div className="flex flex-col gap-3.5">
+      <div className="flex gap-5 text-body text-dim">
+        <span className="flex items-center gap-1.5">
           생
           <svg width="28" height="10" viewBox="0 0 28 10" style={{ overflow: "visible" }}>
             <line x1="1" y1="5" x2="22" y2="5" stroke="var(--fg)" strokeWidth={1.5} markerEnd="url(#elCycleLegendArrow)" />
@@ -31,7 +30,7 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
             </defs>
           </svg>
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span className="flex items-center gap-1.5">
           극
           <svg width="28" height="10" viewBox="0 0 28 10" style={{ overflow: "visible" }}>
             <line
@@ -55,7 +54,8 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
 
       <svg
         viewBox="-16 -16 232 232"
-        style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
+        className="block w-full"
+        style={{ height: "auto", overflow: "visible" }}
       >
         <defs>
           <marker id="shengArrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
@@ -113,7 +113,7 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
               x={n.cx}
               y={n.cy - 3}
               textAnchor="middle"
-              fontFamily={FONT_MONO}
+              fontFamily="var(--font-plex-mono), monospace"
               fontSize={12.5}
               fontWeight={700}
               fill="var(--fg)"
@@ -126,7 +126,7 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
                 x={0}
                 y={4}
                 textAnchor="middle"
-                fontFamily={FONT_MYEONGJO}
+                fontFamily="var(--font-myeongjo), serif"
                 fontSize={14}
                 fontWeight={700}
                 fill={n.color}

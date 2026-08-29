@@ -1,5 +1,3 @@
-import { FONT_MONO, FS } from "../constants";
-
 export interface ScoreBarProps {
   label?: string;
   score: number; // 0-100
@@ -13,18 +11,11 @@ export interface ScoreBarProps {
 export function ScoreBar({ label, score, color = "var(--fg)" }: ScoreBarProps) {
   const pct = Math.max(0, Math.min(100, Math.round(score)));
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="flex flex-col gap-1.5">
       {label && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: FS.small,
-            color: "var(--dim)",
-          }}
-        >
+        <div className="flex justify-between text-small text-dim">
           <span>{label}</span>
-          <span style={{ fontFamily: FONT_MONO }}>{pct}</span>
+          <span className="font-mono-plex">{pct}</span>
         </div>
       )}
       <div
@@ -33,24 +24,11 @@ export function ScoreBar({ label, score, color = "var(--fg)" }: ScoreBarProps) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={label}
-        style={{
-          height: 6,
-          borderRadius: 3,
-          background: "var(--track)",
-          position: "relative",
-          overflow: "hidden",
-        }}
+        className="relative h-1.5 overflow-hidden rounded-[3px] bg-track"
       >
         <div
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: 0,
-            width: `${pct}%`,
-            background: color,
-            borderRadius: 3,
-          }}
+          className="absolute inset-y-0 left-0 rounded-[3px]"
+          style={{ width: `${pct}%`, background: color }}
         />
       </div>
     </div>

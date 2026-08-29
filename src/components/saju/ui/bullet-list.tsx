@@ -1,4 +1,4 @@
-import { dimText, FS } from "../constants";
+import { cn } from "@/lib/utils";
 
 export interface BulletListProps {
   items: string[];
@@ -11,27 +11,13 @@ export interface BulletListProps {
  */
 export function BulletList({ items, tone }: BulletListProps) {
   if (items.length === 0) return null;
-  const markColor =
-    tone === "positive"
-      ? "var(--fg)"
-      : tone === "negative"
-        ? "var(--danger)"
-        : "var(--dim)";
+  const markClass =
+    tone === "positive" ? "text-fg" : tone === "negative" ? "text-danger" : "text-dim";
   return (
-    <ul style={{ margin: "0 0 12px", padding: 0, listStyle: "none" }}>
+    <ul className="m-0 mb-3 list-none p-0">
       {items.map((item, i) => (
-        <li
-          key={i}
-          style={{
-            display: "flex",
-            gap: 8,
-            fontSize: FS.body,
-            lineHeight: 1.75,
-            marginBottom: 6,
-            ...dimText,
-          }}
-        >
-          <span style={{ color: markColor, flexShrink: 0 }}>·</span>
+        <li key={i} className="mb-1.5 flex gap-2 text-body leading-[1.75] text-dim">
+          <span className={cn("shrink-0", markClass)}>·</span>
           <span>{item}</span>
         </li>
       ))}

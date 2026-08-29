@@ -4,6 +4,7 @@ import { useState } from "react";
 import { checkCompatibility } from "@/lib/compatibility";
 import { formatErrorForUser } from "@/lib/error_handler";
 import { calculateSaju } from "@/lib/saju";
+import { cn } from "@/lib/utils";
 import type { CompatibilityAnalysis, SajuData } from "@/types";
 import {
   BirthForm,
@@ -11,7 +12,6 @@ import {
   EMPTY_BIRTH_FORM_VALUES,
   type BirthFormValues,
 } from "./birth-form";
-import { dimText, FONT_BATANG, FS, muteText } from "./constants";
 import { BulletList } from "./ui/bullet-list";
 import { ScoreBar } from "./ui/score-bar";
 import { SectionCard } from "./ui/section-card";
@@ -70,25 +70,16 @@ export function CompatibilitySection({
   };
 
   return (
-    <section style={{ width: "100%", maxWidth: 1100, paddingTop: 20 }}>
+    <section className="umij-container pt-5">
       <button
         onClick={() => setOpen((v) => !v)}
-        style={{
-          background: "transparent",
-          border: "1px solid var(--line)",
-          color: "var(--dim)",
-          fontFamily: FONT_BATANG,
-          fontSize: FS.body,
-          padding: "10px 20px",
-          borderRadius: 2,
-          cursor: "pointer",
-        }}
+        className="cursor-pointer rounded-[2px] border border-line bg-transparent px-5 py-2.5 font-batang text-body text-dim"
       >
         {open ? "궁합 보기 닫기" : "다른 사람과 궁합 보기"}
       </button>
 
       {open && (
-        <SectionCard title="상대방 정보" style={{ marginTop: 16 }}>
+        <SectionCard title="상대방 정보" className="mt-4">
           <BirthForm
             values={partner}
             onChange={(patch) => setPartner((v) => ({ ...v, ...patch }))}
@@ -96,54 +87,30 @@ export function CompatibilitySection({
             nameLabelHanja="他人"
             cityListId="compat-city-list"
           />
-          <div style={{ display: "flex", justifyContent: "center" }}>
+          <div className="flex justify-center">
             <button
               onClick={compute}
               disabled={!canSubmit}
-              style={{
-                background: "var(--fg)",
-                color: "var(--bg)",
-                border: "none",
-                borderRadius: 2,
-                padding: "14px 40px",
-                fontFamily: FONT_BATANG,
-                fontWeight: 700,
-                fontSize: FS.body,
-                cursor: canSubmit ? "pointer" : "not-allowed",
-                opacity: canSubmit ? 1 : 0.4,
-              }}
+              className={cn(
+                "rounded-[2px] border-none bg-fg px-10 py-3.5 font-batang text-body font-bold text-bg",
+                canSubmit ? "cursor-pointer opacity-100" : "cursor-not-allowed opacity-40",
+              )}
             >
               궁합 보기
             </button>
           </div>
-          {error && (
-            <p
-              style={{
-                margin: "14px 0 0",
-                fontSize: FS.small,
-                color: "var(--danger)",
-                textAlign: "center",
-              }}
-            >
-              {error}
-            </p>
-          )}
+          {error && <p className="mt-3.5 text-center text-small text-danger">{error}</p>}
         </SectionCard>
       )}
 
       {result && (
-        <SectionCard
-          title={`${myName} · ${result.partnerName} 궁합`}
-          style={{ marginTop: 16 }}
-        >
+        <SectionCard title={`${myName} · ${result.partnerName} 궁합`} className="mt-4">
           <ScoreBar label="종합 궁합" score={result.analysis.compatibilityScore} />
-          <div
-            style={{ fontSize: FS.body, lineHeight: 1.75, margin: "14px 0", ...dimText }}
-          >
+          <div className="my-3.5 text-body leading-[1.75] text-dim">
             {result.analysis.summary}
           </div>
           <ScoreBar label="오행 조화" score={result.analysis.elementHarmony.harmony} />
-          <div style={{ fontSize: FS.small, margin: "6px 0 16px", ...muteText }}>
+          <div className="my-1.5 mb-4 text-small text-mute">
             {result.analysis.elementHarmony.description}
           </div>
           <BulletList items={result.analysis.strengths} tone="positive" />

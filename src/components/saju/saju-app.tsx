@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { calculateDaeUn, type DaeUnPeriod } from "@/lib/dae_un";
 import { formatErrorForUser } from "@/lib/error_handler";
 import { calculateSaju } from "@/lib/saju";
+import { cn } from "@/lib/utils";
 import type { Gender, SajuData } from "@/types";
 import {
   BirthForm,
@@ -11,7 +12,6 @@ import {
   EMPTY_BIRTH_FORM_VALUES,
   type BirthFormValues,
 } from "./birth-form";
-import { dimText, FONT_BATANG, FONT_MYEONGJO, FS, THEMES } from "./constants";
 import { CompatibilitySection } from "./compatibility-section";
 import { sajuFontVariables } from "./fonts";
 import { ReadingPanel } from "./reading-panel";
@@ -124,149 +124,59 @@ export function SajuApp() {
     [result],
   );
 
-  const submitStyle: CSSProperties = {
-    background: "var(--fg)",
-    color: "var(--bg)",
-    border: "none",
-    borderRadius: 2,
-    padding: "17px 54px",
-    fontFamily: FONT_BATANG,
-    fontWeight: 700,
-    fontSize: FS.subtitle,
-    letterSpacing: "0.04em",
-    cursor: name.trim() ? "pointer" : "not-allowed",
-    opacity: name.trim() ? 1 : 0.4,
-  };
-
   return (
-    <div
-      className={`${styles.root} ${sajuFontVariables}`}
-      style={THEMES[dark ? "dark" : "light"] as CSSProperties}
-    >
+    <div className={cn(styles.root, sajuFontVariables, dark && "dark")}>
       <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--bg)",
-          color: "var(--fg)",
-          fontFamily: "var(--font-plex-sans), sans-serif",
-          fontWeight: 400,
-          padding: "0 32px 96px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          transition: "background .4s ease, color .4s ease",
-        }}
+        className={cn(
+          "flex min-h-screen flex-col items-center bg-bg px-4 pb-24 font-sans font-normal text-fg",
+          "transition-colors duration-[400ms] ease-in-out sm:px-6 lg:px-8",
+        )}
+        style={{ fontFamily: "var(--font-plex-sans), sans-serif" }}
       >
-        <header
-          style={{
-            width: "100%",
-            maxWidth: 1100,
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            gap: 24,
-            padding: "28px 0 18px",
-            borderBottom: "1px solid var(--line)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-            <span
-              style={{
-                fontFamily: FONT_MYEONGJO,
-                fontWeight: 800,
-                fontSize: FS.sectionHead,
-                letterSpacing: "0.02em",
-              }}
-            >
+        <header className="umij-container flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 border-b border-line py-6 pb-[18px] sm:pt-7">
+          <div className="flex items-baseline gap-3">
+            <span className="font-myeongjo text-section font-extrabold tracking-[0.02em]">
               運命日誌
             </span>
-            <span
-              style={{
-                fontSize: FS.body,
-                letterSpacing: "0.06em",
-                ...dimText,
-              }}
-            >
-              운명일지
-            </span>
+            <span className="text-body tracking-[0.06em] text-dim">운명일지</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <span
-              style={{
-                fontSize: FS.body,
-                letterSpacing: "0.04em",
-                ...dimText,
-              }}
-            >
+          <div className="flex items-center gap-4">
+            <span className="hidden text-body tracking-[0.04em] text-dim sm:inline">
               {viewModel ? viewModel.headerNote : "사주팔자"}
             </span>
             <button
               onClick={toggleTheme}
               title="배경 전환"
-              className={styles.themeToggle}
+              className="flex cursor-pointer items-center gap-1.5 rounded-[2px] border border-line bg-transparent px-2.5 py-1.5 font-myeongjo text-[13px] text-dim hover:text-fg"
             >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "var(--fg)",
-                  display: "block",
-                }}
-              />
+              <span className="block size-2 rounded-full bg-fg" />
               {dark ? "먹지" : "한지"}
             </button>
           </div>
         </header>
 
         {!viewModel && (
-          <section
-            style={{
-              width: "100%",
-              maxWidth: 640,
-              paddingTop: 68,
-              textAlign: "center",
-            }}
-          >
-            <h1
-              style={{
-                fontFamily: FONT_MYEONGJO,
-                fontWeight: 800,
-                fontSize: 44,
-                lineHeight: 1.25,
-                margin: "0 0 14px",
-                letterSpacing: "-0.01em",
-              }}
-            >
+          <section className="w-full max-w-[640px] pt-10 text-center sm:pt-[68px]">
+            <h1 className="mb-3.5 font-myeongjo text-hero leading-[1.25] font-extrabold tracking-[-0.01em]">
               태어난 순간을 적어주세요
             </h1>
-            <p
-              style={{
-                margin: "0 0 62px",
-                fontSize: FS.label,
-                lineHeight: 1.7,
-                ...dimText,
-              }}
-            >
+            <p className="mb-12 text-label leading-[1.7] text-dim sm:mb-[62px]">
               시(時)를 모르면 시·분을 비워도 됩니다 — 시주 없이 삼주로 봅니다.
             </p>
 
             <BirthForm values={form} onChange={updateForm} />
 
-            <button onClick={submit} style={submitStyle}>
+            <button
+              onClick={submit}
+              disabled={!name.trim()}
+              className={cn(
+                "w-full rounded-[2px] border-none bg-fg px-8 py-3.5 font-batang text-subtitle font-bold tracking-[0.04em] text-bg sm:w-auto sm:px-[54px] sm:py-[17px]",
+                name.trim() ? "cursor-pointer opacity-100" : "cursor-not-allowed opacity-40",
+              )}
+            >
               운명 일지 보기
             </button>
-            {error && (
-              <p
-                style={{
-                  margin: "18px 0 0",
-                  fontSize: FS.small,
-                  color: "var(--danger)",
-                }}
-              >
-                {error}
-              </p>
-            )}
+            {error && <p className="mt-[18px] text-small text-danger">{error}</p>}
           </section>
         )}
 

@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -46,9 +46,53 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── umij(운명일지) 전용 토큰 — saju/constants.ts THEMES를 대체 ── */
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-dim: var(--dim);
+  --color-mute: var(--mute);
+  --color-danger: var(--danger);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-track: var(--track);
+
+  --font-myeongjo: var(--font-myeongjo), serif;
+  --font-batang: var(--font-batang), serif;
+  --font-mono-plex: var(--font-plex-mono), monospace;
+
+  /* 반응형 타이포 스케일 — constants.ts의 고정 px FS를 대체 */
+  --text-micro: clamp(0.6875rem, 0.66rem + 0.12vw, 0.75rem);
+  --text-caption: clamp(0.75rem, 0.72rem + 0.15vw, 0.875rem);
+  --text-small: clamp(0.8125rem, 0.78rem + 0.15vw, 0.9375rem);
+  --text-body: clamp(0.875rem, 0.84rem + 0.18vw, 1rem);
+  --text-body-lg: clamp(0.9375rem, 0.9rem + 0.2vw, 1.0625rem);
+  --text-label: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-subtitle: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --text-card-title: clamp(1.125rem, 1.02rem + 0.5vw, 1.4375rem);
+  --text-section: clamp(1.1875rem, 1.05rem + 0.6vw, 1.5625rem);
+  --text-form-label: clamp(1.1875rem, 1rem + 0.85vw, 1.6875rem);
+  --text-display: clamp(1.5rem, 1.2rem + 1.5vw, 2.0625rem);
+  --text-hero: clamp(1.75rem, 1.2rem + 2.8vw, 2.875rem);
+
+  /* 명식 4주 한자 크기 — view-model.ts가 내려주는 90/76px 스케일의 반응형 버전 */
+  --text-ganji-day: clamp(2.25rem, 11vw, 5.625rem);
+  --text-ganji-else: clamp(1.875rem, 9vw, 4.75rem);
 }
 
 :root {
+  /* umij 전용 토큰 — 한지(light) */
+  --bg: #ede7db;
+  --fg: #1a1a18;
+  --dim: #3e4048;
+  --mute: #62656f;
+  --danger: #b23520;
+  --line: rgba(26, 26, 24, 0.18);
+  --surface: rgba(255, 255, 255, 0.35);
+  --track: rgba(26, 26, 24, 0.1);
+  --slot: rgba(26, 26, 24, 0.07);
+  --slot-shadow: rgba(26, 26, 24, 0.18);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -84,6 +128,18 @@
 }
 
 .dark {
+  /* umij 전용 토큰 — 먹지(dark) */
+  --bg: #0f1116;
+  --fg: #ede7db;
+  --dim: #b9bac0;
+  --mute: #8c8e96;
+  --danger: #e2705c;
+  --line: rgba(237, 231, 219, 0.16);
+  --surface: rgba(237, 231, 219, 0.03);
+  --track: rgba(237, 231, 219, 0.08);
+  --slot: rgba(0, 0, 0, 0.3);
+  --slot-shadow: rgba(0, 0, 0, 0.55);
+
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -127,4 +183,11 @@
   html {
     @apply font-sans;
   }
+}
+
+/* saju-app.tsx·result-panel.tsx·reading-panel.tsx·compatibility-section.tsx가
+   공유하는 콘텐츠 폭 — 기존 maxWidth:1100 인라인 스타일 4곳을 대체 */
+@utility umij-container {
+  width: 100%;
+  max-width: 1100px;
 }

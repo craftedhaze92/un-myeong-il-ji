@@ -1,11 +1,12 @@
 import type { CSSProperties, ReactNode } from "react";
-import { FONT_BATANG, FS } from "../constants";
+import { cn } from "@/lib/utils";
 
 export interface SectionCardProps {
   title?: string;
   titleRight?: ReactNode;
   subtitle?: string;
   children: ReactNode;
+  className?: string;
   style?: CSSProperties;
   /** 기본 var(--line) 대신 쓸 테두리 색 (용신 카드처럼 강조가 필요할 때) */
   accentLine?: string;
@@ -22,55 +23,34 @@ export function SectionCard({
   titleRight,
   subtitle,
   children,
+  className,
   style,
   accentLine,
   accentBg,
 }: SectionCardProps) {
   return (
     <div
+      className={cn("rounded-[3px] border p-4 sm:px-[26px] sm:py-6", className)}
       style={{
-        border: `1px solid ${accentLine ?? "var(--line)"}`,
-        borderRadius: 3,
-        padding: "24px 26px",
+        borderColor: accentLine ?? "var(--line)",
         background: accentBg ?? "var(--surface)",
         ...style,
       }}
     >
       {title && (
         <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            gap: 12,
-            marginBottom: subtitle ? 6 : 16,
-          }}
+          className={cn(
+            "flex flex-wrap items-baseline justify-between gap-3",
+            subtitle ? "mb-1.5" : "mb-4",
+          )}
         >
-          <h2
-            style={{
-              fontFamily: FONT_BATANG,
-              fontWeight: 700,
-              fontSize: FS.cardTitle,
-              margin: 0,
-              whiteSpace: "nowrap",
-            }}
-          >
+          <h2 className="m-0 whitespace-normal font-batang text-card-title font-bold sm:whitespace-nowrap">
             {title}
           </h2>
           {titleRight}
         </div>
       )}
-      {subtitle && (
-        <p
-          style={{
-            margin: "0 0 16px",
-            fontSize: FS.body,
-            color: "var(--dim)",
-          }}
-        >
-          {subtitle}
-        </p>
-      )}
+      {subtitle && <p className="mb-4 text-body text-dim">{subtitle}</p>}
       {children}
     </div>
   );

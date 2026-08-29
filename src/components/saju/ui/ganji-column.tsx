@@ -1,4 +1,4 @@
-import { FONT_MONO, FONT_MYEONGJO, FS } from "../constants";
+import { cn } from "@/lib/utils";
 import type { GanjiCellVM } from "../view-model";
 
 export interface GanjiColumnProps {
@@ -37,53 +37,34 @@ export function GanjiColumn({
       onClick={onClick}
       aria-pressed={onClick ? selected : undefined}
       tabIndex={onClick ? undefined : -1}
+      className={cn(
+        "flex flex-[0_0_84px] flex-col items-center gap-1.5 rounded px-2 pt-3 pb-3.5 sm:flex-[0_0_108px]",
+        onClick ? "cursor-pointer" : "cursor-default",
+      )}
       style={{
-        flex: "0 0 108px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 6,
-        padding: "12px 8px 14px",
-        borderRadius: 4,
         border: current ? `1px dashed ${accentColor}` : "1px solid var(--line)",
         outline: selected ? "2px solid var(--fg)" : "none",
         outlineOffset: -2,
         background: current ? `color-mix(in srgb, ${accentColor} 10%, transparent)` : "transparent",
-        cursor: onClick ? "pointer" : "default",
       }}
     >
       <div
-        style={{
-          fontFamily: FONT_MONO,
-          fontSize: FS.subtitle,
-          fontWeight: 700,
-          color: current ? accentColor : "var(--fg)",
-        }}
+        className="font-mono-plex text-subtitle font-bold"
+        style={{ color: current ? accentColor : "var(--fg)" }}
       >
         {topLabel}
       </div>
 
-      <div style={{ fontSize: FS.micro, color: "var(--dim)" }}>{cell.stemGod}</div>
+      <div className="text-micro text-dim">{cell.stemGod}</div>
       <GanjiChip ch={cell.stem.ch} ko={cell.stem.ko} color={cell.stem.color} bg={cell.stem.bg} />
       <GanjiChip ch={cell.branch.ch} ko={cell.branch.ko} color={cell.branch.color} bg={cell.branch.bg} />
-      <div style={{ fontSize: FS.micro, color: "var(--dim)" }}>{cell.branchGod}</div>
+      <div className="text-micro text-dim">{cell.branchGod}</div>
 
-      <div
-        style={{
-          marginTop: 4,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 2,
-        }}
-      >
-        <span
-          title={cell.stageDescription}
-          style={{ fontSize: FS.micro, fontFamily: FONT_MYEONGJO, color: "var(--fg)" }}
-        >
+      <div className="mt-1 flex flex-col items-center gap-0.5">
+        <span title={cell.stageDescription} className="font-myeongjo text-micro text-fg">
           {cell.stage}
         </span>
-        <span style={{ fontSize: FS.micro, color: "var(--mute)" }}>{cell.sinsal}</span>
+        <span className="text-micro text-mute">{cell.sinsal}</span>
       </div>
     </button>
   );
@@ -102,21 +83,15 @@ function GanjiChip({
 }) {
   return (
     <div
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: 4,
-        background: bg,
-        border: `1px solid ${color}`,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        lineHeight: 1,
-      }}
+      className="flex size-9 flex-col items-center justify-center rounded leading-none sm:size-11"
+      style={{ background: bg, border: `1px solid ${color}` }}
     >
-      <span style={{ fontFamily: FONT_MYEONGJO, fontWeight: 800, fontSize: 22, color }}>{ch}</span>
-      <span style={{ fontSize: 10, color, opacity: 0.85, marginTop: 2 }}>{ko}</span>
+      <span className="font-myeongjo text-[18px] font-extrabold sm:text-[22px]" style={{ color }}>
+        {ch}
+      </span>
+      <span className="mt-0.5 text-[9px] opacity-85 sm:text-[10px]" style={{ color }}>
+        {ko}
+      </span>
     </div>
   );
 }

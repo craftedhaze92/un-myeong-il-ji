@@ -1,6 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import { KOREA_CITY_LONGITUDE } from "@/data/longitude_table";
 import {
   SajuError,
@@ -10,8 +9,8 @@ import {
   validateTime,
   validateYearRange,
 } from "@/lib/error_handler";
+import { cn } from "@/lib/utils";
 import type { CalendarType, Gender } from "@/types";
-import { dimText, FONT_MONO, FONT_MYEONGJO, FS, muteText } from "./constants";
 
 export interface BirthFormValues {
   name: string;
@@ -100,6 +99,19 @@ export interface BirthFormProps {
   cityListId?: string;
 }
 
+const FIELD_LABEL = "flex flex-col items-center gap-2.5";
+const INPUT_BASE =
+  "w-full rounded-[2px] border border-line bg-surface text-center font-myeongjo text-card-title tracking-[0.04em] h-14 px-3 sm:h-[62px]";
+const MONO_INPUT =
+  "w-full rounded-[2px] border border-line bg-surface text-center font-mono-plex text-section tracking-[0.04em] h-14 px-2 sm:h-[62px]";
+
+function pillBtnClass(active: boolean) {
+  return cn(
+    "cursor-pointer rounded-[2px] border px-6 py-2.5 font-myeongjo text-body-lg transition-all duration-200",
+    active ? "border-fg bg-track text-fg" : "border-line bg-transparent text-dim",
+  );
+}
+
 /**
  * 생년월일시 입력 폼. saju-app.tsx의 메인 입력에서 쓰던 JSX를 그대로 옮긴 것 —
  * 궁합 탭에서 상대방 생년월일시를 물어볼 때도 복붙하지 않고 이 컴포넌트를 재사용한다.
@@ -120,89 +132,29 @@ export function BirthForm({
       onChange({ [key]: e.target.value.replace(/[^0-9]/g, "") });
     };
 
-  const genderBtnStyle = (active: boolean): CSSProperties => ({
-    background: active ? "var(--track)" : "transparent",
-    border: `1px solid ${active ? "var(--fg)" : "var(--line)"}`,
-    color: active ? "var(--fg)" : "var(--dim)",
-    fontFamily: FONT_MYEONGJO,
-    fontSize: FS.bodyLg,
-    padding: "9px 24px",
-    borderRadius: 2,
-    cursor: "pointer",
-    transition: "all .2s",
-  });
-
-  const inputBase: CSSProperties = {
-    width: "100%",
-    textAlign: "center",
-    background: "var(--surface)",
-    border: "1px solid var(--line)",
-    borderRadius: 2,
-    height: 62,
-    padding: "0 12px",
-    fontFamily: FONT_MYEONGJO,
-    fontSize: FS.cardTitle,
-    letterSpacing: "0.04em",
-  };
-
-  const monoInput: CSSProperties = {
-    width: "100%",
-    textAlign: "center",
-    background: "var(--surface)",
-    border: "1px solid var(--line)",
-    borderRadius: 2,
-    height: 62,
-    padding: "0 8px",
-    fontFamily: FONT_MONO,
-    fontSize: FS.sectionHead,
-    letterSpacing: "0.04em",
-  };
-
-  const fieldLabelStyle: CSSProperties = {
-    display: "flex",
-    flexDirection: "column",
-    gap: 9,
-    alignItems: "center",
-  };
-
   return (
     <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-          marginBottom: 18,
-        }}
-      >
-        <label style={fieldLabelStyle}>
-          <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span
-              style={{ fontFamily: FONT_MYEONGJO, fontSize: FS.formLabel, ...dimText }}
-            >
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className={FIELD_LABEL}>
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-myeongjo text-form-label text-dim">
               {nameLabelHanja}
             </span>
-            <span style={{ fontSize: FS.formLabel, ...dimText }}>
-              {nameLabel}
-            </span>
+            <span className="text-form-label text-dim">{nameLabel}</span>
           </span>
           <input
             value={name}
             onChange={(e) => onChange({ name: e.target.value })}
             placeholder={nameLabel}
             maxLength={12}
-            style={inputBase}
+            className={INPUT_BASE}
           />
         </label>
 
-        <label style={fieldLabelStyle}>
-          <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span
-              style={{ fontFamily: FONT_MYEONGJO, fontSize: FS.formLabel, ...dimText }}
-            >
-              出生地
-            </span>
-            <span style={{ fontSize: FS.formLabel, ...dimText }}>출생지</span>
+        <label className={FIELD_LABEL}>
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-myeongjo text-form-label text-dim">出生地</span>
+            <span className="text-form-label text-dim">출생지</span>
           </span>
           <input
             list={cityListId}
@@ -210,7 +162,7 @@ export function BirthForm({
             onChange={(e) => onChange({ city: e.target.value })}
             placeholder="서울"
             maxLength={12}
-            style={inputBase}
+            className={INPUT_BASE}
           />
           <datalist id={cityListId}>
             {Object.keys(KOREA_CITY_LONGITUDE).map((c) => (
@@ -218,29 +170,18 @@ export function BirthForm({
             ))}
           </datalist>
           {city.trim() !== "" && KOREA_CITY_LONGITUDE[city.trim()] === undefined && (
-            <span style={{ fontSize: FS.micro, ...muteText }}>
+            <span className="text-micro text-mute">
               등록되지 않은 지명 — 서울 기준으로 계산됩니다
             </span>
           )}
         </label>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 0.62fr 0.62fr 250px",
-          gap: 12,
-          marginBottom: 30,
-        }}
-      >
-        <label style={fieldLabelStyle}>
-          <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span
-              style={{ fontFamily: FONT_MYEONGJO, fontSize: FS.formLabel, ...dimText }}
-            >
-              年
-            </span>
-            <span style={{ fontSize: FS.formLabel, ...dimText }}>년도</span>
+      <div className="mb-7 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_0.62fr_0.62fr] lg:grid-cols-[1fr_0.62fr_0.62fr_250px]">
+        <label className={FIELD_LABEL}>
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-myeongjo text-form-label text-dim">年</span>
+            <span className="text-form-label text-dim">년도</span>
           </span>
           <input
             value={y}
@@ -248,17 +189,13 @@ export function BirthForm({
             placeholder="년도"
             inputMode="numeric"
             maxLength={4}
-            style={monoInput}
+            className={MONO_INPUT}
           />
         </label>
-        <label style={fieldLabelStyle}>
-          <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span
-              style={{ fontFamily: FONT_MYEONGJO, fontSize: FS.formLabel, ...dimText }}
-            >
-              月
-            </span>
-            <span style={{ fontSize: FS.formLabel, ...dimText }}>월</span>
+        <label className={FIELD_LABEL}>
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-myeongjo text-form-label text-dim">月</span>
+            <span className="text-form-label text-dim">월</span>
           </span>
           <input
             value={m}
@@ -266,17 +203,13 @@ export function BirthForm({
             placeholder="월"
             inputMode="numeric"
             maxLength={2}
-            style={monoInput}
+            className={MONO_INPUT}
           />
         </label>
-        <label style={fieldLabelStyle}>
-          <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span
-              style={{ fontFamily: FONT_MYEONGJO, fontSize: FS.formLabel, ...dimText }}
-            >
-              日
-            </span>
-            <span style={{ fontSize: FS.formLabel, ...dimText }}>일</span>
+        <label className={FIELD_LABEL}>
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-myeongjo text-form-label text-dim">日</span>
+            <span className="text-form-label text-dim">일</span>
           </span>
           <input
             value={d}
@@ -284,78 +217,70 @@ export function BirthForm({
             placeholder="일"
             inputMode="numeric"
             maxLength={2}
-            style={monoInput}
+            className={MONO_INPUT}
           />
         </label>
-        <label style={fieldLabelStyle}>
-          <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span
-              style={{ fontFamily: FONT_MYEONGJO, fontSize: FS.formLabel, ...dimText }}
-            >
-              時分
-            </span>
-            <span style={{ fontSize: FS.formLabel, ...dimText }}>시·분</span>
+        <label className={FIELD_LABEL}>
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-myeongjo text-form-label text-dim">時分</span>
+            <span className="text-form-label text-dim">시·분</span>
           </span>
-          <span style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
+          <span className="flex w-full items-center gap-1.5">
             <input
               value={hh}
               onChange={numericField("hh")}
               placeholder="시"
               inputMode="numeric"
               maxLength={2}
-              style={{ ...monoInput, width: "auto", flex: 1, minWidth: 0, padding: 0 }}
+              className={cn(MONO_INPUT, "w-auto min-w-0 flex-1 px-0")}
             />
-            <span style={{ fontFamily: FONT_MONO, fontSize: FS.cardTitle, ...muteText }}>
-              :
-            </span>
+            <span className="font-mono-plex text-card-title text-mute">:</span>
             <input
               value={mi}
               onChange={numericField("mi")}
               placeholder="분"
               inputMode="numeric"
               maxLength={2}
-              style={{ ...monoInput, width: "auto", flex: 1, minWidth: 0, padding: 0 }}
+              className={cn(MONO_INPUT, "w-auto min-w-0 flex-1 px-0")}
             />
           </span>
-          <span style={{ fontSize: FS.subtitle, ...dimText }}>
-            비워두면 시간 미상
-          </span>
+          <span className="text-subtitle text-dim">비워두면 시간 미상</span>
         </label>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 22 }}>
+      <div className="mb-6 flex flex-wrap justify-center gap-2">
         <button
           onClick={() => onChange({ calendarType: "solar" })}
-          style={genderBtnStyle(calendarType === "solar")}
+          className={pillBtnClass(calendarType === "solar")}
         >
           양력
         </button>
         <button
           onClick={() => onChange({ calendarType: "lunar" })}
-          style={genderBtnStyle(calendarType === "lunar")}
+          className={pillBtnClass(calendarType === "lunar")}
         >
           음력
         </button>
         {calendarType === "lunar" && (
           <button
             onClick={() => onChange({ isLeapMonth: !isLeapMonth })}
-            style={{ ...genderBtnStyle(isLeapMonth), fontSize: FS.small }}
+            className={cn(pillBtnClass(isLeapMonth), "text-small")}
           >
             윤달
           </button>
         )}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 54 }}>
+      <div className="mb-12 flex justify-center gap-2 sm:mb-[54px]">
         <button
           onClick={() => onChange({ gender: "male" })}
-          style={genderBtnStyle(gender === "male")}
+          className={pillBtnClass(gender === "male")}
         >
           남
         </button>
         <button
           onClick={() => onChange({ gender: "female" })}
-          style={genderBtnStyle(gender === "female")}
+          className={pillBtnClass(gender === "female")}
         >
           여
         </button>
