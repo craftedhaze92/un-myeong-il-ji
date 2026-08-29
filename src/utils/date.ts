@@ -67,6 +67,16 @@ export function getManAgeForFortuneYear(birthDateStr: string, fortuneYear: numbe
 }
 
 /**
+ * {@link getManAgeForFortuneYear}의 역함수 — 특정 만 나이가 표시되는 운의 연도.
+ * 대운 구간의 startAge/endAge를 세운 연도 범위로 옮길 때 사용한다(예: 대운 pill을
+ * 고르면 그 구간의 연도로 세운 스파크를 이동시키는 흐름 탭 캐스케이드).
+ */
+export function getFortuneYearForManAge(birthDateStr: string, age: number): number {
+  const birth = parseISODate(birthDateStr);
+  return birth.getFullYear() + age;
+}
+
+/**
  * 날짜와 시간을 결합하여 Date 객체 생성 (대한민국 역사 시각·썸머타임 반영)
  * @param dateStr - 날짜 문자열 (YYYY-MM-DD)
  * @param timeStr - 시간 문자열 (HH:mm)

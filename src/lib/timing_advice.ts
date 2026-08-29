@@ -74,6 +74,8 @@ export interface TimingAdvice {
   longTermOutlook: {
     year: number;
     overallRating: TimingRating;
+    /** 대운이 있으면 세운×0.6+대운×0.4, 없으면 세운 점수 그대로 (0-100). */
+    overallScore: number;
     keyPeriods: string[];
     majorOpportunities: string[];
     majorChallenges: string[];
@@ -173,6 +175,19 @@ const DECISION_FACTORS: Record<DecisionType, {
 };
 
 /**
+ * 점수(0-100) → 시기 등급. generateMonthlyForecast/generateLongTermOutlook/
+ * evaluateSpecificDate에 흩어져 있던 동일한 >=80/65/45/30 사다리를 한 곳으로 모았다 —
+ * selectOptimalTiming이 월운·대운·세운 블렌드 점수로 등급을 다시 매길 때도 이 기준을 쓴다.
+ */
+function toTimingRating(score: number): TimingRating {
+  return score >= 80 ? '최적기'
+    : score >= 65 ? '좋음'
+    : score >= 45 ? '보통'
+    : score >= 30 ? '주의'
+    : '불가';
+}
+
+/**
  * 시기 조언 생성
  */
 export function analyzeTimingAdvice(
@@ -223,7 +238,8 @@ export function analyzeTimingAdvice(
   const summary = generateTimingSummary(
     optimalTiming,
     longTermOutlook,
-    decisionType
+    decisionType,
+    startDate
   );
 
   return {
@@ -278,11 +294,7 @@ function generateMonthlyForecast(
 
     score = Math.min(100, Math.max(0, score));
 
-    const rating: TimingRating = score >= 80 ? '최적기'
-      : score >= 65 ? '좋음'
-      : score >= 45 ? '보통'
-      : score >= 30 ? '주의'
-      : '불가';
+    const rating: TimingRating = toTimingRating(score);
 
     forecast.push({
       yearMonth: `${year}-${String(month).padStart(2, '0')}`,
@@ -329,11 +341,7 @@ function generateLongTermOutlook(
 
       // 대운과 세운 점수 통합
       const overallScore = combinedScore;
-      const overallRating: TimingRating = overallScore >= 80 ? '최적기'
-        : overallScore >= 65 ? '좋음'
-        : overallScore >= 45 ? '보통'
-        : overallScore >= 30 ? '주의'
-        : '불가';
+      const overallRating: TimingRating = toTimingRating(overallScore);
 
       // 주요 시기
       const keyPeriods = seyunAnalysis.importantPeriods.favorableMonths.map(
@@ -355,6 +363,7 @@ function generateLongTermOutlook(
       outlook.push({
         year: targetYear,
         overallRating,
+        overallScore,
         keyPeriods,
         majorOpportunities,
         majorChallenges,
@@ -363,11 +372,7 @@ function generateLongTermOutlook(
     } else {
       // 대운 정보 없을 때는 세운만 사용
       const overallScore = seyunAnalysis.fortune.score;
-      const overallRating: TimingRating = overallScore >= 80 ? '최적기'
-        : overallScore >= 65 ? '좋음'
-        : overallScore >= 45 ? '보통'
-        : overallScore >= 30 ? '주의'
-        : '불가';
+      const overallRating: TimingRating = toTimingRating(overallScore);
 
       const keyPeriods = seyunAnalysis.importantPeriods.favorableMonths.map(
         (m) => `${targetYear}년 ${m}월`
@@ -379,6 +384,7 @@ function generateLongTermOutlook(
       outlook.push({
         year: targetYear,
         overallRating,
+        overallScore,
         keyPeriods,
         majorOpportunities,
         majorChallenges,
@@ -391,35 +397,60 @@ function generateLongTermOutlook(
 
 /**
  * 최적 시기 선정 (상위 3개)
+ *
+ * 월운 점수만으로 순위를 매기던 기존 로직은 대운/세운이 아무리 흉해도 반영되지
+ * 않는 버그가 있었다(흐름 탭에서 대운/세운을 바꿔도 "시기 조언"이 고정되던 문제의
+ * 원인 중 하나). longTermOutlook의 해당 연도 overallScore(세운×0.6+대운×0.4, 대운
+ * 없으면 세운 점수)를 30% 가중치로 블렌드해 대운·세운 강약이 실제로 순위에 반영되게
+ * 한다. _factors(결정별 4개 가중치)는 이번 범위에서 계속 미사용이다 —
+ * favorableElements는 이미 generateMonthlyForecast의 월운 점수에 반영돼 있고,
+ * yongsinWeight 등 나머지를 어떻게 섞을지는 별도 명리 설계가 필요해 임의로 넣지 않는다.
  */
 function selectOptimalTiming(
   monthlyForecast: TimingAdvice['monthlyForecast'],
-  _longTermOutlook: TimingAdvice['longTermOutlook'],
+  longTermOutlook: TimingAdvice['longTermOutlook'],
   _factors: typeof DECISION_FACTORS[DecisionType]
 ): TimingAdvice['optimalTiming'] {
-  const candidates = monthlyForecast
-    .filter((m) => m.score >= 65)
+  const outlookByYear = new Map(longTermOutlook.map((o) => [o.year, o]));
+
+  const blended = monthlyForecast.map((candidate) => {
+    const [year] = candidate.yearMonth.split('-').map(Number);
+    const outlook = year !== undefined ? outlookByYear.get(year) : undefined;
+    const score = outlook
+      ? Math.round(candidate.score * 0.7 + outlook.overallScore * 0.3)
+      : candidate.score;
+    return { candidate, score, outlook };
+  });
+
+  const candidates = blended
+    .filter((b) => b.score >= 65)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 
-  return candidates.map((candidate) => {
+  return candidates.map(({ candidate, score, outlook }) => {
     const [year, month] = candidate.yearMonth.split('-').map(Number);
     const monthName = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month ?? 1] || '?월';
+    const rating = toTimingRating(score);
+
+    const reasons = [
+      `월운·대운·세운을 종합한 점수가 ${score}점으로 매우 양호합니다.`,
+      score >= 80
+        ? '용신의 힘이 강한 시기입니다.'
+        : '전반적으로 안정적인 시기입니다.',
+    ];
+    if (outlook?.daeunInfluence) {
+      reasons.push(outlook.daeunInfluence);
+    }
 
     return {
       period: `${year}년 ${monthName}`,
-      rating: candidate.rating,
-      score: candidate.score,
-      reasons: [
-        `월운 점수가 ${candidate.score}점으로 매우 양호합니다.`,
-        candidate.score >= 80
-          ? '용신의 힘이 강한 시기입니다.'
-          : '전반적으로 안정적인 시기입니다.',
-      ],
-      yongsinSupport: candidate.score >= 75
+      rating,
+      score,
+      reasons,
+      yongsinSupport: score >= 75
         ? '용신이 강력히 지원하는 시기'
         : '용신 지원이 있는 시기',
-      cautions: candidate.score < 80
+      cautions: score < 80
         ? ['중요한 결정은 신중히 검토하세요.']
         : [],
     };
@@ -455,17 +486,22 @@ function identifyTimesToAvoid(
 
 /**
  * 종합 조언 생성
+ *
+ * urgency는 점수가 아니라 startDate(분석 기준 시점)로부터 최적 시기까지의 개월 수로
+ * 정한다 — 예전엔 점수만 봐서, 흐름 탭에서 먼 미래 대운(예: 2046년)을 골라도 점수가
+ * 높으면 "즉시 가능"이라고 나오는 명백한 오표시가 있었다.
  */
 function generateTimingSummary(
   optimalTiming: TimingAdvice['optimalTiming'],
   _longTermOutlook: TimingAdvice['longTermOutlook'],
-  decisionType: DecisionType
+  decisionType: DecisionType,
+  startDate: Date
 ): TimingAdvice['summary'] {
   const bestTiming = optimalTiming[0];
   if (!bestTiming) {
     return {
-      bestYear: new Date().getFullYear(),
-      bestMonth: 1,
+      bestYear: startDate.getFullYear(),
+      bestMonth: startDate.getMonth() + 1,
       bestSeason: '봄',
       overallAdvice: '현재 적절한 시기를 찾기 어렵습니다. 전문가와 상담하세요.',
       urgency: '장기 계획',
@@ -473,7 +509,7 @@ function generateTimingSummary(
   }
 
   const match = bestTiming.period.match(/(\d+)년\s*(\d+)월/);
-  const year = match ? Number(match[1]) : new Date().getFullYear();
+  const year = match ? Number(match[1]) : startDate.getFullYear();
   const month = match ? Number(match[2]) : 1;
 
   const season = month >= 3 && month <= 5 ? '봄'
@@ -481,9 +517,12 @@ function generateTimingSummary(
     : month >= 9 && month <= 11 ? '가을'
     : '겨울';
 
-  const urgency = bestTiming.score >= 85 ? '즉시 가능'
-    : bestTiming.score >= 70 ? '1년 내'
-    : bestTiming.score >= 60 ? '2-3년 후'
+  const monthsFromAnchor =
+    (year - startDate.getFullYear()) * 12 + (month - (startDate.getMonth() + 1));
+
+  const urgency = monthsFromAnchor <= 2 ? '즉시 가능'
+    : monthsFromAnchor <= 12 ? '1년 내'
+    : monthsFromAnchor <= 36 ? '2-3년 후'
     : '장기 계획';
 
   return {
@@ -569,11 +608,7 @@ export function evaluateSpecificDate(
 
   score = Math.min(100, Math.max(0, score));
 
-  const rating: TimingRating = score >= 80 ? '최적기'
-    : score >= 65 ? '좋음'
-    : score >= 45 ? '보통'
-    : score >= 30 ? '주의'
-    : '불가';
+  const rating: TimingRating = toTimingRating(score);
 
   return {
     score,

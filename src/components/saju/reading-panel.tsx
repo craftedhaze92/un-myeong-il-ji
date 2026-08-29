@@ -12,6 +12,7 @@ import {
   buildNameAnalysisVM,
   buildPungsuViewModel,
   buildSeyunDetailViewModel,
+  buildSeyunSpark,
   buildTimingViewModel,
   buildWolunDetailViewModel,
   DECISION_TYPES,
@@ -495,9 +496,35 @@ function FlowTab({
     (typeof DECISION_TYPES)[number] | null
   >(null);
 
+  const selectedDaeunOption =
+    vm.flow.daeunOptions.find((o) => o.startAge === selectedStartAge) ?? null;
+
+  // 대운 pill을 고르면 세운·월운·시기 조언이 전부 그 구간을 따라가도록 한 캐스케이드의
+  // 시작점 — 대운 → 세운 → 월운 → 시기 조언 순으로 아래 값들이 파생된다.
+  function selectDaeun(startAge: number) {
+    setSelectedStartAge(startAge);
+    const option = vm.flow.daeunOptions.find((o) => o.startAge === startAge);
+    if (!option) return;
+    setSelectedYear(option.isCurrent ? vm.flow.nowYear : option.startYear);
+  }
+
   const daeunDetail = useMemo(
     () => buildDaeunDetailViewModel(saju, daeUn, selectedStartAge),
     [saju, daeUn, selectedStartAge],
+  );
+  // 세운 스파크는 선택된 대운의 10년 구간을 그린다 — 대운을 바꾸면 스파크 범위도
+  // 함께 이동한다(대운 선택이 세운에 전혀 연결되지 않던 버그 수정).
+  const seyunSpark = useMemo(
+    () =>
+      selectedDaeunOption
+        ? buildSeyunSpark(
+            saju,
+            selectedDaeunOption.startYear,
+            selectedDaeunOption.endYear,
+            vm.flow.nowYear,
+          )
+        : vm.flow.seyunSpark,
+    [saju, selectedDaeunOption, vm.flow.nowYear, vm.flow.seyunSpark],
   );
   const seyunDetail = useMemo(
     () => buildSeyunDetailViewModel(saju, selectedYear),
@@ -507,11 +534,21 @@ function FlowTab({
     () => buildWolunDetailViewModel(saju, selectedYear, selectedMonth),
     [saju, selectedYear, selectedMonth],
   );
+  // 시기 조언의 분석 기준 시점 — 대운/세운/월운에서 고른 시점을 그대로 물려받는다.
+  // 예전엔 이 값 없이 항상 "오늘"을 기준으로 계산해, 대운/세운을 바꿔도 시기 조언은
+  // 고정돼 있던 버그가 있었다.
+  const timingStart = useMemo(
+    () => new Date(selectedYear, selectedMonth - 1, 1),
+    [selectedYear, selectedMonth],
+  );
   // 결정 타입을 고르기 전까지는 계산하지 않는다 — analyzeTimingAdvice가 12개월 예보 +
   // 3년 전망을 매번 새로 계산하는 비교적 무거운 함수라서다.
   const timingVm = useMemo(
-    () => (selectedDecision ? buildTimingViewModel(saju, selectedDecision) : null),
-    [saju, selectedDecision],
+    () =>
+      selectedDecision
+        ? buildTimingViewModel(saju, selectedDecision, timingStart)
+        : null,
+    [saju, selectedDecision, timingStart],
   );
 
   return (
@@ -521,7 +558,7 @@ function FlowTab({
           {vm.flow.daeunOptions.map((o) => (
             <motion.button
               key={o.startAge}
-              onClick={() => setSelectedStartAge(o.startAge)}
+              onClick={() => selectDaeun(o.startAge)}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.96 }}
               className={PILL_BASE}
@@ -555,13 +592,19 @@ function FlowTab({
         )}
       </SectionCard>
 
-      <SectionCard title="세운 — 올해를 중심으로">
+      <SectionCard
+        title={
+          selectedDaeunOption && !selectedDaeunOption.isCurrent
+            ? `세운 — ${selectedDaeunOption.startYear}–${selectedDaeunOption.endYear}년 (선택한 대운)`
+            : "세운 — 올해를 중심으로"
+        }
+      >
         <div className="mb-3 flex h-[72px] items-end gap-1.5">
-          {vm.flow.seyunSpark.map((point) => (
+          {seyunSpark.map((point) => (
             <motion.button
               key={point.year}
               onClick={() => setSelectedYear(point.year)}
-              title={`${point.year} ${point.pillar} · ${point.score}점`}
+              title={`${point.year} ${point.pillar} · ${point.score}점${point.isCurrent ? " · 올해" : ""}`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="flex flex-1 cursor-pointer flex-col items-center justify-end gap-1 border-none bg-transparent p-0"
@@ -578,7 +621,11 @@ function FlowTab({
               />
               <span
                 className="font-mono-plex text-micro"
-                style={{ color: point.year === selectedYear ? "var(--fg)" : "var(--mute)" }}
+                style={{
+                  color: point.year === selectedYear ? "var(--fg)" : "var(--mute)",
+                  fontWeight: point.isCurrent ? 700 : 400,
+                  textDecoration: point.isCurrent ? "underline" : "none",
+                }}
               >
                 {point.year}
               </span>
@@ -710,12 +757,16 @@ function FlowTab({
 
         {!timingVm && (
           <div className="text-small text-mute">
-            결정 항목을 고르면 향후 3년의 시기를 분석합니다.
+            결정 항목을 고르면 {selectedYear}년 {selectedMonth}월부터 3년의 시기를
+            분석합니다. 위에서 대운·세운·월을 바꾸면 이 기준 시점도 함께 이동합니다.
           </div>
         )}
 
         {timingVm && (
           <div className="flex flex-col gap-4.5">
+            <div className="text-caption text-mute">
+              기준 시점: {selectedYear}년 {selectedMonth}월
+            </div>
             <div className="text-body leading-[1.75] text-dim">{timingVm.summary.overallAdvice}</div>
             <div className="text-small text-mute">
               적기: {timingVm.summary.bestYear}년 {timingVm.summary.bestMonth}

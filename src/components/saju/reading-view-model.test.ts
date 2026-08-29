@@ -5,6 +5,7 @@ import {
   buildReadingViewModel,
   buildDaeunDetailViewModel,
   buildSeyunDetailViewModel,
+  buildSeyunSpark,
   buildWolunDetailViewModel,
   buildTimingViewModel,
   buildPungsuViewModel,
@@ -61,8 +62,24 @@ describe('buildReadingViewModel — 4블록이 빈 값 없이 채워지는지 �
   it('흐름(flow) 블록에 대운 옵션과 현재 선택된 대운·세운이 있다', () => {
     expect(vm.flow.daeunOptions.length).toBeGreaterThan(0);
     expect(vm.flow.selectedDaeun).not.toBeNull();
-    expect(vm.flow.seyunSpark.length).toBe(9); // 기본 -2 ~ +6년
+    // 초기 세운 스파크는 "현재 대운"의 10년 구간을 그린다(예전엔 항상 올해 -2~+6년
+    // 고정이라 대운을 바꿔도 스파크가 따라가지 않는 버그가 있었다).
+    const currentOption = vm.flow.daeunOptions.find((o) => o.isCurrent)!;
+    expect(currentOption).toBeDefined();
+    expect(vm.flow.seyunSpark.length).toBe(
+      currentOption.endYear - currentOption.startYear + 1,
+    );
+    expect(vm.flow.seyunSpark[0]!.year).toBe(currentOption.startYear);
+    expect(vm.flow.seyunSpark.at(-1)!.year).toBe(currentOption.endYear);
     expect(vm.flow.selectedSeyun.year).toBe(2024);
+    expect(vm.flow.nowYear).toBe(2024);
+  });
+
+  it('대운 옵션의 startYear/endYear가 만 나이↔연도 역산과 일치한다', () => {
+    vm.flow.daeunOptions.forEach((o) => {
+      expect(o.startYear).toBeLessThanOrEqual(o.endYear);
+      expect(o.endYear - o.startYear).toBe(o.endAge - o.startAge);
+    });
   });
 
   it('직업(career) 블록에 추천 목록이 있다', () => {
@@ -115,6 +132,42 @@ describe('buildTimingViewModel — 결정 타입 10종 모두 예외 없이 시�
       expect(m.score).toBeGreaterThanOrEqual(0);
       expect(m.score).toBeLessThanOrEqual(100);
     });
+  });
+
+  // 흐름 탭에서 대운/세운을 바꿔도 "시기 조언"이 항상 오늘 기준으로 고정되던 회귀 —
+  // startDate를 바꾸면 12개월 예보 창과 3년 전망 연도가 함께 이동해야 한다.
+  it('startDate를 바꾸면 monthlyForecast/longTermOutlook의 연도가 그 시점을 따라간다', () => {
+    const near = buildTimingViewModel(saju, '결혼', new Date(2024, 0, 1));
+    const far = buildTimingViewModel(saju, '결혼', new Date(2044, 0, 1));
+
+    expect(near.monthlyForecast[0]!.yearMonth).toBe('2024-01');
+    expect(far.monthlyForecast[0]!.yearMonth).toBe('2044-01');
+    expect(near.longTermOutlook.map((o) => o.year)).toEqual([2024, 2025, 2026]);
+    expect(far.longTermOutlook.map((o) => o.year)).toEqual([2044, 2045, 2046]);
+    expect(near.summary.bestYear).not.toBe(far.summary.bestYear);
+  });
+});
+
+describe('buildSeyunSpark — 지정한 연도 구간을 그리고 isCurrent는 nowYear에만 붙는다', () => {
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
+
+  it('startYear~endYear 10칸을 낸다 (대운 pill 선택 시 흐름 탭이 넘기는 구간)', () => {
+    const spark = buildSeyunSpark(saju, 2044, 2053, 2024);
+    expect(spark.length).toBe(10);
+    expect(spark[0]!.year).toBe(2044);
+    expect(spark.at(-1)!.year).toBe(2053);
+  });
+
+  it('구간이 nowYear를 포함하지 않으면 어떤 막대도 isCurrent가 아니다', () => {
+    const spark = buildSeyunSpark(saju, 2044, 2053, 2024);
+    expect(spark.every((p) => !p.isCurrent)).toBe(true);
+  });
+
+  it('구간이 nowYear를 포함하면 그 해만 isCurrent다', () => {
+    const spark = buildSeyunSpark(saju, 2022, 2031, 2024);
+    const current = spark.filter((p) => p.isCurrent);
+    expect(current.length).toBe(1);
+    expect(current[0]!.year).toBe(2024);
   });
 });
 

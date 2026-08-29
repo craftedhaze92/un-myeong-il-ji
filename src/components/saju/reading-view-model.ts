@@ -22,7 +22,7 @@ import { analyzePungsu, type SpaceType } from "@/lib/pungsu_advice";
 import { analyzeName } from "@/lib/jakmeong_analysis";
 import { getAllSinSalInfo, interpretBySinSal } from "@/lib/sin_sal";
 import { interpretAllTenGods } from "@/lib/ten_gods";
-import { getManAgeForFortuneYear } from "@/utils/date";
+import { getFortuneYearForManAge, getManAgeForFortuneYear } from "@/utils/date";
 import { selectYongSin, generateYongSinAdvice } from "@/lib/yong_sin";
 import type {
   FortuneAnalysis,
@@ -419,6 +419,9 @@ export function buildLifeViewModel(saju: SajuData): LifeVM {
 export interface DaeunOptionVM {
   startAge: number;
   endAge: number;
+  /** 이 대운 구간이 시작/끝나는 세운 연도 — getFortuneYearForManAge(생년+나이)로 역산. */
+  startYear: number;
+  endYear: number;
   pillar: string;
   element: WuXing;
   isCurrent: boolean;
@@ -471,6 +474,8 @@ export interface FlowVM {
   selectedDaeun: DaeunDetailVM | null;
   seyunSpark: SeyunPointVM[];
   selectedSeyun: SeyunDetailVM;
+  /** 실제 "올해" — FlowTab이 세운 스파크를 대운 구간별로 다시 그릴 때 isCurrent 기준으로 쓴다. */
+  nowYear: number;
 }
 
 /** dae_un.ts#DaeUnPeriod → daeun_analysis.ts#analyzeDaeun이 기대하는 형태로 어댑트 */
@@ -488,10 +493,13 @@ function toAnalysisPeriod(period: DaeUnPeriod): DaeunPeriod {
 export function buildDaeunOptions(
   daeUn: DaeUnPeriod[],
   nowAge: number,
+  birthDateStr: string,
 ): DaeunOptionVM[] {
   return daeUn.slice(0, 9).map((period) => ({
     startAge: period.startAge,
     endAge: period.endAge,
+    startYear: getFortuneYearForManAge(birthDateStr, period.startAge),
+    endYear: getFortuneYearForManAge(birthDateStr, period.endAge),
     pillar: `${period.stem}${period.branch}`,
     element: period.stemElement,
     isCurrent: nowAge >= period.startAge && nowAge <= period.endAge,
@@ -521,14 +529,20 @@ export function buildDaeunDetailViewModel(
   };
 }
 
+/**
+ * 세운 스파크 — [startYear, endYear] 구간(보통 선택된 대운의 10년)을 그린다.
+ * isCurrent는 실제 "올해"(nowYear)를 가리키므로, 구간이 올해를 포함하지 않으면
+ * 어떤 막대도 isCurrent가 되지 않는다 — 흐름 탭이 "지금이 아닌 시점을 보는 중"임을
+ * 스파크만으로도 드러내기 위함이다.
+ */
 export function buildSeyunSpark(
   saju: SajuData,
+  startYear: number,
+  endYear: number,
   nowYear: number,
-  pastYears: number = 2,
-  futureYears: number = 6,
 ): SeyunPointVM[] {
   const years: number[] = [];
-  for (let y = nowYear - pastYears; y <= nowYear + futureYears; y++)
+  for (let y = startYear; y <= endYear; y++)
     years.push(y);
 
   return years.map((year) => {
@@ -630,17 +644,22 @@ function buildFlowViewModel(
   nowYear: number,
 ): FlowVM {
   const nowAge = getManAgeForFortuneYear(saju.solarBirthDate, nowYear);
-  const daeunOptions = buildDaeunOptions(daeUn, nowAge);
+  const daeunOptions = buildDaeunOptions(daeUn, nowAge, saju.solarBirthDate);
   const current = daeunOptions.find((o) => o.isCurrent) ?? daeunOptions[0];
   const selectedDaeun = current
     ? buildDaeunDetailViewModel(saju, daeUn, current.startAge)
     : null;
+  // 초기 스파크는 현재 대운의 10년 구간을 보여준다 — 대운이 없으면(초고령 등) 예전 기본값
+  // (올해 -2 ~ +6)으로 폴백.
+  const sparkStart = current?.startYear ?? nowYear - 2;
+  const sparkEnd = current?.endYear ?? nowYear + 6;
 
   return {
     daeunOptions,
     selectedDaeun,
-    seyunSpark: buildSeyunSpark(saju, nowYear),
+    seyunSpark: buildSeyunSpark(saju, sparkStart, sparkEnd, nowYear),
     selectedSeyun: buildSeyunDetailViewModel(saju, nowYear),
+    nowYear,
   };
 }
 
@@ -686,6 +705,7 @@ export interface TimingMonthVM {
 export interface TimingOutlookVM {
   year: number;
   overallRating: string;
+  overallScore: number;
   keyPeriods: string[];
   majorOpportunities: string[];
   majorChallenges: string[];
@@ -743,6 +763,7 @@ export function buildTimingViewModel(
     longTermOutlook: advice.longTermOutlook.map((y) => ({
       year: y.year,
       overallRating: y.overallRating,
+      overallScore: y.overallScore,
       keyPeriods: y.keyPeriods,
       majorOpportunities: y.majorOpportunities,
       majorChallenges: y.majorChallenges,
