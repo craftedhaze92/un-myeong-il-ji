@@ -212,7 +212,7 @@ analyzeGyeokGukQuality`가 별도로 판단한다(단일 책임 분리). 자평�
 각 항목의 `strokesVerified`/`elementVerified`는 `data/johu_table.ts`와 같은 원칙(추측을
 확정처럼 내보내지 않음) — 부수가 오행에 직접 대응하는 한자만 `elementVerified: true`.
 
-`reading-panel.tsx#MyeongsikTab`의 한자 입력은 `saju-app.tsx`의 메인 폼(`BirthFormValues`)이
+`reading/myeongsik-tab.tsx#MyeongsikTab`의 한자 입력은 `saju-app.tsx`의 메인 폼(`BirthFormValues`)이
 아니라 이 탭 안의 로컬 `useState`로 관리한다 — 한자는 명식 계산에 안 쓰는 부가 정보라
 `sajuCache`의 캐시 키에 영향을 주면 안 된다.
 

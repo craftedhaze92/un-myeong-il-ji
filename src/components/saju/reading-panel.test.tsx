@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { calculateSaju } from "@/lib/saju";
 import { calculateDaeUn } from "@/lib/dae_un";
+import { useThemeStore } from "@/store/theme-store";
 import { ReadingPanel } from "./reading-panel";
 import { buildReadingViewModel } from "./reading-view-model";
 
@@ -13,13 +14,18 @@ describe("ReadingPanel — 탭 내비게이션", () => {
   const daeUn = calculateDaeUn(saju);
   const readingVM = buildReadingViewModel({ saju, daeUn, nowYear: 2024 });
 
+  // useThemeStore는 모듈 싱글턴이라 테스트 파일 간(및 케이스 간) 상태가 공유된다.
+  // dark={false}로 넘기던 기존 렌더 조건("light")을 매 테스트 시작 시 되살려 결정성을 지킨다.
+  beforeEach(() => {
+    useThemeStore.setState({ theme: "light" });
+  });
+
   function renderPanel() {
     return render(
       <ReadingPanel
         saju={saju}
         daeUn={daeUn}
         readingVM={readingVM}
-        dark={false}
         name="홍길동"
       />,
     );
@@ -59,6 +65,21 @@ describe("ReadingPanel — 탭 내비게이션", () => {
       "aria-selected",
       "false",
     );
+  });
+
+  it("활성 탭은 로컬 상태라 언마운트 후 다시 열면 명식 탭으로 돌아온다 — saju-app.tsx의 resetAll()이 ReadingPanel을 통째로 언마운트시키는 동작에 의존한다. 활성 탭을 전역(zustand) 스토어로 옮기면 이 리셋이 깨진다", async () => {
+    const { unmount } = renderPanel();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "흐름" }));
+    expect(screen.getByRole("tab", { name: "흐름" })).toHaveAttribute("aria-selected", "true");
+
+    unmount();
+    renderPanel();
+
+    const tabs = screen.getAllByRole("tab");
+    const selected = tabs.filter((t) => t.getAttribute("aria-selected") === "true");
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.textContent).toBe("명식");
   });
 
   it("정보 배지(득령/실령 등)는 button/tab role이 아니다 — 눌리는 것처럼 보이지만 안 눌리는 회귀 방지", () => {

@@ -6,6 +6,7 @@ import { calculateDaeUn, type DaeUnPeriod } from "@/lib/dae_un";
 import { formatErrorForUser } from "@/lib/error_handler";
 import { calculateSaju } from "@/lib/saju";
 import { cn } from "@/lib/utils";
+import { selectIsDark, useThemeStore } from "@/store/theme-store";
 import type { Gender, SajuData } from "@/types";
 import {
   BirthForm,
@@ -31,7 +32,6 @@ interface ResultState {
 }
 
 export function SajuApp() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [form, setForm] = useState<BirthFormValues>(EMPTY_BIRTH_FORM_VALUES);
   const [result, setResult] = useState<ResultState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,25 +39,18 @@ export function SajuApp() {
   const updateForm = (patch: Partial<BirthFormValues>) =>
     setForm((v) => ({ ...v, ...patch }));
 
+  const setTheme = useThemeStore((s) => s.setTheme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem("umij.theme");
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 시 1회, 저장된 테마를 서버 렌더 이후 반영(FOUC 방지를 위해 lazy init 대신 의도적으로 effect 사용)
+      // 마운트 시 1회, 저장된 테마를 서버 렌더 이후 반영(FOUC 방지를 위해 lazy init 대신 의도적으로 effect 사용)
       if (stored === "light" || stored === "dark") setTheme(stored);
     } catch {
       // localStorage 접근 불가 환경(프라이빗 모드 등) - 기본 테마 유지
     }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    try {
-      localStorage.setItem("umij.theme", next);
-    } catch {
-      // 저장 실패 시에도 화면 전환은 진행
-    }
-    setTheme(next);
-  };
+  }, [setTheme]);
 
   const resetAll = () => {
     setResult(null);
@@ -94,7 +87,7 @@ export function SajuApp() {
     }
   };
 
-  const dark = theme === "dark";
+  const dark = useThemeStore(selectIsDark);
   const viewModel = useMemo(
     () =>
       result
@@ -213,7 +206,6 @@ export function SajuApp() {
                   saju={result.saju}
                   daeUn={result.daeUn}
                   readingVM={readingViewModel}
-                  dark={dark}
                   name={result.name}
                 />
                 <CompatibilitySection mySaju={result.saju} myName={result.name} />

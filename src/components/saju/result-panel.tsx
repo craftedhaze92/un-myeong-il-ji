@@ -1,13 +1,13 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { motion, type Variants } from "motion/react";
+import { motion } from "motion/react";
 import { Tooltip } from "radix-ui";
-import { cn } from "@/lib/utils";
-import styles from "./saju.module.css";
-import { ElementCycle } from "./ui/element-cycle";
-import { StrengthGauge } from "./ui/strength-gauge";
-import { GanjiColumn } from "./ui/ganji-column";
+import { ElementsColumn } from "./result/elements-column";
+import { PillarsGrid } from "./result/pillars-grid";
+import { revealContainer, revealItem } from "./result/reveal-variants";
+import { LuckBands } from "./result/luck-bands";
+import { YongsinSinsalColumn } from "./result/yongsin-sinsal-column";
 import type { SinSalCombinedVM, SinSalDetailVM } from "./reading-view-model";
 import type { SajuViewModel } from "./view-model";
 
@@ -19,52 +19,6 @@ export interface ResultPanelProps {
   sinsalCombined?: SinSalCombinedVM;
   onReset: () => void;
 }
-
-/**
- * 결과 화면 등장 연출 — 예전엔 saju.module.css의 키프레임(stamp/slotIn/fadeUp)과
- * 이 파일 곳곳의 하드코딩된 1.1s~1.35s가 서로 암묵적으로만 맞춰져 있었다. motion의
- * staggerChildren으로 통합해 순서를 배열 인덱스에서 자동 계산하게 한다.
- */
-const revealContainer: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.12, delayChildren: 0.05 } },
-};
-const revealItem: Variants = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
-};
-const pillarsGridVariants: Variants = {
-  hidden: { opacity: 0, y: 16 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: "easeOut", staggerChildren: 0.06 },
-  },
-};
-function pillarColumnVariants(emphasize: boolean): Variants {
-  return {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.1, delayChildren: emphasize ? 0.05 : 0 } },
-  };
-}
-const cardSlotVariants: Variants = {
-  hidden: { opacity: 0, scaleY: 0.55 },
-  show: {
-    opacity: 1,
-    scaleY: 1,
-    transition: { duration: 0.35, ease: "easeOut", delayChildren: 0.15 },
-  },
-};
-const cardStampVariants: Variants = {
-  hidden: { opacity: 0, y: -12, scale: 1.09, filter: "blur(7px)" },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    filter: "blur(0px)",
-    transition: { duration: 0.5, ease: [0.18, 0.9, 0.24, 1] },
-  },
-};
 
 /**
  * 명식 카드·오행 레이더·십성·신살·용신·대운 띠 — saju-app.tsx에 있던 결과 화면을
@@ -97,13 +51,6 @@ export function ResultPanel({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-
-  // 대운 띠에서 클릭한 구간 — 세운 띠는 이 구간의 10년을 그대로 보여준다. 기본값은 현재 대운.
-  const [selectedStartAge, setSelectedStartAge] = useState(
-    viewModel.luck.find((l) => l.current)?.startAge ?? viewModel.luck[0]?.startAge ?? 0,
-  );
-  const selectedLuck =
-    viewModel.luck.find((l) => l.startAge === selectedStartAge) ?? viewModel.luck[0];
 
   return (
     <Tooltip.Provider delayDuration={200}>
@@ -141,352 +88,29 @@ export function ResultPanel({
         </div>
       </motion.div>
 
-      <motion.div
-        variants={pillarsGridVariants}
-        className="grid grid-rows-[auto_auto_auto_auto_auto_auto] gap-2 pt-1 pb-8 sm:gap-4 sm:pb-10"
-        style={{ gridTemplateColumns: `repeat(${viewModel.colCount}, minmax(0, 1fr))` }}
-      >
-        {viewModel.pillars.map((p, i) => (
-          <motion.div
-            key={i}
-            variants={pillarColumnVariants(p.size === 90)}
-            className="row-span-6 grid grid-rows-subgrid gap-3"
-          >
-            <div className="flex items-baseline justify-between border-b border-line pb-2">
-              <span className="font-myeongjo text-card-title" style={{ color: p.labelColor }}>
-                {p.label}
-              </span>
-              <span
-                className="hidden text-label tracking-[0.02em] sm:inline"
-                style={{ color: p.labelColor }}
-              >
-                {p.labelEn}
-              </span>
-            </div>
-
-            <motion.div variants={cardSlotVariants} className={styles.slot}>
-              <motion.div
-                variants={cardStampVariants}
-                className={styles.stampCard}
-                style={{
-                  background: p.stem.bg,
-                  border: `1px solid ${p.stem.line}`,
-                }}
-              >
-                <div
-                  className={cn(
-                    "flex h-16 items-center justify-center text-center font-myeongjo leading-none font-extrabold sm:h-[92px]",
-                    p.size === 90 ? "text-ganji-day" : "text-ganji-else",
-                  )}
-                  style={{ color: p.stem.color, textShadow: `0 0 32px ${p.stem.glow}` }}
-                >
-                  {p.stem.ch}
-                </div>
-                <div className="mt-4 flex flex-col items-center gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                  <span className="font-mono-plex text-body whitespace-nowrap text-dim">
-                    {p.stem.ko} {p.stem.el}
-                  </span>
-                  <span className="font-batang text-body whitespace-nowrap text-fg">
-                    {p.stem.god}
-                  </span>
-                </div>
-              </motion.div>
-            </motion.div>
-
-            <motion.div variants={cardSlotVariants} className={styles.slot}>
-              <motion.div
-                variants={cardStampVariants}
-                className={styles.stampCard}
-                style={{
-                  background: p.branch.bg,
-                  border: `1px solid ${p.branch.line}`,
-                }}
-              >
-                <div
-                  className={cn(
-                    "flex h-16 items-center justify-center text-center font-myeongjo leading-none font-extrabold sm:h-[92px]",
-                    p.size === 90 ? "text-ganji-day" : "text-ganji-else",
-                  )}
-                  style={{ color: p.branch.color, textShadow: `0 0 32px ${p.branch.glow}` }}
-                >
-                  {p.branch.ch}
-                </div>
-                <div className="mt-4 flex flex-col items-center gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                  <span className="font-mono-plex text-body whitespace-nowrap text-dim">
-                    {p.branch.ko} {p.branch.el}
-                  </span>
-                  <span className="font-batang text-body whitespace-nowrap text-fg">
-                    {p.branch.god}
-                  </span>
-                </div>
-              </motion.div>
-            </motion.div>
-
-            <div className="text-center text-body tracking-[0.02em] text-dim">
-              지장간{" "}
-              <span className="font-myeongjo text-body-lg text-fg">{p.branch.hidden}</span>
-            </div>
-
-            {/* 십이운성은 일간 기준(봉법)이라 십이신살과 달리 일주 칸도 값이 있다 — 조건부 렌더
-                없이 지장간 바로 아래에 둔다. 값이 없는 십이신살을 이 뒤(마지막 행)로 보내야
-                일주 칸에서 빈 줄이 값들 사이에 끼지 않는다. 라벨은 대운·세운 칸(ganji-column.tsx)
-                과 맞춰 붙이지 않고 값만 보여준다. */}
-            <div className="text-center text-body tracking-[0.02em]">
-              <Tooltip.Root>
-                <Tooltip.Trigger asChild>
-                  <span className="cursor-help font-myeongjo text-body-lg text-fg">
-                    {p.twelveStage}
-                  </span>
-                </Tooltip.Trigger>
-                <Tooltip.Portal>
-                  <Tooltip.Content
-                    side="top"
-                    sideOffset={6}
-                    className="z-50 max-w-[220px] rounded-[2px] border border-line bg-surface px-2.5 py-1.5 text-micro text-fg shadow-md"
-                  >
-                    {p.twelveStageDescription}
-                    <Tooltip.Arrow className="fill-surface" />
-                  </Tooltip.Content>
-                </Tooltip.Portal>
-              </Tooltip.Root>
-            </div>
-
-            {/* 일주 칸은 twelveSinsal이 undefined라 내용만 비운다 — 마지막 행이라 비어도
-                카드 맨 끝의 여백일 뿐 다른 값 사이에 끼지 않는다. subgrid 행 정렬을 맞추려면
-                이 div 자체는 4개 기둥 모두에 항상 존재해야 한다(조건부로 div까지 없애면 일주 칸의
-                이후 행이 한 칸씩 밀려 다른 기둥과 어긋난다 — 지금은 마지막 행이라 해당 없지만,
-                뒤에 행이 추가되면 다시 문제가 되므로 이 div는 유지한다). */}
-            <div className="text-center text-body tracking-[0.02em]">
-              {p.twelveSinsal && (
-                <span className="font-myeongjo text-body-lg text-fg">{p.twelveSinsal}</span>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
+      <PillarsGrid viewModel={viewModel} />
 
       <motion.div
         variants={revealItem}
         className="flex flex-col gap-5 pb-5 lg:flex-row lg:items-start"
       >
         <div ref={leftColRef} className="flex min-h-0 flex-col gap-5 lg:flex-[1.05]">
-          <div className="flex flex-col rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-[30px]">
-            <div className="mb-5 flex items-baseline justify-between">
-              <h2 className="m-0 font-batang text-card-title font-bold">오행과 십성</h2>
-            </div>
-            <div className="grid flex-1 grid-cols-1 items-center gap-7 md:[grid-template-columns:minmax(200px,1fr)_1fr]">
-              <ElementCycle cycle={viewModel.elementCycle} />
-              <div className="flex flex-col gap-3.5">
-                {viewModel.elementDetails.map((d) => (
-                  <div key={d.key}>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="flex size-[30px] items-center justify-center rounded font-myeongjo text-body font-bold text-bg opacity-85"
-                          style={{ background: d.color }}
-                        >
-                          {d.ch}
-                        </span>
-                        <span className="font-batang text-body">{d.groupLabel}</span>
-                      </div>
-                      <span
-                        className="rounded-full bg-track px-2 py-0.5 font-mono-plex text-micro"
-                        style={{
-                          color:
-                            d.status === "발달"
-                              ? "var(--fg)"
-                              : d.status === "부족"
-                                ? "var(--danger)"
-                                : "var(--mute)",
-                        }}
-                      >
-                        {d.status}
-                      </span>
-                    </div>
-                    <div className="flex justify-end gap-3.5 font-mono-plex text-body text-dim">
-                      {d.gods.map((g) => (
-                        <span key={g.name}>
-                          {g.name} {g.pct}%
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-6 sm:pb-[26px]">
-            <h2 className="mb-4 font-batang text-card-title font-bold">신강신약</h2>
-            {viewModel.strengthGauge && <StrengthGauge gauge={viewModel.strengthGauge} />}
-          </div>
+          <ElementsColumn viewModel={viewModel} />
         </div>
 
         <div
           className="flex min-h-0 flex-col gap-5 lg:h-[var(--left-col-h)] lg:flex-1"
           style={{ "--left-col-h": leftColHeight ? `${leftColHeight}px` : undefined } as CSSProperties}
         >
-          <div
-            className="rounded-[3px] p-5 sm:px-[26px] sm:py-6"
-            style={{ border: `1px solid ${viewModel.yongLine}`, background: viewModel.yongBg }}
-          >
-            <h2 className="mb-3 whitespace-normal font-batang text-card-title font-bold sm:whitespace-nowrap">
-              용신 — 필요한 것
-            </h2>
-            <div
-              className="font-myeongjo text-[54px] leading-none font-extrabold"
-              style={{ color: viewModel.yong.color, textShadow: `0 0 28px ${viewModel.yong.glow}` }}
-            >
-              {viewModel.yong.ch}
-            </div>
-            <div className="mt-3 text-body leading-[1.75] text-dim">{viewModel.yong.desc}</div>
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col gap-5 sm:flex-row">
-            <div className="flex min-h-0 flex-1 flex-col rounded-[3px] border border-line bg-surface p-5 sm:px-[26px] sm:py-6">
-              <h2 className="mb-3.5 shrink-0 whitespace-normal font-batang text-card-title font-bold sm:whitespace-nowrap">
-                신살 — 특별한 자리
-              </h2>
-              <div
-                className={cn(
-                  styles.sinsalScroll,
-                  "flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1",
-                )}
-              >
-                {viewModel.sinsal.map((s, i) => (
-                  <div key={i}>
-                    <div className="font-myeongjo text-subtitle font-bold">{s.name}</div>
-                    <div className="text-body leading-[1.75] text-dim">{s.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex min-h-0 flex-1 flex-col rounded-[3px] border border-line bg-surface p-5 sm:px-[26px] sm:py-6">
-              <h2 className="mb-3.5 shrink-0 whitespace-normal font-batang text-card-title font-bold sm:whitespace-nowrap">
-                신살 상세
-              </h2>
-              <div
-                className={cn(
-                  styles.sinsalScroll,
-                  "flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pr-1",
-                )}
-              >
-                {/* 예전엔 이 요약 블록이 스크롤 영역 밖(flexShrink: 0)에 별도로 있어서,
-                    종합 조언 문구가 길어지면 카드 높이를 넘어 아래 콘텐츠와 겹쳐 보였다.
-                    스크롤 영역 맨 앞 항목으로 옮겨 개별 신살 목록과 함께 스크롤되게 한다. */}
-                {sinsalCombined && (
-                  <div className="border-b border-line pb-3 text-body leading-[1.75] text-dim">
-                    {sinsalCombined.blessingNames.length > 0 && (
-                      <div>
-                        <span className="text-mute">길신:</span>{" "}
-                        {sinsalCombined.blessingNames.join(", ")}
-                      </div>
-                    )}
-                    {sinsalCombined.warningNames.length > 0 && (
-                      <div>
-                        <span className="text-mute">흉신:</span>{" "}
-                        {sinsalCombined.warningNames.join(", ")}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {sinsalDetails.map((s, i) => (
-                  <div key={i}>
-                    <div className="flex flex-wrap items-baseline gap-2 font-myeongjo text-label font-bold">
-                      {s.name}({s.hanja})
-                      <span className="font-mono-plex text-body text-mute">{s.typeLabel}</span>
-                    </div>
-                    <div className="mt-1 text-body leading-[1.75] text-dim">{s.description}</div>
-                    {s.positive.length > 0 && (
-                      <div className="mt-1 text-body leading-[1.75] text-dim">
-                        긍정: {s.positive.join(" · ")}
-                      </div>
-                    )}
-                    {s.negative.length > 0 && (
-                      <div className="mt-1 text-body leading-[1.75] text-mute">
-                        주의: {s.negative.join(" · ")}
-                      </div>
-                    )}
-                    <div className="mt-1 text-body leading-[1.75] text-mute">
-                      직업: {s.byArea.career}
-                    </div>
-                    <div className="mt-1 text-body leading-[1.75] text-mute">
-                      연애: {s.byArea.love}
-                    </div>
-                    <div className="mt-1 text-body leading-[1.75] text-mute">
-                      건강: {s.byArea.health}
-                    </div>
-                    {s.advice.length > 0 && (
-                      <div className="mt-1 text-body leading-[1.75] text-mute">
-                        조언: {s.advice.join(" · ")}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {sinsalDetails.length === 0 && (
-                  <div className="text-body text-mute">두드러진 신살이 없습니다.</div>
-                )}
-              </div>
-            </div>
-          </div>
+          <YongsinSinsalColumn
+            viewModel={viewModel}
+            sinsalDetails={sinsalDetails}
+            sinsalCombined={sinsalCombined}
+          />
         </div>
       </motion.div>
 
-      <motion.div
-        variants={revealItem}
-        className="rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-5"
-      >
-        <div className="mb-4.5 flex flex-wrap items-baseline justify-between gap-5">
-          <h2 className="m-0 font-batang text-card-title font-bold">대운 — 10년의 계절</h2>
-          <span className="font-mono-plex text-body tracking-[0.12em] text-dim">
-            {viewModel.luckNote}
-          </span>
-        </div>
-        <div className={cn(styles.luckScroll, "flex gap-2.5 overflow-x-auto pb-3")}>
-          {viewModel.luck.map((l, i) => (
-            <GanjiColumn
-              key={i}
-              topLabel={String(l.startAge)}
-              cell={l}
-              current={l.current}
-              selected={l.startAge === selectedStartAge}
-              onClick={() => setSelectedStartAge(l.startAge)}
-              accentColor={l.color}
-              selectionLayoutId="daeun-selected"
-            />
-          ))}
-        </div>
-        <div className="flex gap-2 pt-1 font-mono-plex text-body tracking-[0.08em] text-mute">
-          {viewModel.luckFoot}
-        </div>
-      </motion.div>
-
-      <motion.div
-        variants={revealItem}
-        className="mt-5 rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-5"
-      >
-        <div className="mb-4.5 flex flex-wrap items-baseline justify-between gap-5">
-          <h2 className="m-0 font-batang text-card-title font-bold">세운 — 올해를 중심으로</h2>
-          {selectedLuck && (
-            <span className="font-mono-plex text-body tracking-[0.12em] text-dim">
-              {selectedLuck.gz} 대운 · {selectedLuck.startAge}–{selectedLuck.endAge}세 ·{" "}
-              {selectedLuck.seun[0]?.year}–{selectedLuck.seun.at(-1)?.year}년
-            </span>
-          )}
-        </div>
-        <div className={cn(styles.luckScroll, "flex gap-2.5 overflow-x-auto pb-3")}>
-          {(selectedLuck?.seun ?? []).map((s, i) => (
-            <GanjiColumn
-              key={i}
-              topLabel={String(s.year)}
-              cell={s}
-              current={s.current}
-              accentColor={s.color}
-            />
-          ))}
-        </div>
-      </motion.div>
+      <LuckBands viewModel={viewModel} />
       </motion.section>
     </Tooltip.Provider>
   );
