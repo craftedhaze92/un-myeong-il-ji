@@ -64,23 +64,26 @@ export function solarToLunarLocal(
   month: number,
   day: number
 ): { year: number; month: number; day: number; isLeapMonth: boolean } | null {
-  const yearData = getLunarYearData(year);
+  let lunarYear = year;
+  let yearData = getLunarYearData(lunarYear);
   if (!yearData) {
     return null; // 테이블에 없는 연도
   }
 
   const solarDate = seoulMidnightDate(year, month, day);
-  const [nyYear, nyMonth, nyDay] = yearData.solarNewYear.split('-').map(Number);
-  const solarNewYear = seoulMidnightDate(nyYear!, nyMonth!, nyDay!);
+  let [nyYear, nyMonth, nyDay] = yearData.solarNewYear.split('-').map(Number);
+  let solarNewYear = seoulMidnightDate(nyYear!, nyMonth!, nyDay!);
 
   // 음력 1월 1일보다 이전이면 작년 데이터 참조
   if (solarDate < solarNewYear) {
-    const prevYearData = getLunarYearData(year - 1);
-    if (!prevYearData) {
+    // 계산 대상 양력 날짜는 유지하고, 음력 연도와 설날 기준점만 전년도로 바꾼다.
+    lunarYear = year - 1;
+    yearData = getLunarYearData(lunarYear);
+    if (!yearData) {
       return null;
     }
-    // 작년 음력 날짜 계산 (복잡하므로 간소화)
-    return solarToLunarLocal(year - 1, 12, 31);
+    [nyYear, nyMonth, nyDay] = yearData.solarNewYear.split('-').map(Number);
+    solarNewYear = seoulMidnightDate(nyYear!, nyMonth!, nyDay!);
   }
 
   // 경과 일수(한국 달력 일 단위; 썸머타임 없는 구간은 86400초 일수로 충분)
@@ -123,7 +126,7 @@ export function solarToLunarLocal(
       }
 
       return {
-        year,
+        year: lunarYear,
         month: lunarMonth,
         day: lunarDay,
         isLeapMonth,
