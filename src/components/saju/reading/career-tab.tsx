@@ -152,14 +152,15 @@ export function CareerTab({ vm }: CareerTabProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="오행별 직업 적성">
+        <SectionCard
+          title="오행별 직업 적성"
+          subtitle="종합 적성은 명식의 오행 흐름을 참고한 탐색 지표입니다. 역할 예시는 최종 추천이 아닌 탐색 출발점으로만 살펴보세요."
+        >
           <div className="flex flex-col gap-3.5">
             {career.elementalAffinity.map((element) => (
               <div key={element.element}>
                 <div className="mb-1 flex items-baseline justify-between">
-                  <span className="text-small text-dim">
-                    {element.element} 기운 · {element.careers.slice(0, 3).join(", ")}
-                  </span>
+                  <span className="text-small text-dim">{element.element} 기운</span>
                   <span
                     className="font-mono-plex text-caption"
                     style={{
@@ -175,10 +176,13 @@ export function CareerTab({ vm }: CareerTabProps) {
                   </span>
                 </div>
                 <ScoreBar
-                  label={`${element.element} 기운 적성 지표`}
+                  label={`${element.element} 기운 종합 적성`}
                   score={element.affinity}
                   color={elementColor(element.element, dark)}
                 />
+                <p className="text-caption text-mute mt-1 leading-[1.6]">
+                  탐색 역할 예시: {element.careers.slice(0, 5).join(" · ")}
+                </p>
               </div>
             ))}
           </div>

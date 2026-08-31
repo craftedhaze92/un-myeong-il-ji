@@ -62,4 +62,22 @@ describe("CareerTab — 직업명을 단정하지 않고 역할·근거·업무 
     }
     expect(screen.queryByText(/초기 경력 \\(20-30대\\)/)).not.toBeInTheDocument();
   });
+
+  it("오행별 적성을 종합 지표와 탐색 역할 예시로 안내한다", () => {
+    const vm = buildVm();
+    render(<CareerTab vm={vm} />);
+
+    expect(screen.getByRole("heading", { name: "오행별 직업 적성" })).toBeInTheDocument();
+    expect(screen.getByText(/명식의 오행 흐름을 참고한 탐색 지표/)).toBeInTheDocument();
+    expect(screen.getAllByText(/탐색 역할 예시:/)).toHaveLength(5);
+    expect(screen.queryByText("명식 강점")).not.toBeInTheDocument();
+    expect(screen.queryByText("용신 보완")).not.toBeInTheDocument();
+    vm.career.elementalAffinity.forEach((element) => {
+      expect(
+        screen.getByText(
+          `탐색 역할 예시: ${element.careers.slice(0, 5).join(" · ")}`,
+        ),
+      ).toBeInTheDocument();
+    });
+  });
 });

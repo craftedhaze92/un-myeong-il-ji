@@ -42,7 +42,7 @@ export function LifeTab({ vm }: LifeTabProps) {
   return (
     <div className="flex flex-col gap-5.5">
       <SectionCard title="평생 총평">
-        <ScoreBar score={vm.life.overview.score} />
+        {/* <ScoreBar score={vm.life.overview.score} /> */}
 
         <div
           className="my-4 flex flex-wrap gap-2"
