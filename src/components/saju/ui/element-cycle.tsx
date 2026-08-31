@@ -21,13 +21,33 @@ const STATUS_LABEL_COLOR: Record<string, string> = {
 export function ElementCycle({ cycle }: ElementCycleProps) {
   return (
     <div className="flex flex-col gap-3.5">
-      <div className="flex gap-5 text-body text-dim">
+      <div className="text-body text-dim flex gap-5">
         <span className="flex items-center gap-1.5">
           생
-          <svg width="28" height="10" viewBox="0 0 28 10" style={{ overflow: "visible" }}>
-            <line x1="1" y1="5" x2="22" y2="5" stroke="var(--fg)" strokeWidth={1.5} markerEnd="url(#elCycleLegendArrow)" />
+          <svg
+            width="28"
+            height="10"
+            viewBox="0 0 28 10"
+            style={{ overflow: "visible" }}
+          >
+            <line
+              x1="1"
+              y1="5"
+              x2="22"
+              y2="5"
+              stroke="var(--fg)"
+              strokeWidth={1.5}
+              markerEnd="url(#elCycleLegendArrow)"
+            />
             <defs>
-              <marker id="elCycleLegendArrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <marker
+                id="elCycleLegendArrow"
+                markerWidth="6"
+                markerHeight="6"
+                refX="5"
+                refY="3"
+                orient="auto"
+              >
                 <path d="M0,0 L6,3 L0,6 Z" fill="var(--fg)" />
               </marker>
             </defs>
@@ -35,7 +55,12 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
         </span>
         <span className="flex items-center gap-1.5">
           극
-          <svg width="28" height="10" viewBox="0 0 28 10" style={{ overflow: "visible" }}>
+          <svg
+            width="28"
+            height="10"
+            viewBox="0 0 28 10"
+            style={{ overflow: "visible" }}
+          >
             <line
               x1="1"
               y1="5"
@@ -47,7 +72,14 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
               markerEnd="url(#elCycleLegendArrowKe)"
             />
             <defs>
-              <marker id="elCycleLegendArrowKe" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <marker
+                id="elCycleLegendArrowKe"
+                markerWidth="6"
+                markerHeight="6"
+                refX="5"
+                refY="3"
+                orient="auto"
+              >
                 <path d="M0,0 L6,3 L0,6 Z" fill="var(--mute)" />
               </marker>
             </defs>
@@ -61,15 +93,34 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
         style={{ height: "auto", overflow: "visible" }}
       >
         <defs>
-          <marker id="shengArrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+          <marker
+            id="shengArrow"
+            markerWidth="7"
+            markerHeight="7"
+            refX="5.5"
+            refY="3.5"
+            orient="auto"
+          >
             <path d="M0,0 L7,3.5 L0,7 Z" fill="var(--fg)" />
           </marker>
-          <marker id="keArrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+          <marker
+            id="keArrow"
+            markerWidth="6"
+            markerHeight="6"
+            refX="5"
+            refY="3"
+            orient="auto"
+          >
             <path d="M0,0 L6,3 L0,6 Z" fill="var(--mute)" />
           </marker>
           {cycle.nodes.map((n) => (
             <clipPath key={n.clipId} id={n.clipId}>
-              <rect x={n.cx - n.r - 2} y={n.fillY} width={n.r * 2 + 4} height={n.r * 2 + 4} />
+              <rect
+                x={n.cx - n.r - 2}
+                y={n.fillY}
+                width={n.r * 2 + 4}
+                height={n.r * 2 + 4}
+              />
             </clipPath>
           ))}
         </defs>
@@ -106,7 +157,14 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
             transition={{ delay: i * 0.05, duration: 0.4, ease: "easeOut" }}
             style={{ transformOrigin: `${n.cx}px ${n.cy}px` }}
           >
-            <circle cx={n.cx} cy={n.cy} r={n.r} fill="var(--surface)" stroke="var(--line)" strokeWidth={1} />
+            <circle
+              cx={n.cx}
+              cy={n.cy}
+              r={n.r}
+              fill="var(--surface)"
+              stroke="var(--line)"
+              strokeWidth={1}
+            />
             {n.pct > 0 && (
               <circle
                 cx={n.cx}
@@ -117,7 +175,14 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
                 clipPath={`url(#${n.clipId})`}
               />
             )}
-            <circle cx={n.cx} cy={n.cy} r={n.r} fill="none" stroke={n.color} strokeWidth={1.5} />
+            <circle
+              cx={n.cx}
+              cy={n.cy}
+              r={n.r}
+              fill="none"
+              stroke={n.color}
+              strokeWidth={1.5}
+            />
             <text
               x={n.cx}
               y={n.cy - 3}
@@ -130,10 +195,18 @@ export function ElementCycle({ cycle }: ElementCycleProps) {
               {n.pct}%
             </text>
             <g transform={`translate(${n.cx}, ${n.cy + n.r + 6})`}>
-              <rect x={-11} y={-11} width={22} height={22} rx={4} fill={n.color} opacity={0.16} />
+              <rect
+                x={-11}
+                y={-4}
+                width={22}
+                height={22}
+                rx={4}
+                fill={n.color}
+                opacity={0.16}
+              />
               <text
                 x={0}
-                y={4}
+                y={12}
                 textAnchor="middle"
                 fontFamily="var(--font-myeongjo), serif"
                 fontSize={14}

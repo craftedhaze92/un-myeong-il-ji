@@ -20,24 +20,31 @@ export interface LuckBandsProps {
  */
 export function LuckBands({ viewModel }: LuckBandsProps) {
   const [selectedStartAge, setSelectedStartAge] = useState(
-    viewModel.luck.find((l) => l.current)?.startAge ?? viewModel.luck[0]?.startAge ?? 0,
+    viewModel.luck.find((l) => l.current)?.startAge ??
+      viewModel.luck[0]?.startAge ??
+      0,
   );
   const selectedLuck =
-    viewModel.luck.find((l) => l.startAge === selectedStartAge) ?? viewModel.luck[0];
+    viewModel.luck.find((l) => l.startAge === selectedStartAge) ??
+    viewModel.luck[0];
 
   return (
     <>
       <motion.div
         variants={revealItem}
-        className="rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-5"
+        className="border-line bg-surface rounded-[3px] border p-5 sm:px-7 sm:pt-[26px] sm:pb-5"
       >
         <div className="mb-4.5 flex flex-wrap items-baseline justify-between gap-5">
-          <h2 className="m-0 font-batang text-card-title font-bold">대운 — 10년의 계절</h2>
-          <span className="font-mono-plex text-body tracking-[0.12em] text-dim">
+          <h2 className="font-batang text-card-title m-0 font-bold">
+            대운 — 10년의 계절
+          </h2>
+          <span className="font-mono-plex text-body text-dim tracking-[0.12em]">
             {viewModel.luckNote}
           </span>
         </div>
-        <div className={cn(styles.luckScroll, "flex gap-2.5 overflow-x-auto pb-3")}>
+        <div
+          className={cn(styles.luckScroll, "flex gap-2.5 overflow-x-auto pb-3")}
+        >
           {viewModel.luck.map((l, i) => (
             <GanjiColumn
               key={i}
@@ -51,25 +58,30 @@ export function LuckBands({ viewModel }: LuckBandsProps) {
             />
           ))}
         </div>
-        <div className="flex gap-2 pt-1 font-mono-plex text-body tracking-[0.08em] text-mute">
+        <div className="font-mono-plex text-body text-mute flex gap-2 pt-1 tracking-[0.08em]">
           {viewModel.luckFoot}
         </div>
       </motion.div>
 
       <motion.div
         variants={revealItem}
-        className="mt-5 rounded-[3px] border border-line bg-surface p-5 sm:px-7 sm:pt-[26px] sm:pb-5"
+        className="border-line bg-surface mt-5 rounded-[3px] border p-5 sm:px-7 sm:pt-[26px] sm:pb-5"
       >
         <div className="mb-4.5 flex flex-wrap items-baseline justify-between gap-5">
-          <h2 className="m-0 font-batang text-card-title font-bold">세운 — 올해를 중심으로</h2>
+          <h2 className="font-batang text-card-title m-0 font-bold">
+            세운 — 올해를 중심으로
+          </h2>
           {selectedLuck && (
-            <span className="font-mono-plex text-body tracking-[0.12em] text-dim">
-              {selectedLuck.gz} 대운 · {selectedLuck.startAge}–{selectedLuck.endAge}세 ·{" "}
-              {selectedLuck.seun[0]?.year}–{selectedLuck.seun.at(-1)?.year}년
+            <span className="font-mono-plex text-body text-dim tracking-[0.12em]">
+              {selectedLuck.gz} 대운 · {selectedLuck.startAge}–
+              {selectedLuck.endAge}세 · {selectedLuck.seun[0]?.year}–
+              {selectedLuck.seun.at(-1)?.year}년
             </span>
           )}
         </div>
-        <div className={cn(styles.luckScroll, "flex gap-2.5 overflow-x-auto pb-3")}>
+        <div
+          className={cn(styles.luckScroll, "flex gap-2.5 overflow-x-auto pb-3")}
+        >
           {(selectedLuck?.seun ?? []).map((s, i) => (
             <GanjiColumn
               key={i}
