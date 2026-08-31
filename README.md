@@ -27,18 +27,14 @@ Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · Vitest · motion · R
 
 ## 기술 스택
 
-| 영역 | 선택 | 선택 이유 |
-|---|---|---|
-| 프레임워크 | Next.js 16 App Router, React 19 (React Compiler on) | `next.config.ts`의 `reactCompiler: true` |
-| 계산 | 순수 TypeScript, 외부 API 호출 0회 | 만세력·절기 테이블을 로컬에 내장 — 네트워크·요금·가용성 의존을 없앰 |
-| 스타일 | Tailwind CSS v4, CSS-first (`globals.css`의 `@theme inline`) | 별도 `tailwind.config` 파일 없음 |
-| 인터랙션 | motion, Radix UI (`Tabs`/`ToggleGroup`/`Toggle`/`Tooltip`/`Collapsible`) | 상태·접근성(키보드 내비게이션, `aria-*`)은 Radix에, 등장·전환 연출은 motion에 위임 |
-| 테스트 | Vitest + jsdom | 계산 엔진과 뷰모델(순수 함수) 대상, 26개 파일 300개 테스트 |
-| 날짜 계산 | date-fns / date-fns-tz v3 | 출생지 경도 기반 진태양시(眞太陽時) 보정 전용, `lib`/`utils` 레이어에만 스코프 |
-
-`recharts`·`react-hook-form`·`zustand`도 `package.json`에 있지만 현재 화면 로직에서는 쓰지
-않는다(`zustand`는 모바일 내비게이션 상태 하나만 담당하는 11줄짜리 스토어). 실제로 화면에
-쓰이는 것만 표에 남겼다.
+| 영역       | 선택                                                                     | 선택 이유                                                                          |
+| ---------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| 프레임워크 | Next.js 16 App Router, React 19 (React Compiler on)                      | `next.config.ts`의 `reactCompiler: true`                                           |
+| 계산       | 순수 TypeScript, 외부 API 호출 0회                                       | 만세력·절기 테이블을 로컬에 내장 — 네트워크·요금·가용성 의존을 없앰                |
+| 스타일     | Tailwind CSS v4, CSS-first (`globals.css`의 `@theme inline`)             | 별도 `tailwind.config` 파일 없음                                                   |
+| 인터랙션   | motion, Radix UI (`Tabs`/`ToggleGroup`/`Toggle`/`Tooltip`/`Collapsible`) | 상태·접근성(키보드 내비게이션, `aria-*`)은 Radix에, 등장·전환 연출은 motion에 위임 |
+| 테스트     | Vitest + jsdom                                                           | 계산 엔진과 뷰모델(순수 함수) 대상, 26개 파일 300개 테스트                         |
+| 날짜 계산  | date-fns / date-fns-tz v3                                                | 출생지 경도 기반 진태양시(眞太陽時) 보정 전용, `lib`/`utils` 레이어에만 스코프     |
 
 ---
 
@@ -51,6 +47,7 @@ Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · Vitest · motion · R
 용신, 신살, 대운 띠(클릭하면 아래 세운이 그 10년으로 전환), 십이운성·십이신살.
 
 **풀이 탭(6개)**
+
 - **명식** — 격국과 성패(成敗) 판정, 지장간 세력, 지지 관계(삼합·삼형·육해), 이름 오행(발음오행
   기본, 한자 입력 시 자원오행 + 실제 획수 성명학 오격)
 - **인생** — 총평·직업·재물·건강·애정 5종 운세 + 두드러진 십성 기반 성격 서술
@@ -117,9 +114,6 @@ flowchart LR
   조후용신표), `src/data/naming_hanja_table.ts`(원획법 성명학 한자 사전), `src/lib/korean.ts`(한글 조사
   처리)
 
-남이 쓴 3만 줄 규모의 도메인 코드를 읽고, 테스트로 검증하고, 버그를 찾아 고치는 작업이었다 —
-이건 약점이 아니라 실무에서 매일 하는 일 그 자체라고 생각한다.
-
 ---
 
 ## 문제 해결 사례
@@ -151,12 +145,13 @@ flowchart LR
 <summary>출생지 경도(진태양시) 보정 미연결</summary>
 
 한국 표준시는 동경 135° 기준이라, 서울(−32분)과 부산(−24분)은 같은 시각에 태어나도 실제
-"태양이 남중하는 시각" 기준으로는 시주가 달라질 수 있다. 이 보정이 연결되지 않았던 시절에는
-지방을 어디로 입력하든 서울과 같은 시주가 나왔다.
+"태양이 남중하는 시각" 기준으로는 시주가 달라질 수 있다.
 
 검증(`src/lib/saju.test.ts`):
+
 > `'서울(−32분): 17:30 → 16:58 → 병신(丙申)'`
 > `'부산(−24분): 같은 17:30 → 17:06 → 정유(丁酉) — 출생지 미연결 시 서울과 같은 丙申이 나오던 회귀 케이스'`
+
 </details>
 
 <details>
@@ -281,16 +276,8 @@ Node 20 이상, pnpm 10 이상을 가정한다. **환경 변수나 외부 API �
 
 ## 한계와 다음 과제
 
-- 컴포넌트 렌더/E2E 테스트 부재 — motion·Radix 배선 이후에도 여전히 계산·뷰모델 레이어만
-  테스트로 커버된다.
-- `src/components/saju/reading-panel.tsx`가 1,000줄을 넘는다 — 이번에 Radix `Tabs`로 구조는 정리했지만 탭별 파일
-  분리는 하지 않았다.
 - `src/tools/`는 예전 MCP 도구 핸들러를 Next.js Route Handler에서 재사용하기 위해 남긴
   코드로, 아직 API 라우트가 없어 호출되지 않는다(삭제 대상 아님, 배선 대기 상태).
-- `src/lib/jijanggan_precise.ts`(절기 시작일로부터 경과 일수 기반의 정밀 지장간 계산)가 미배선 —
-  현재는 근사판(4구간)을 쓴다. 더 높은 정밀도가 필요할 때의 다음 단계.
-- 유파(학파)별 해석기 3종(`src/lib/interpreters/index.ts`)이 실제 사주 대신 가짜 합성 명식을 써서
-  구조적으로 재작성이 필요하다. 화면에서는 사용하지 않는 코드라 우선순위가 낮다.
 
 ---
 
