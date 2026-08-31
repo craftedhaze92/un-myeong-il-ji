@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://un-myeong-il-ji.vercel.app"),
   title: "운명일지",
   description: "사주팔자 만세력 및 운세 서비스",
+  manifest: "/manifest.webmanifest",
+  applicationName: "운명일지",
+  appleWebApp: {
+    capable: true,
+    title: "운명일지",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "운명일지",
     description:

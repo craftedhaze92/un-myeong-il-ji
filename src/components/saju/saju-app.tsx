@@ -19,6 +19,9 @@ import { sajuFontVariables } from "./fonts";
 import { ReadingPanel } from "./reading-panel";
 import { buildReadingViewModel } from "./reading-view-model";
 import { ResultPanel } from "./result-panel";
+import { SavedProfiles } from "./saved-profiles";
+import { saveProfile } from "./local-data";
+import { Glossary } from "./glossary";
 import styles from "./saju.module.css";
 import { buildSajuViewModel } from "./view-model";
 
@@ -30,6 +33,9 @@ interface ResultState {
   gender: Gender;
   nowYear: number;
 }
+
+// PDF/인쇄 내보내기는 추후 제공할 수 있도록 구현을 유지하되 현재 UI에서는 숨긴다.
+const ENABLE_PRINT_EXPORT = false;
 
 function scrollToPageTop() {
   // 결과 화면이 커밋되는 다음 프레임에 이동해, 입력 폼의 스크롤 위치가 결과 화면에
@@ -49,6 +55,7 @@ export function SajuApp() {
   const [form, setForm] = useState<BirthFormValues>(EMPTY_BIRTH_FORM_VALUES);
   const [result, setResult] = useState<ResultState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const { name, city, y, m, d, calendarType, gender } = form;
   const updateForm = (patch: Partial<BirthFormValues>) =>
     setForm((v) => ({ ...v, ...patch }));
@@ -70,6 +77,16 @@ export function SajuApp() {
     setResult(null);
     setForm(EMPTY_BIRTH_FORM_VALUES);
     setError(null);
+    setActionNotice(null);
+  };
+
+  const saveCurrentProfile = () => {
+    try {
+      saveProfile(localStorage, form);
+      setActionNotice("이 브라우저에 명식을 저장했습니다.");
+    } catch {
+      setActionNotice("브라우저 저장소를 사용할 수 없습니다.");
+    }
   };
 
   const submit = () => {
@@ -133,6 +150,28 @@ export function SajuApp() {
     [result],
   );
 
+  const shareSummary = async () => {
+    if (!viewModel || !readingViewModel || !result) return;
+    const text = `${result.name}님의 운명일지 · ${viewModel.headerNote}\n${readingViewModel.life.overview.paragraphs[0] ?? ""}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "운명일지",
+          text,
+          url: window.location.href,
+        });
+        setActionNotice("공유했습니다.");
+      } else {
+        await navigator.clipboard.writeText(`${text}\n${window.location.href}`);
+        setActionNotice("요약을 클립보드에 복사했습니다.");
+      }
+    } catch (error) {
+      if ((error as DOMException)?.name !== "AbortError") {
+        setActionNotice("공유하지 못했습니다. 다시 시도해 주세요.");
+      }
+    }
+  };
+
   return (
     <MotionConfig reducedMotion="user">
       <div className={cn(styles.root, sajuFontVariables, dark && "dark")}>
@@ -189,6 +228,8 @@ export function SajuApp() {
 
                 <BirthForm values={form} onChange={updateForm} />
 
+                <SavedProfiles onSelect={(values) => setForm(values)} />
+
                 <motion.button
                   onClick={submit}
                   disabled={!name.trim()}
@@ -224,6 +265,34 @@ export function SajuApp() {
                   sinsalCombined={readingViewModel.myeongsik.sinsalCombined}
                   onReset={resetAll}
                 />
+                <div className="umij-container mt-4 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={saveCurrentProfile}
+                    className="border-line text-body text-dim hover:text-fg cursor-pointer rounded-[2px] border bg-transparent px-4 py-2"
+                  >
+                    명식 저장
+                  </button>
+                  <button
+                    type="button"
+                    onClick={shareSummary}
+                    className="border-line text-body text-dim hover:text-fg cursor-pointer rounded-[2px] border bg-transparent px-4 py-2"
+                  >
+                    요약 공유
+                  </button>
+                  {ENABLE_PRINT_EXPORT ? (
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="border-line text-body text-dim hover:text-fg cursor-pointer rounded-[2px] border bg-transparent px-4 py-2"
+                    >
+                      인쇄 · PDF 저장
+                    </button>
+                  ) : null}
+                  {actionNotice && (
+                    <span className="text-small text-mute">{actionNotice}</span>
+                  )}
+                </div>
                 <ReadingPanel
                   saju={result.saju}
                   daeUn={result.daeUn}
@@ -234,6 +303,7 @@ export function SajuApp() {
                   mySaju={result.saju}
                   myName={result.name}
                 />
+                <Glossary />
               </motion.div>
             )}
           </AnimatePresence>

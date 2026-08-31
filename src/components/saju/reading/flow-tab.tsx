@@ -115,7 +115,10 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.96 }}
               className={PILL_BASE}
-              style={pillStyle(o.startAge === selectedStartAge, elementColor(o.element, dark))}
+              style={pillStyle(
+                o.startAge === selectedStartAge,
+                elementColor(o.element, dark),
+              )}
             >
               {o.startAge}–{o.endAge} {o.pillar}
               {o.isCurrent ? " ·현재" : ""}
@@ -125,7 +128,9 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
         {daeunDetail && (
           <div>
             <div className="mb-2.5 flex flex-wrap items-baseline gap-3">
-              <span className="font-myeongjo text-section font-extrabold">{daeunDetail.pillar}</span>
+              <span className="font-myeongjo text-section font-extrabold">
+                {daeunDetail.pillar}
+              </span>
               <span className="font-mono-plex text-small text-mute">
                 {daeunDetail.overall} · {daeunDetail.score}점 · 조화도{" "}
                 {daeunDetail.harmonyScore}
@@ -135,9 +140,14 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
               <ScoreBar label="직업운" score={daeunDetail.aspects.career} />
               <ScoreBar label="재물운" score={daeunDetail.aspects.wealth} />
               <ScoreBar label="건강운" score={daeunDetail.aspects.health} />
-              <ScoreBar label="인간관계운" score={daeunDetail.aspects.relationship} />
+              <ScoreBar
+                label="인간관계운"
+                score={daeunDetail.aspects.relationship}
+              />
             </div>
-            <div className="mb-2.5 text-body leading-[1.75] text-dim">{daeunDetail.summary}</div>
+            <div className="text-body text-dim mb-2.5 leading-[1.75]">
+              {daeunDetail.summary}
+            </div>
             <BulletList items={daeunDetail.opportunities} tone="positive" />
             <BulletList items={daeunDetail.challenges} tone="negative" />
             <BulletList items={daeunDetail.advice} />
@@ -169,13 +179,15 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
                 className="w-full origin-bottom rounded-sm"
                 style={{
                   height: Math.max(4, (point.score / 100) * 48),
-                  background: point.year === selectedYear ? "var(--fg)" : "var(--track)",
+                  background:
+                    point.year === selectedYear ? "var(--fg)" : "var(--track)",
                 }}
               />
               <span
                 className="font-mono-plex text-micro"
                 style={{
-                  color: point.year === selectedYear ? "var(--fg)" : "var(--mute)",
+                  color:
+                    point.year === selectedYear ? "var(--fg)" : "var(--mute)",
                   fontWeight: point.isCurrent ? 700 : 400,
                   textDecoration: point.isCurrent ? "underline" : "none",
                 }}
@@ -187,7 +199,9 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
         </div>
 
         <div className="mb-2.5 flex flex-wrap items-baseline gap-3">
-          <span className="font-myeongjo text-section font-extrabold">{seyunDetail.pillar}</span>
+          <span className="font-myeongjo text-section font-extrabold">
+            {seyunDetail.pillar}
+          </span>
           <span className="font-mono-plex text-small text-mute">
             {seyunDetail.year}년 · 만 {seyunDetail.age}세 ·{" "}
             {seyunDetail.overall} · {seyunDetail.score}점
@@ -197,9 +211,14 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
           <ScoreBar label="사업운" score={seyunDetail.aspects.career} />
           <ScoreBar label="재물운" score={seyunDetail.aspects.wealth} />
           <ScoreBar label="건강운" score={seyunDetail.aspects.health} />
-          <ScoreBar label="인간관계운" score={seyunDetail.aspects.relationship} />
+          <ScoreBar
+            label="인간관계운"
+            score={seyunDetail.aspects.relationship}
+          />
         </div>
-        <div className="mb-2.5 text-body leading-[1.75] text-dim">{seyunDetail.summary}</div>
+        <div className="text-body text-dim mb-2.5 leading-[1.75]">
+          {seyunDetail.summary}
+        </div>
         <BulletList items={seyunDetail.opportunities} tone="positive" />
         <BulletList items={seyunDetail.challenges} tone="negative" />
         <BulletList items={seyunDetail.advice} />
@@ -216,12 +235,18 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
                   type="button"
                   onClick={() => setSelectedMonth(month)}
                   aria-pressed={selected}
-                  title={favorable ? "유리한 달" : cautious ? "주의할 달" : undefined}
+                  title={
+                    favorable ? "유리한 달" : cautious ? "주의할 달" : undefined
+                  }
                   whileHover={{ scale: 1.06 }}
                   whileTap={{ scale: 0.94 }}
-                  className="cursor-pointer rounded-[2px] border py-1.5 text-center font-mono-plex text-micro"
+                  className="font-mono-plex text-micro cursor-pointer rounded-[2px] border py-1.5 text-center"
                   style={{
-                    color: favorable ? "var(--fg)" : cautious ? "var(--danger)" : "var(--mute)",
+                    color: favorable
+                      ? "var(--fg)"
+                      : cautious
+                        ? "var(--danger)"
+                        : "var(--mute)",
                     background: favorable ? "var(--track)" : "transparent",
                     borderColor: cautious ? "var(--danger)" : "var(--line)",
                     outline: selected ? "2px solid var(--fg)" : "none",
@@ -238,19 +263,28 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
 
       <SectionCard title="월운 — 이 달의 결">
         <div className="mb-2.5 flex flex-wrap items-baseline gap-3">
-          <span className="font-myeongjo text-section font-extrabold">{wolunDetail.pillar}</span>
+          <span className="font-myeongjo text-section font-extrabold">
+            {wolunDetail.pillar}
+          </span>
           <span className="font-mono-plex text-small text-mute">
-            {wolunDetail.year}년 {wolunDetail.month}월 · {wolunDetail.overall}{" "}
-            · {wolunDetail.score}점
+            {wolunDetail.year}년 {wolunDetail.month}월 · {wolunDetail.overall} ·{" "}
+            {wolunDetail.score}점
           </span>
         </div>
+        <p className="text-caption text-mute mb-3">
+          {wolunDetail.basisLabel}입니다. 양력 한 달 안에서도 절입 순간 전후로
+          월주가 바뀔 수 있습니다.
+        </p>
         <div className="mb-3.5 grid grid-cols-2 gap-3 md:grid-cols-4">
           <ScoreBar label="직업운" score={wolunDetail.aspects.career} />
           <ScoreBar label="재물운" score={wolunDetail.aspects.wealth} />
           <ScoreBar label="건강운" score={wolunDetail.aspects.health} />
-          <ScoreBar label="인간관계운" score={wolunDetail.aspects.relationship} />
+          <ScoreBar
+            label="인간관계운"
+            score={wolunDetail.aspects.relationship}
+          />
         </div>
-        <div className="mb-3 text-body leading-[1.75] text-dim">
+        <div className="text-body text-dim mb-3 leading-[1.75]">
           {wolunDetail.balanceDescription}
         </div>
         <div className="mb-4 flex flex-wrap gap-2">
@@ -265,26 +299,39 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
           ))}
         </div>
 
-        <div className="mb-1 font-batang text-small font-bold">이 달의 기회 · 주의</div>
+        <div className="font-batang text-small mb-1 font-bold">
+          이 달의 기회 · 주의
+        </div>
         <BulletList items={wolunDetail.opportunities} tone="positive" />
         <BulletList items={wolunDetail.cautions} tone="negative" />
-        <div className="mt-2.5 mb-1 font-batang text-small font-bold">하면 좋은 일 · 피할 일</div>
+        <div className="font-batang text-small mt-2.5 mb-1 font-bold">
+          하면 좋은 일 · 피할 일
+        </div>
         <BulletList items={wolunDetail.doList} tone="positive" />
         <BulletList items={wolunDetail.dontList} tone="negative" />
 
-        <div className="mt-1 text-body text-mute">
+        <div className="text-body text-mute mt-1">
           유리한 방위 {wolunDetail.direction} · 색 {wolunDetail.color}
         </div>
 
-        {(wolunDetail.luckyDates.length > 0 || wolunDetail.unluckyDates.length > 0) && (
+        {(wolunDetail.luckyDates.length > 0 ||
+          wolunDetail.unluckyDates.length > 0) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {wolunDetail.luckyDates.map((d) => (
-              <span key={`l-${d}`} className={BADGE_BASE} style={badgeStyle(true)}>
+              <span
+                key={`l-${d}`}
+                className={BADGE_BASE}
+                style={badgeStyle(true)}
+              >
                 길일 {d}일
               </span>
             ))}
             {wolunDetail.unluckyDates.map((d) => (
-              <span key={`u-${d}`} className={BADGE_BASE} style={badgeStyle(true, "var(--danger)")}>
+              <span
+                key={`u-${d}`}
+                className={BADGE_BASE}
+                style={badgeStyle(true, "var(--danger)")}
+              >
                 흉일 {d}일
               </span>
             ))}
@@ -297,7 +344,9 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
           {DECISION_TYPES.map((d) => (
             <motion.button
               key={d}
-              onClick={() => setSelectedDecision((cur) => (cur === d ? null : d))}
+              onClick={() =>
+                setSelectedDecision((cur) => (cur === d ? null : d))
+              }
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.96 }}
               className={PILL_BASE}
@@ -310,8 +359,9 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
 
         {!timingVm && (
           <div className="text-small text-mute">
-            결정 항목을 고르면 {selectedYear}년 {selectedMonth}월부터 3년의 시기를
-            분석합니다. 위에서 대운·세운·월을 바꾸면 이 기준 시점도 함께 이동합니다.
+            결정 항목을 고르면 {selectedYear}년 {selectedMonth}월부터 3년의
+            시기를 분석합니다. 위에서 대운·세운·월을 바꾸면 이 기준 시점도 함께
+            이동합니다.
           </div>
         )}
 
@@ -320,7 +370,9 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
             <div className="text-caption text-mute">
               기준 시점: {selectedYear}년 {selectedMonth}월
             </div>
-            <div className="text-body leading-[1.75] text-dim">{timingVm.summary.overallAdvice}</div>
+            <div className="text-body text-dim leading-[1.75]">
+              {timingVm.summary.overallAdvice}
+            </div>
             <div className="text-small text-mute">
               적기: {timingVm.summary.bestYear}년 {timingVm.summary.bestMonth}
               월({timingVm.summary.bestSeason}) · 시급도{" "}
@@ -328,17 +380,23 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
             </div>
 
             <div>
-              <div className="mb-2 font-batang text-small font-bold">최적 시기</div>
+              <div className="font-batang text-small mb-2 font-bold">
+                최적 시기
+              </div>
               <div className="flex flex-col gap-2.5">
                 {timingVm.optimalTiming.map((o, i) => (
                   <div key={i}>
                     <div className="flex items-baseline gap-2">
-                      <span className="font-mono-plex font-bold">{o.period}</span>
+                      <span className="font-mono-plex font-bold">
+                        {o.period}
+                      </span>
                       <span className="text-caption text-mute">
                         {o.rating} · {o.score}점
                       </span>
                     </div>
-                    <div className="text-small text-dim">{o.yongsinSupport}</div>
+                    <div className="text-small text-dim">
+                      {o.yongsinSupport}
+                    </div>
                     <BulletList items={o.reasons} tone="positive" />
                     <BulletList items={o.cautions} tone="negative" />
                   </div>
@@ -347,7 +405,9 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
             </div>
 
             <div>
-              <div className="mb-2 font-batang text-small font-bold">12개월 예보</div>
+              <div className="font-batang text-small mb-2 font-bold">
+                12개월 예보
+              </div>
               <div className="flex h-[60px] items-end gap-1">
                 {timingVm.monthlyForecast.map((m, i) => (
                   <Tooltip.Root key={i}>
@@ -355,7 +415,11 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
                       <motion.div
                         initial={{ scaleY: 0 }}
                         animate={{ scaleY: 1 }}
-                        transition={{ duration: 0.3, delay: i * 0.02, ease: "easeOut" }}
+                        transition={{
+                          duration: 0.3,
+                          delay: i * 0.02,
+                          ease: "easeOut",
+                        }}
                         className="flex-1 origin-bottom rounded-sm"
                         style={{
                           height: `${Math.max(6, m.score)}%`,
@@ -372,7 +436,7 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
                       <Tooltip.Content
                         side="top"
                         sideOffset={6}
-                        className="z-50 max-w-[220px] rounded-[2px] border border-line bg-surface px-2.5 py-1.5 text-micro text-fg shadow-md"
+                        className="border-line bg-surface text-micro text-fg z-50 max-w-[220px] rounded-[2px] border px-2.5 py-1.5 shadow-md"
                       >
                         {`${m.yearMonth} ${m.rating} · ${m.briefAdvice}`}
                         <Tooltip.Arrow className="fill-surface" />
@@ -385,15 +449,20 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
 
             {timingVm.timesToAvoid.length > 0 && (
               <div>
-                <div className="mb-2 font-batang text-small font-bold">피해야 할 시기</div>
+                <div className="font-batang text-small mb-2 font-bold">
+                  피해야 할 시기
+                </div>
                 {timingVm.timesToAvoid.map((t, i) => (
-                  <div key={i} className="mb-1.5 text-small">
+                  <div key={i} className="text-small mb-1.5">
                     <span className="text-danger">
                       {t.period} ({t.severity})
                     </span>{" "}
                     <span className="text-dim">{t.reason}</span>
                     {t.alternatives.length > 0 && (
-                      <span className="text-mute"> — 대안: {t.alternatives.join(", ")}</span>
+                      <span className="text-mute">
+                        {" "}
+                        — 대안: {t.alternatives.join(", ")}
+                      </span>
                     )}
                   </div>
                 ))}
@@ -401,20 +470,26 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
             )}
 
             <div>
-              <div className="mb-2 font-batang text-small font-bold">3년 장기 전망</div>
+              <div className="font-batang text-small mb-2 font-bold">
+                3년 장기 전망
+              </div>
               <div
                 className="grid gap-3.5"
-                style={{ gridTemplateColumns: `repeat(${timingVm.longTermOutlook.length}, minmax(0, 1fr))` }}
+                style={{
+                  gridTemplateColumns: `repeat(${timingVm.longTermOutlook.length}, minmax(0, 1fr))`,
+                }}
               >
                 {timingVm.longTermOutlook.map((y) => (
                   <div key={y.year}>
-                    <div className="mb-1 font-mono-plex text-small font-bold">
+                    <div className="font-mono-plex text-small mb-1 font-bold">
                       {y.year}년 · {y.overallRating}
                     </div>
                     <BulletList items={y.majorOpportunities} tone="positive" />
                     <BulletList items={y.majorChallenges} tone="negative" />
                     {y.daeunInfluence && (
-                      <div className="text-caption text-mute">{y.daeunInfluence}</div>
+                      <div className="text-caption text-mute">
+                        {y.daeunInfluence}
+                      </div>
                     )}
                   </div>
                 ))}

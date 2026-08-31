@@ -2,31 +2,41 @@
  * 사주팔자 계산 핵심 로직
  */
 
-import { differenceInCalendarDays } from 'date-fns';
-import { formatInTimeZone, toDate } from 'date-fns-tz';
-import type { SajuData, Pillar, Gender, CalendarType, WuXing } from '../types/index';
-import { getHeavenlyStemByIndex } from '../data/heavenly_stems';
-import { getEarthlyBranchByIndex, analyzeBranchRelations, checkWolRyeong } from '../data/earthly_branches';
-import { calculateJiJangGanSlot } from './jijanggan_precise';
+import { differenceInCalendarDays } from "date-fns";
+import { formatInTimeZone, toDate } from "date-fns-tz";
+import type {
+  SajuData,
+  Pillar,
+  Gender,
+  CalendarType,
+  WuXing,
+} from "../types/index";
+import { getHeavenlyStemByIndex } from "../data/heavenly_stems";
+import {
+  getEarthlyBranchByIndex,
+  analyzeBranchRelations,
+  checkWolRyeong,
+} from "../data/earthly_branches";
+import { calculateJiJangGanSlot } from "./jijanggan_precise";
 import {
   getCurrentSolarTerm,
   getSolarTermMonthIndex,
   getSolarTermsForYear,
   getPreviousJieSolarTermByInstant,
-} from '../data/solar_terms';
-import { WUXING_DATA } from '../data/wuxing';
-import { convertCalendar } from './calendar';
-import { getAdjustedBirthInstantForSaju } from '../utils/date';
-import { resolveBirthCityForSaju } from '../data/longitude_table';
-import { calculateTenGodsDistribution, generateTenGodsList } from './ten_gods';
-import { findSinSalHits, getSinSalInfo } from './sin_sal';
-import { analyzeDayMasterStrength } from './day_master_strength';
-import { determineGyeokGuk } from './gyeok_guk';
-import { analyzeGyeokGukQuality } from './gyeok_guk_quality';
-import { selectYongSin } from './yong_sin';
-import { sajuCache, generateSajuCacheKey } from './performance_cache';
+} from "../data/solar_terms";
+import { WUXING_DATA } from "../data/wuxing";
+import { convertCalendar } from "./calendar";
+import { getAdjustedBirthInstantForSaju } from "../utils/date";
+import { resolveBirthCityForSaju } from "../data/longitude_table";
+import { calculateTenGodsDistribution, generateTenGodsList } from "./ten_gods";
+import { findSinSalHits, getSinSalInfo } from "./sin_sal";
+import { analyzeDayMasterStrength } from "./day_master_strength";
+import { determineGyeokGuk } from "./gyeok_guk";
+import { analyzeGyeokGukQuality } from "./gyeok_guk_quality";
+import { selectYongSin } from "./yong_sin";
+import { sajuCache, generateSajuCacheKey } from "./performance_cache";
 
-const SEOUL_TZ = 'Asia/Seoul';
+const SEOUL_TZ = "Asia/Seoul";
 
 /**
  * 생년월일시로부터 사주팔자 계산 (캐싱 적용)
@@ -38,7 +48,7 @@ export function calculateSaju(
   isLeapMonth: boolean,
   gender: Gender,
   birthCity?: string,
-  options?: { unknownHour?: boolean }
+  options?: { unknownHour?: boolean },
 ): SajuData {
   const resolvedBirthCity = resolveBirthCityForSaju(birthCity);
   const unknownHour = options?.unknownHour ?? false;
@@ -51,7 +61,7 @@ export function calculateSaju(
     isLeapMonth,
     gender,
     resolvedBirthCity,
-    unknownHour
+    unknownHour,
   );
   const cached = sajuCache.get(cacheKey);
   if (cached) {
@@ -60,13 +70,17 @@ export function calculateSaju(
 
   // 음력을 양력으로 변환
   let solarDate = birthDate;
-  if (calendar === 'lunar') {
-    const conversion = convertCalendar(birthDate, 'lunar', 'solar');
+  if (calendar === "lunar") {
+    const conversion = convertCalendar(birthDate, "lunar", "solar");
     solarDate = conversion.convertedDate;
   }
 
   // 출생 벽시계(썸머타임) + 출생지 경도 보정(동경 135° 대비)
-  const adjustedDate = getAdjustedBirthInstantForSaju(solarDate, birthTime, resolvedBirthCity);
+  const adjustedDate = getAdjustedBirthInstantForSaju(
+    solarDate,
+    birthTime,
+    resolvedBirthCity,
+  );
 
   // 연주 계산
   const yearPillar = calculateYearPillar(adjustedDate);
@@ -103,7 +117,10 @@ export function calculateSaju(
   const weakElements: WuXing[] = [];
   const average = (pillarsForAnalysis.length * 2) / 5; // 표시된 글자 수(기둥당 2자) / 5개 오행
 
-  for (const [element, count] of Object.entries(wuxingCount) as [WuXing, number][]) {
+  for (const [element, count] of Object.entries(wuxingCount) as [
+    WuXing,
+    number,
+  ][]) {
     if (count > average * 1.5) {
       strongElements.push(element);
     } else if (count === 0 || count < average * 0.5) {
@@ -141,10 +158,12 @@ export function calculateSaju(
   // 지지 관계 분석 (시간 미상이면 시지는 표시용 가짜 값이므로 판정에서 뺀다).
   // 각 글자의 자리도 함께 넘겨 명식 탭이 실제 성립 위치를 표시할 수 있게 한다.
   const branchRelationInputs = [
-    { pillar: 'year' as const, branch: yearPillar.branch },
-    { pillar: 'month' as const, branch: monthPillar.branch },
-    { pillar: 'day' as const, branch: dayPillar.branch },
-    ...(unknownHour ? [] : [{ pillar: 'hour' as const, branch: hourPillar.branch }]),
+    { pillar: "year" as const, branch: yearPillar.branch },
+    { pillar: "month" as const, branch: monthPillar.branch },
+    { pillar: "day" as const, branch: dayPillar.branch },
+    ...(unknownHour
+      ? []
+      : [{ pillar: "hour" as const, branch: hourPillar.branch }]),
   ];
   sajuData.branchRelations = analyzeBranchRelations(branchRelationInputs);
 
@@ -170,7 +189,8 @@ export function calculateSaju(
     name: gyeokGukAnalysis.name,
     hanja: gyeokGukAnalysis.hanja,
     description: gyeokGukAnalysis.description,
-    quality: analyzeGyeokGukQuality(sajuData, gyeokGukAnalysis.gyeokGuk) ?? undefined,
+    quality:
+      analyzeGyeokGukQuality(sajuData, gyeokGukAnalysis.gyeokGuk) ?? undefined,
   };
 
   // 용신 선정
@@ -194,8 +214,8 @@ export function calculateSaju(
  */
 function calculateYearPillar(date: Date): Pillar {
   // 입춘 순간(정밀 절기 데이터) 기준으로 연주를 나눈다. 입춘 이전이면 전년도.
-  const seoulYear = parseInt(formatInTimeZone(date, SEOUL_TZ, 'yyyy'), 10);
-  const ipchun = getSolarTermsForYear(seoulYear).find((t) => t.term === '입춘');
+  const seoulYear = parseInt(formatInTimeZone(date, SEOUL_TZ, "yyyy"), 10);
+  const ipchun = getSolarTermsForYear(seoulYear).find((t) => t.term === "입춘");
   let sajuYear = seoulYear;
 
   if (ipchun) {
@@ -207,7 +227,10 @@ function calculateYearPillar(date: Date): Pillar {
     const solarTerm = getCurrentSolarTerm(date);
     const month = date.getMonth() + 1;
     // 1월이나 2월 초에 입춘 이전이면 전년도 (입춘 이전 절기: 동지, 소한, 대한)
-    if (month <= 2 && (solarTerm === '동지' || solarTerm === '소한' || solarTerm === '대한')) {
+    if (
+      month <= 2 &&
+      (solarTerm === "동지" || solarTerm === "소한" || solarTerm === "대한")
+    ) {
       sajuYear = seoulYear - 1;
     }
   }
@@ -252,26 +275,28 @@ function calculateMonthPillar(date: Date, yearPillar: Pillar): Pillar {
 
   // 월간 계산: 연간에 따라 결정 (전통적인 월간 기산법)
   const yearStem = getHeavenlyStemByIndex(
-    ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'].indexOf(yearPillar.stem)
+    ["갑", "을", "병", "정", "무", "기", "경", "신", "임", "계"].indexOf(
+      yearPillar.stem,
+    ),
   );
 
   const yearStemIndex = yearStem.index;
   let monthStemStart: number;
 
   // 연간에 따른 월간 시작점 결정
-  if (yearStemIndex === 0 || yearStemIndex === 5) { 
+  if (yearStemIndex === 0 || yearStemIndex === 5) {
     // 갑년(甲), 기년(己): 병인월(丙寅月)부터
     monthStemStart = 2; // 병(丙)
-  } else if (yearStemIndex === 1 || yearStemIndex === 6) { 
+  } else if (yearStemIndex === 1 || yearStemIndex === 6) {
     // 을년(乙), 경년(庚): 무인월(戊寅月)부터
     monthStemStart = 4; // 무(戊)
-  } else if (yearStemIndex === 2 || yearStemIndex === 7) { 
+  } else if (yearStemIndex === 2 || yearStemIndex === 7) {
     // 병년(丙), 신년(辛): 경인월(庚寅月)부터
     monthStemStart = 6; // 경(庚)
-  } else if (yearStemIndex === 3 || yearStemIndex === 8) { 
+  } else if (yearStemIndex === 3 || yearStemIndex === 8) {
     // 정년(丁), 임년(壬): 임인월(壬寅月)부터
     monthStemStart = 8; // 임(壬)
-  } else { 
+  } else {
     // 무년(戊), 계년(癸): 갑인월(甲寅月)부터
     monthStemStart = 0; // 갑(甲)
   }
@@ -293,20 +318,30 @@ function calculateMonthPillar(date: Date, yearPillar: Pillar): Pillar {
 }
 
 /**
+ * 임의 시각의 절입 순간을 반영한 월주를 반환한다.
+ *
+ * 월운·일진처럼 출생 명식 밖에서 월주가 필요한 기능도 명식 계산과 완전히 같은
+ * 절기/오호둔 기준을 쓰도록 제공하는 공개 진입점이다.
+ */
+export function getPreciseMonthPillar(date: Date): Pillar {
+  return calculateMonthPillar(date, calculateYearPillar(date));
+}
+
+/**
  * 일주(日柱) 계산
  * 정확한 기준일: 1900년 1월 1일 = 갑술일(甲戌日) (만세력 원전 대조 완료)
  * 출생 순간을 대한민국 달력 일(Asia/Seoul)로 두고 기준일과의 일수 차를 쓴다(UTC 일수 나눗셈·서버 타임존 의존 방지).
  */
 function calculateDayPillar(date: Date): Pillar {
-  const birthKoreaDateStr = formatInTimeZone(date, SEOUL_TZ, 'yyyy-MM-dd');
-  const base = toDate('1900-01-01T12:00:00', { timeZone: SEOUL_TZ });
+  const birthKoreaDateStr = formatInTimeZone(date, SEOUL_TZ, "yyyy-MM-dd");
+  const base = toDate("1900-01-01T12:00:00", { timeZone: SEOUL_TZ });
   const birth = toDate(`${birthKoreaDateStr}T12:00:00`, { timeZone: SEOUL_TZ });
   const diffDays = differenceInCalendarDays(birth, base);
 
   // 60갑자 순환
   // 갑(甲) = 0, 술(戌) = 10에서 시작
-  const stemIndex = ((0 + diffDays) % 10 + 10) % 10;
-  const branchIndex = ((10 + diffDays) % 12 + 12) % 12;
+  const stemIndex = (((0 + diffDays) % 10) + 10) % 10;
+  const branchIndex = (((10 + diffDays) % 12) + 12) % 12;
 
   const stem = getHeavenlyStemByIndex(stemIndex);
   const branch = getEarthlyBranchByIndex(branchIndex);
@@ -324,7 +359,7 @@ function calculateDayPillar(date: Date): Pillar {
  * 시주(時柱) 계산
  */
 function calculateHourPillar(date: Date, dayPillar: Pillar): Pillar {
-  const hours = parseInt(formatInTimeZone(date, SEOUL_TZ, 'H'), 10);
+  const hours = parseInt(formatInTimeZone(date, SEOUL_TZ, "H"), 10);
 
   // 시지 계산 (2시간 단위)
   // 23-01시: 자시, 01-03시: 축시, ...
@@ -337,7 +372,9 @@ function calculateHourPillar(date: Date, dayPillar: Pillar): Pillar {
 
   // 시간 계산: 일간에 따라 결정
   const dayStem = getHeavenlyStemByIndex(
-    ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'].indexOf(dayPillar.stem)
+    ["갑", "을", "병", "정", "무", "기", "경", "신", "임", "계"].indexOf(
+      dayPillar.stem,
+    ),
   );
 
   // 시간 공식: (일간 × 2 + 시지) % 10
@@ -456,7 +493,7 @@ ${strengthAnalysis}
 ${gyeokGukAnalysis}
   `);
 
-  return sections.join('\n');
+  return sections.join("\n");
 }
 
 /**
@@ -466,7 +503,7 @@ function getWuXingBar(count: number): string {
   const max = 5;
   const filled = Math.min(count, max);
   const empty = max - filled;
-  return '█'.repeat(filled) + '░'.repeat(empty);
+  return "█".repeat(filled) + "░".repeat(empty);
 }
 
 /**
@@ -477,25 +514,30 @@ function analyzeWuXingDistribution(saju: SajuData): string {
   const average = 8 / 5;
   const analysis: string[] = [];
 
-  analysis.push('💡 오행 균형 해석:');
+  analysis.push("💡 오행 균형 해석:");
 
   // 균형 판단
   const balanced = dominantElements?.length === 0 && weakElements?.length === 0;
   if (balanced) {
-    analysis.push('  ✓ 오행이 조화롭게 균형을 이루고 있어 심신이 안정적이고 건강합니다.');
-    analysis.push('  ✓ 다양한 분야에서 고르게 능력을 발휘할 수 있는 만능형 재능을 가지고 있습니다.');
+    analysis.push(
+      "  ✓ 오행이 조화롭게 균형을 이루고 있어 심신이 안정적이고 건강합니다.",
+    );
+    analysis.push(
+      "  ✓ 다양한 분야에서 고르게 능력을 발휘할 수 있는 만능형 재능을 가지고 있습니다.",
+    );
   } else {
     if (dominantElements && dominantElements.length > 0) {
       dominantElements.forEach((element) => {
         const data = WUXING_DATA[element];
         const count = wuxingCount[element];
         const ratio = count / average;
-        const intensity = ratio >= 2.5 ? '매우 강함' : ratio >= 2.0 ? '강함' : '뚜렷함';
+        const intensity =
+          ratio >= 2.5 ? "매우 강함" : ratio >= 2.0 ? "강함" : "뚜렷함";
 
         analysis.push(`  ⚡ ${element}(${data.hanja}) 기운이 ${intensity} (${count}개):
-    - 성격: ${data.personality.slice(0, 3).join(', ')}한 경향이 강합니다
-    - 장점: ${element === '목' ? '창의적이고 성장지향적' : element === '화' ? '열정적이고 사교적' : element === '토' ? '안정적이고 신뢰할 만함' : element === '금' ? '원칙적이고 결단력 있음' : '지혜롭고 분석적'}
-    - 주의: ${element === '목' ? '우유부단할 수 있음' : element === '화' ? '급하고 조급할 수 있음' : element === '토' ? '고집스러울 수 있음' : element === '금' ? '융통성이 부족할 수 있음' : '우울하거나 소극적일 수 있음'}`);
+    - 성격: ${data.personality.slice(0, 3).join(", ")}한 경향이 강합니다
+    - 장점: ${element === "목" ? "창의적이고 성장지향적" : element === "화" ? "열정적이고 사교적" : element === "토" ? "안정적이고 신뢰할 만함" : element === "금" ? "원칙적이고 결단력 있음" : "지혜롭고 분석적"}
+    - 주의: ${element === "목" ? "우유부단할 수 있음" : element === "화" ? "급하고 조급할 수 있음" : element === "토" ? "고집스러울 수 있음" : element === "금" ? "융통성이 부족할 수 있음" : "우울하거나 소극적일 수 있음"}`);
       });
     }
 
@@ -503,36 +545,79 @@ function analyzeWuXingDistribution(saju: SajuData): string {
       weakElements.forEach((element) => {
         const data = WUXING_DATA[element];
         analysis.push(`  ⚠️  ${element}(${data.hanja}) 기운 부족:
-    - 보완 방법: ${data.color.join('/')} 색상 활용, ${data.direction}쪽 방향 중시
-    - 추천: ${element === '목' ? '식물 키우기, 독서, 산책' : element === '화' ? '운동, 사회활동, 밝은 환경' : element === '토' ? '규칙적 생활, 요리, 정리정돈' : element === '금' ? '악기 연주, 규율 지키기' : '명상, 수영, 충분한 휴식'}`);
+    - 보완 방법: ${data.color.join("/")} 색상 활용, ${data.direction}쪽 방향 중시
+    - 추천: ${element === "목" ? "식물 키우기, 독서, 산책" : element === "화" ? "운동, 사회활동, 밝은 환경" : element === "토" ? "규칙적 생활, 요리, 정리정돈" : element === "금" ? "악기 연주, 규율 지키기" : "명상, 수영, 충분한 휴식"}`);
       });
     }
   }
 
-  return analysis.join('\n');
+  return analysis.join("\n");
 }
 
 /**
  * 십성 분포 상세 분석
  */
 function analyzeTenGodsDistribution(saju: SajuData): string {
-  if (!saju.tenGodsDistribution) return '  (십성 정보 없음)';
+  if (!saju.tenGodsDistribution) return "  (십성 정보 없음)";
 
   const analysis: string[] = [];
   const dist = saju.tenGodsDistribution;
 
   // 십성별 상세 설명
-  const tenGodDescriptions: Record<string, { category: string; meaning: string; career: string }> = {
-    비견: { category: '자기(自己)', meaning: '자립심, 독립성, 경쟁심', career: '독립 사업, 프리랜서' },
-    겁재: { category: '자기(自己)', meaning: '협력, 경쟁, 형제', career: '동업, 팀워크 중시 직업' },
-    식신: { category: '표현(表現)', meaning: '창의성, 표현력, 여유', career: '예술, 요리, 서비스업' },
-    상관: { category: '표현(表現)', meaning: '재능, 비판력, 자유', career: '창작, 기술, 연구' },
-    편재: { category: '재물(財物)', meaning: '유동재산, 사교성, 활동', career: '영업, 무역, 투자' },
-    정재: { category: '재물(財物)', meaning: '고정재산, 성실, 안정', career: '회계, 금융, 정규직' },
-    편관: { category: '권력(權力)', meaning: '추진력, 도전, 권위', career: '경영, 군인, 경찰' },
-    정관: { category: '권력(權力)', meaning: '책임감, 질서, 명예', career: '공무원, 관리직, 법조인' },
-    편인: { category: '학문(學問)', meaning: '직관, 특수재능, 종교', career: '철학, 종교, 특수 전문직' },
-    정인: { category: '학문(學問)', meaning: '학습, 보호, 명예', career: '교육, 연구, 학자' },
+  const tenGodDescriptions: Record<
+    string,
+    { category: string; meaning: string; career: string }
+  > = {
+    비견: {
+      category: "자기(自己)",
+      meaning: "자립심, 독립성, 경쟁심",
+      career: "독립 사업, 프리랜서",
+    },
+    겁재: {
+      category: "자기(自己)",
+      meaning: "협력, 경쟁, 형제",
+      career: "동업, 팀워크 중시 직업",
+    },
+    식신: {
+      category: "표현(表現)",
+      meaning: "창의성, 표현력, 여유",
+      career: "예술, 요리, 서비스업",
+    },
+    상관: {
+      category: "표현(表現)",
+      meaning: "재능, 비판력, 자유",
+      career: "창작, 기술, 연구",
+    },
+    편재: {
+      category: "재물(財物)",
+      meaning: "유동재산, 사교성, 활동",
+      career: "영업, 무역, 투자",
+    },
+    정재: {
+      category: "재물(財物)",
+      meaning: "고정재산, 성실, 안정",
+      career: "회계, 금융, 정규직",
+    },
+    편관: {
+      category: "권력(權力)",
+      meaning: "추진력, 도전, 권위",
+      career: "경영, 군인, 경찰",
+    },
+    정관: {
+      category: "권력(權力)",
+      meaning: "책임감, 질서, 명예",
+      career: "공무원, 관리직, 법조인",
+    },
+    편인: {
+      category: "학문(學問)",
+      meaning: "직관, 특수재능, 종교",
+      career: "철학, 종교, 특수 전문직",
+    },
+    정인: {
+      category: "학문(學問)",
+      meaning: "학습, 보호, 명예",
+      career: "교육, 연구, 학자",
+    },
   };
 
   Object.entries(dist)
@@ -541,74 +626,83 @@ function analyzeTenGodsDistribution(saju: SajuData): string {
     .forEach(([name, count]) => {
       const desc = tenGodDescriptions[name];
       if (desc) {
-        const intensity = count >= 3 ? '매우 강함' : count >= 1.5 ? '강함' : count >= 0.8 ? '적당함' : '약함';
+        const intensity =
+          count >= 3
+            ? "매우 강함"
+            : count >= 1.5
+              ? "강함"
+              : count >= 0.8
+                ? "적당함"
+                : "약함";
         analysis.push(`  • ${name}(${desc.category}): ${count.toFixed(1)}개 - ${intensity}
     의미: ${desc.meaning}
     추천 직업: ${desc.career}`);
       }
     });
 
-  return analysis.join('\n\n');
+  return analysis.join("\n\n");
 }
 
 /**
  * 신살 상세 분석
  */
 function analyzeSinSals(saju: SajuData): string {
-  if (!saju.sinSals || saju.sinSals.length === 0) return '';
+  if (!saju.sinSals || saju.sinSals.length === 0) return "";
 
-  const typeLabel: Record<'lucky' | 'unlucky' | 'neutral', string> = {
-    lucky: '길신',
-    unlucky: '흉신',
-    neutral: '중립',
+  const typeLabel: Record<"lucky" | "unlucky" | "neutral", string> = {
+    lucky: "길신",
+    unlucky: "흉신",
+    neutral: "중립",
   };
-  const icon: Record<'lucky' | 'unlucky' | 'neutral', string> = {
-    lucky: '✨',
-    unlucky: '⚠️',
-    neutral: '💫',
+  const icon: Record<"lucky" | "unlucky" | "neutral", string> = {
+    lucky: "✨",
+    unlucky: "⚠️",
+    neutral: "💫",
   };
 
   const analysis = saju.sinSals.map((sinSal) => {
     const info = getSinSalInfo(sinSal);
     return `${icon[info.type]} ${info.name}(${info.hanja}) [${typeLabel[info.type]}]
   의미: ${info.description}
-  조언: ${info.advice.join(' ')}`;
+  조언: ${info.advice.join(" ")}`;
   });
 
-  return analysis.join('\n\n');
+  return analysis.join("\n\n");
 }
 
 /**
  * 일간 강약 상세 분석
  */
 function analyzeDayMasterStrengthDetailed(saju: SajuData): string {
-  if (!saju.dayMasterStrength) return '  (분석 정보 없음)';
+  if (!saju.dayMasterStrength) return "  (분석 정보 없음)";
 
   const { level, score, analysis } = saju.dayMasterStrength;
   const levelKorean =
-    level === 'very_strong'
-      ? '매우 강함'
-      : level === 'strong'
-        ? '강함'
-        : level === 'medium'
-          ? '중화(中和) - 이상적 균형'
-          : level === 'weak'
-            ? '약함'
-            : '매우 약함';
+    level === "very_strong"
+      ? "매우 강함"
+      : level === "strong"
+        ? "강함"
+        : level === "medium"
+          ? "중화(中和) - 이상적 균형"
+          : level === "weak"
+            ? "약함"
+            : "매우 약함";
 
-  const bars = '█'.repeat(Math.floor(score / 10)) + '░'.repeat(10 - Math.floor(score / 10));
+  const bars =
+    "█".repeat(Math.floor(score / 10)) +
+    "░".repeat(10 - Math.floor(score / 10));
 
   const interpretation =
-    level === 'very_strong'
+    level === "very_strong"
       ? `강한 자존감과 추진력을 가지고 있으나, 때로 고집이 세고 타인의 의견을 받아들이기 어려울 수 있습니다.
   → 조언: 겸손함을 배우고 타인과의 협력을 중시하세요.`
-      : level === 'strong'
+      : level === "strong"
         ? `적절한 자신감과 독립심을 가지고 있어 자신의 길을 개척할 수 있습니다.
   → 조언: 현재의 균형을 유지하며 꾸준히 노력하세요.`
-        : level === 'medium'
+        : level === "medium"
           ? `이상적인 중화 상태로, 강하지도 약하지도 않아 어떤 환경에도 적응력이 뛰어납니다.
   → 조언: 현재의 균형을 잘 유지하며 다양한 기회를 탐색하세요.`
-          : level === 'weak'
+          : level === "weak"
             ? `다소 의존적이거나 소극적일 수 있으나, 협력과 조화를 중시하는 장점이 있습니다.
   → 조언: 자신감을 기르고 주도성을 발휘하는 연습을 하세요.`
             : `매우 약한 일간으로 자신감이 부족하고 스트레스에 취약할 수 있습니다.
@@ -628,29 +722,27 @@ function analyzeDayMasterStrengthDetailed(saju: SajuData): string {
  * 격국과 용신 상세 분석
  */
 function analyzeGyeokGukDetailed(saju: SajuData): string {
-  const gyeokGukPart =
-    saju.gyeokGuk
-      ? `격국(格局): ${saju.gyeokGuk.name} (${saju.gyeokGuk.hanja})
+  const gyeokGukPart = saju.gyeokGuk
+    ? `격국(格局): ${saju.gyeokGuk.name} (${saju.gyeokGuk.hanja})
 
 격국은 사주의 구조와 패턴을 나타내며, 인생의 큰 방향성을 제시합니다.
 
   의미: ${saju.gyeokGuk.description}
 
   이 격국은 ${
-    saju.gyeokGuk.name.includes('정')
-      ? '정통적이고 안정적인 길을 걷게 되며, 꾸준한 노력으로 성공할 수 있습니다.'
-      : saju.gyeokGuk.name.includes('편')
-        ? '특별하고 독특한 길을 걷게 되며, 창의적이고 혁신적인 방식으로 성공할 수 있습니다.'
-        : '균형잡힌 발전을 이루며, 다양한 분야에서 능력을 발휘할 수 있습니다.'
+    saju.gyeokGuk.name.includes("정")
+      ? "정통적이고 안정적인 길을 걷게 되며, 꾸준한 노력으로 성공할 수 있습니다."
+      : saju.gyeokGuk.name.includes("편")
+        ? "특별하고 독특한 길을 걷게 되며, 창의적이고 혁신적인 방식으로 성공할 수 있습니다."
+        : "균형잡힌 발전을 이루며, 다양한 분야에서 능력을 발휘할 수 있습니다."
   }`
-      : '(격국 정보 없음)';
+    : "(격국 정보 없음)";
 
-  const yongSinPart =
-    saju.yongSin
-      ? `
+  const yongSinPart = saju.yongSin
+    ? `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-용신(用神): ${saju.yongSin.primaryYongSin}${saju.yongSin.secondaryYongSin ? ` (보조: ${saju.yongSin.secondaryYongSin})` : ''}
+용신(用神): ${saju.yongSin.primaryYongSin}${saju.yongSin.secondaryYongSin ? ` (보조: ${saju.yongSin.secondaryYongSin})` : ""}
 
 용신은 사주의 균형을 맞추고 부족한 부분을 보완해주는 가장 중요한 오행입니다.
 일생 동안 이 오행의 기운을 활용하면 운세가 크게 개선됩니다.
@@ -659,7 +751,7 @@ function analyzeGyeokGukDetailed(saju: SajuData): string {
 
   💡 용신 활용법:
   ${getYongSinAdvice(saju.yongSin.primaryYongSin)}`
-      : '';
+    : "";
 
   return gyeokGukPart + yongSinPart;
 }
@@ -669,9 +761,9 @@ function analyzeGyeokGukDetailed(saju: SajuData): string {
  */
 function getYongSinAdvice(yongSin: WuXing): string {
   const data = WUXING_DATA[yongSin];
-  return `  • 색상: ${data.color.join(', ')} 계열의 옷이나 소품을 자주 사용하세요
+  return `  • 색상: ${data.color.join(", ")} 계열의 옷이나 소품을 자주 사용하세요
   • 방향: ${data.direction}쪽 방향으로 활동하거나 중요한 일을 진행하세요
   • 계절: ${data.season}에 중요한 결정이나 시작을 하면 유리합니다
-  • 성격: ${data.personality.slice(0, 3).join(', ')}한 태도를 유지하세요
-  • 직업: ${yongSin === '목' ? '교육, 예술, 기획' : yongSin === '화' ? '영업, 서비스, 방송' : yongSin === '토' ? '부동산, 금융, 중재' : yongSin === '금' ? '법조, 경영, 군인' : '연구, IT, 학문'} 분야가 유리합니다`;
+  • 성격: ${data.personality.slice(0, 3).join(", ")}한 태도를 유지하세요
+  • 직업: ${yongSin === "목" ? "교육, 예술, 기획" : yongSin === "화" ? "영업, 서비스, 방송" : yongSin === "토" ? "부동산, 금융, 중재" : yongSin === "금" ? "법조, 경영, 군인" : "연구, IT, 학문"} 분야가 유리합니다`;
 }

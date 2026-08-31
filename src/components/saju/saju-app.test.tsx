@@ -53,7 +53,7 @@ describe("SajuApp — 운명 일지 결과 화면으로 전환할 때 문서 최
   async function enterRequiredBirthData() {
     const user = userEvent.setup();
     await user.type(screen.getByPlaceholderText("이름"), "홍길동");
-    await user.type(screen.getByPlaceholderText("년도"), "1990");
+    await user.type(screen.getByPlaceholderText("4자리 년도"), "1990");
     await user.type(screen.getByPlaceholderText("월"), "5");
     await user.type(screen.getByPlaceholderText("일"), "15");
     return user;
@@ -92,7 +92,7 @@ describe("SajuApp — 운명 일지 결과 화면으로 전환할 때 문서 최
     render(<SajuApp />);
     const user = userEvent.setup();
     await user.type(screen.getByPlaceholderText("이름"), "홍길동");
-    await user.type(screen.getByPlaceholderText("년도"), "1990");
+    await user.type(screen.getByPlaceholderText("4자리 년도"), "1990");
     await user.type(screen.getByPlaceholderText("월"), "2");
     await user.type(screen.getByPlaceholderText("일"), "31");
     await user.click(screen.getByRole("button", { name: "운명 일지 보기" }));

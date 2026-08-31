@@ -272,7 +272,12 @@ function buildBranchRelations(saju: SajuData): BranchRelationsVM | undefined {
       pillarsLabel: hit.pillars
         .map((pillar) => `${PILLAR_SHORT_LABEL[pillar]}지`)
         .join(" · "),
-      stateLabel: hit.state === "complete" ? "완성" : hit.state === "partial" ? "부분 삼합" : undefined,
+      stateLabel:
+        hit.state === "complete"
+          ? "완성"
+          : hit.state === "partial"
+            ? "부분 삼합"
+            : undefined,
       missingBranchesLabel: hit.missingBranches?.join(" · "),
       element: hit.element,
       description: hit.description,
@@ -613,6 +618,7 @@ export interface WolunDetailVM {
   color: string;
   luckyDates: number[];
   unluckyDates: number[];
+  basisLabel: string;
 }
 
 export function buildWolunDetailViewModel(
@@ -646,6 +652,7 @@ export function buildWolunDetailViewModel(
     color: analysis.advice.color,
     luckyDates: analysis.specialDays.luckyDates,
     unluckyDates: analysis.specialDays.unluckyDates,
+    basisLabel: `${year}년 ${month}월 15일 정오의 절입 기준 월주`,
   };
 }
 

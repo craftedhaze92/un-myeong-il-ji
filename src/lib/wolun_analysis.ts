@@ -8,11 +8,13 @@ import type {
   HeavenlyStem,
   EarthlyBranch,
   SajuData,
-  WuXing
-} from '../types/index';
-import { getDayPillar, getHeavenlyStemFromYear } from './helpers';
-import { josa } from './korean';
-import { getTenGodDomainDelta } from './ten_gods';
+  WuXing,
+} from "../types/index";
+import { getDayPillar } from "./helpers";
+import { fromZonedTime } from "date-fns-tz";
+import { josa } from "./korean";
+import { getPreciseMonthPillar } from "./saju";
+import { getTenGodDomainDelta } from "./ten_gods";
 
 /**
  * 월운 분석 결과
@@ -33,7 +35,7 @@ export interface WolunAnalysis {
 
   // 운세 점수
   fortune: {
-    overall: '대길' | '길' | '평' | '흉' | '대흉';
+    overall: "대길" | "길" | "평" | "흉" | "대흉";
     score: number; // 0-100
     career: number;
     wealth: number;
@@ -69,12 +71,22 @@ export interface WolunAnalysis {
 export function analyzeWolun(
   saju: SajuData,
   year: number,
-  month: number
+  month: number,
+  dayOrInstant: number | Date = 15,
 ): WolunAnalysis {
   // 1. 월간지 구하기
-  const yearStem = getHeavenlyStemFromYear(year);
-  const monthStem = getMonthStem(year, month, yearStem);
-  const monthBranch = getMonthBranch(month);
+  // 양력 한 달에는 절입 전·후 두 월주가 걸칠 수 있으므로, 선택한 날짜(기본 15일)
+  // 정오를 대표 시각으로 삼는다. 날짜 화면에서는 실제 선택일을 전달한다.
+  const targetDate =
+    dayOrInstant instanceof Date
+      ? dayOrInstant
+      : fromZonedTime(
+          `${year}-${String(month).padStart(2, "0")}-${String(dayOrInstant).padStart(2, "0")} 12:00:00`,
+          "Asia/Seoul",
+        );
+  const precisePillar = getPreciseMonthPillar(targetDate);
+  const monthStem = precisePillar.stem;
+  const monthBranch = precisePillar.branch;
   const monthPillar = `${monthStem}${monthBranch}`;
 
   // 2. 오행 분석
@@ -86,15 +98,11 @@ export function analyzeWolun(
     monthStem,
     monthBranch,
     saju,
-    elementBalance.isFavorable
+    elementBalance.isFavorable,
   );
 
   // 4. 특징 분석
-  const characteristics = analyzeCharacteristics(
-    monthPillar,
-    element,
-    fortune
-  );
+  const characteristics = analyzeCharacteristics(monthPillar, element, fortune);
 
   // 5. 특별한 날짜 분석
   const specialDays = findSpecialDays(year, month, monthBranch, saju);
@@ -122,7 +130,7 @@ export function analyzeWolun(
  */
 export function analyzeYearlyWolun(
   saju: SajuData,
-  year: number
+  year: number,
 ): WolunAnalysis[] {
   const results: WolunAnalysis[] = [];
 
@@ -134,69 +142,20 @@ export function analyzeYearlyWolun(
 }
 
 /**
- * 월간 구하기 (년간 기준 월간 계산)
- */
-function getMonthStem(
-  _year: number,
-  month: number,
-  yearStem: HeavenlyStem
-): HeavenlyStem {
-  // 월간 계산 공식
-  const stems: HeavenlyStem[] = ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'];
-
-  // 년간에 따른 월간 시작 (갑기년은 병인월부터)
-  const monthStartMap: Record<HeavenlyStem, number> = {
-    '갑': 2, '기': 2, // 갑기년 - 병인월
-    '을': 4, '경': 4, // 을경년 - 무인월
-    '병': 6, '신': 6, // 병신년 - 경인월
-    '정': 8, '임': 8, // 정임년 - 임인월
-    '무': 0, '계': 0, // 무계년 - 갑인월
-  };
-
-  const baseIndex = monthStartMap[yearStem];
-  const monthOffset = (month - 2 + 12) % 12; // 양력 2월 = 인월(0번째)
-
-  const index = (baseIndex + monthOffset) % 10;
-  return stems[index] || '갑';
-}
-
-/**
- * 월지 구하기
- *
- * 절기 시작 timestamp가 아니라 양력 월로 근사한다(절입일 전후 며칠은 부정확할 수 있음).
- * 정밀 계산이 필요하면 unified_data_query.ts의 절기 조회를 배선하는 별도 작업이 필요하다.
- */
-function getMonthBranch(month: number): EarthlyBranch {
-  // 양력 월 기준 (절입 전후로 실제로는 다를 수 있음)
-  const branches: EarthlyBranch[] = [
-    '축', // 1월 소한-2월 입춘 전
-    '인', // 2월 입춘-3월 경칩 전
-    '묘', // 3월 경칩-4월 청명 전
-    '진', // 4월 청명-5월 입하 전
-    '사', // 5월 입하-6월 망종 전
-    '오', // 6월 망종-7월 소서 전
-    '미', // 7월 소서-8월 입추 전
-    '신', // 8월 입추-9월 백로 전
-    '유', // 9월 백로-10월 한로 전
-    '술', // 10월 한로-11월 입동 전
-    '해', // 11월 입동-12월 대설 전
-    '자', // 12월 대설-1월 소한 전
-  ];
-
-  // 간단하게 양력 월 기준 (정확한 절입일 계산은 별도 필요)
-  return branches[(month - 1 + 12) % 12] || '자';
-}
-
-/**
  * 천간에서 오행 추출
  */
 function getElementFromStem(stem: HeavenlyStem): WuXing {
   const map: Record<HeavenlyStem, WuXing> = {
-    '갑': '목', '을': '목',
-    '병': '화', '정': '화',
-    '무': '토', '기': '토',
-    '경': '금', '신': '금',
-    '임': '수', '계': '수',
+    갑: "목",
+    을: "목",
+    병: "화",
+    정: "화",
+    무: "토",
+    기: "토",
+    경: "금",
+    신: "금",
+    임: "수",
+    계: "수",
   };
   return map[stem];
 }
@@ -206,33 +165,33 @@ function getElementFromStem(stem: HeavenlyStem): WuXing {
  */
 function analyzeElementBalance(
   element: WuXing,
-  saju: SajuData
-): WolunAnalysis['elementBalance'] {
+  saju: SajuData,
+): WolunAnalysis["elementBalance"] {
   const dayElement = getElementFromStem(saju.day.stem);
 
   const relation = getWuxingRelationship(element, dayElement);
 
-  let description = '';
+  let description = "";
   let isFavorable = false;
 
   switch (relation) {
-    case 'generates':
+    case "generates":
       description = `${josa(element, "이/가")} 일간 ${josa(dayElement, "을/를")} 생하여 도움이 되는 달입니다.`;
       isFavorable = true;
       break;
-    case 'generated':
+    case "generated":
       description = `일간 ${josa(dayElement, "이/가")} ${josa(element, "을/를")} 생하여 에너지 소모가 있는 달입니다.`;
       isFavorable = false;
       break;
-    case 'controls':
+    case "controls":
       description = `${josa(element, "이/가")} 일간 ${josa(dayElement, "을/를")} 극하여 압박이 있는 달입니다.`;
       isFavorable = false;
       break;
-    case 'controlled':
+    case "controlled":
       description = `일간 ${josa(dayElement, "이/가")} ${josa(element, "을/를")} 극하여 재물운이 좋은 달입니다.`;
       isFavorable = true;
       break;
-    case 'same':
+    case "same":
       description = `${josa(element, "이/가")} 일간과 같아 경쟁이 있는 달입니다.`;
       isFavorable = false;
       break;
@@ -246,24 +205,32 @@ function analyzeElementBalance(
  */
 function getWuxingRelationship(
   element1: WuXing,
-  element2: WuXing
-): 'generates' | 'generated' | 'controls' | 'controlled' | 'same' {
-  if (element1 === element2) return 'same';
+  element2: WuXing,
+): "generates" | "generated" | "controls" | "controlled" | "same" {
+  if (element1 === element2) return "same";
 
   const generates: Record<WuXing, WuXing> = {
-    '목': '화', '화': '토', '토': '금', '금': '수', '수': '목',
+    목: "화",
+    화: "토",
+    토: "금",
+    금: "수",
+    수: "목",
   };
 
   const controls: Record<WuXing, WuXing> = {
-    '목': '토', '토': '수', '수': '화', '화': '금', '금': '목',
+    목: "토",
+    토: "수",
+    수: "화",
+    화: "금",
+    금: "목",
   };
 
-  if (generates[element1] === element2) return 'generates';
-  if (generates[element2] === element1) return 'generated';
-  if (controls[element1] === element2) return 'controls';
-  if (controls[element2] === element1) return 'controlled';
+  if (generates[element1] === element2) return "generates";
+  if (generates[element2] === element1) return "generated";
+  if (controls[element1] === element2) return "controls";
+  if (controls[element2] === element1) return "controlled";
 
-  return 'same';
+  return "same";
 }
 
 /**
@@ -273,8 +240,8 @@ function calculateMonthFortune(
   monthStem: HeavenlyStem,
   monthBranch: EarthlyBranch,
   saju: SajuData,
-  isFavorable: boolean
-): WolunAnalysis['fortune'] {
+  isFavorable: boolean,
+): WolunAnalysis["fortune"] {
   let baseScore = isFavorable ? 65 : 45;
 
   // 충돌 확인
@@ -287,12 +254,12 @@ function calculateMonthFortune(
 
   const score = Math.min(100, Math.max(0, baseScore));
 
-  let overall: WolunAnalysis['fortune']['overall'];
-  if (score >= 80) overall = '대길';
-  else if (score >= 60) overall = '길';
-  else if (score >= 40) overall = '평';
-  else if (score >= 20) overall = '흉';
-  else overall = '대흉';
+  let overall: WolunAnalysis["fortune"]["overall"];
+  if (score >= 80) overall = "대길";
+  else if (score >= 60) overall = "길";
+  else if (score >= 40) overall = "평";
+  else if (score >= 20) overall = "흉";
+  else overall = "대흉";
 
   // 월운 천간이 일간 기준 어떤 십성인지(재성/관성/식상/인성/비겁)로 4대 영역별
   // 방향을 가른다 — 무작위 요소 없이 십성-육친 대응에서 결정론적으로 유도.
@@ -314,12 +281,21 @@ function calculateMonthFortune(
 function checkMonthConflict(
   _monthStem: HeavenlyStem,
   monthBranch: EarthlyBranch,
-  saju: SajuData
+  saju: SajuData,
 ): boolean {
   const branchConflicts: Record<EarthlyBranch, EarthlyBranch> = {
-    '자': '오', '축': '미', '인': '신', '묘': '유',
-    '진': '술', '사': '해', '오': '자', '미': '축',
-    '신': '인', '유': '묘', '술': '진', '해': '사',
+    자: "오",
+    축: "미",
+    인: "신",
+    묘: "유",
+    진: "술",
+    사: "해",
+    오: "자",
+    미: "축",
+    신: "인",
+    유: "묘",
+    술: "진",
+    해: "사",
   };
 
   return (
@@ -333,12 +309,21 @@ function checkMonthConflict(
  */
 function checkMonthHarmony(
   monthBranch: EarthlyBranch,
-  saju: SajuData
+  saju: SajuData,
 ): boolean {
   const sixHarmony: Record<EarthlyBranch, EarthlyBranch> = {
-    '자': '축', '인': '해', '묘': '술', '진': '유',
-    '사': '신', '오': '미', '축': '자', '해': '인',
-    '술': '묘', '유': '진', '신': '사', '미': '오',
+    자: "축",
+    인: "해",
+    묘: "술",
+    진: "유",
+    사: "신",
+    오: "미",
+    축: "자",
+    해: "인",
+    술: "묘",
+    유: "진",
+    신: "사",
+    미: "오",
   };
 
   return (
@@ -353,35 +338,35 @@ function checkMonthHarmony(
 function analyzeCharacteristics(
   _monthPillar: string,
   element: WuXing,
-  fortune: WolunAnalysis['fortune']
-): WolunAnalysis['characteristics'] {
+  fortune: WolunAnalysis["fortune"],
+): WolunAnalysis["characteristics"] {
   const keywords: string[] = [];
   const opportunities: string[] = [];
   const cautions: string[] = [];
 
   // 오행별 특징
   const elementKeywords: Record<WuXing, string[]> = {
-    '목': ['성장', '확장', '창의'],
-    '화': ['열정', '명예', '활동'],
-    '토': ['안정', '신뢰', '축적'],
-    '금': ['결단', '정리', '수확'],
-    '수': ['지혜', '유연', '소통'],
+    목: ["성장", "확장", "창의"],
+    화: ["열정", "명예", "활동"],
+    토: ["안정", "신뢰", "축적"],
+    금: ["결단", "정리", "수확"],
+    수: ["지혜", "유연", "소통"],
   };
   keywords.push(...elementKeywords[element]);
 
   // 운세별 특징
-  if (fortune.overall === '대길' || fortune.overall === '길') {
-    keywords.push('길운', '성공');
-    opportunities.push('새로운 시작과 도전에 유리');
-    opportunities.push('중요한 결정과 계약 진행 가능');
-  } else if (fortune.overall === '평') {
-    keywords.push('평온', '유지');
-    opportunities.push('현상 유지와 내실 다지기');
-    cautions.push('무리한 확장이나 투자는 신중히');
+  if (fortune.overall === "대길" || fortune.overall === "길") {
+    keywords.push("길운", "성공");
+    opportunities.push("새로운 시작과 도전에 유리");
+    opportunities.push("중요한 결정과 계약 진행 가능");
+  } else if (fortune.overall === "평") {
+    keywords.push("평온", "유지");
+    opportunities.push("현상 유지와 내실 다지기");
+    cautions.push("무리한 확장이나 투자는 신중히");
   } else {
-    keywords.push('주의', '조심');
-    cautions.push('새로운 시작이나 큰 결정은 미루기');
-    cautions.push('건강과 안전에 특별히 유의');
+    keywords.push("주의", "조심");
+    cautions.push("새로운 시작이나 큰 결정은 미루기");
+    cautions.push("건강과 안전에 특별히 유의");
   }
 
   return { keywords, opportunities, cautions };
@@ -394,8 +379,8 @@ function findSpecialDays(
   year: number,
   month: number,
   _monthBranch: EarthlyBranch,
-  saju: SajuData
-): WolunAnalysis['specialDays'] {
+  saju: SajuData,
+): WolunAnalysis["specialDays"] {
   const luckyDates: number[] = [];
   const unluckyDates: number[] = [];
 
@@ -407,23 +392,49 @@ function findSpecialDays(
 
     // 육합일
     const sixHarmony: Record<EarthlyBranch, EarthlyBranch> = {
-      '자': '축', '인': '해', '묘': '술', '진': '유',
-      '사': '신', '오': '미', '축': '자', '해': '인',
-      '술': '묘', '유': '진', '신': '사', '미': '오',
+      자: "축",
+      인: "해",
+      묘: "술",
+      진: "유",
+      사: "신",
+      오: "미",
+      축: "자",
+      해: "인",
+      술: "묘",
+      유: "진",
+      신: "사",
+      미: "오",
     };
 
-    if (dayBranch && sixHarmony[dayBranch] && saju.day.branch === sixHarmony[dayBranch]) {
+    if (
+      dayBranch &&
+      sixHarmony[dayBranch] &&
+      saju.day.branch === sixHarmony[dayBranch]
+    ) {
       luckyDates.push(day);
     }
 
     // 충일
     const conflicts: Record<EarthlyBranch, EarthlyBranch> = {
-      '자': '오', '축': '미', '인': '신', '묘': '유',
-      '진': '술', '사': '해', '오': '자', '미': '축',
-      '신': '인', '유': '묘', '술': '진', '해': '사',
+      자: "오",
+      축: "미",
+      인: "신",
+      묘: "유",
+      진: "술",
+      사: "해",
+      오: "자",
+      미: "축",
+      신: "인",
+      유: "묘",
+      술: "진",
+      해: "사",
     };
 
-    if (dayBranch && conflicts[dayBranch] && saju.day.branch === conflicts[dayBranch]) {
+    if (
+      dayBranch &&
+      conflicts[dayBranch] &&
+      saju.day.branch === conflicts[dayBranch]
+    ) {
       unluckyDates.push(day);
     }
   }
@@ -439,33 +450,33 @@ function findSpecialDays(
  */
 function generateMonthAdvice(
   element: WuXing,
-  fortune: WolunAnalysis['fortune'],
-  _monthBranch: EarthlyBranch
-): WolunAnalysis['advice'] {
+  fortune: WolunAnalysis["fortune"],
+  _monthBranch: EarthlyBranch,
+): WolunAnalysis["advice"] {
   const doList: string[] = [];
   const dontList: string[] = [];
 
   // 오행별 조언
-  const elementAdvice: Record<WuXing, { do: string[], dont: string[] }> = {
-    '목': {
-      do: ['새로운 계획 수립', '학습과 성장 활동', '창의적 프로젝트'],
-      dont: ['과도한 확장', '충동적 결정'],
+  const elementAdvice: Record<WuXing, { do: string[]; dont: string[] }> = {
+    목: {
+      do: ["새로운 계획 수립", "학습과 성장 활동", "창의적 프로젝트"],
+      dont: ["과도한 확장", "충동적 결정"],
     },
-    '화': {
-      do: ['대외 활동 확대', '홍보와 마케팅', '네트워킹'],
-      dont: ['감정적 대응', '과시적 소비'],
+    화: {
+      do: ["대외 활동 확대", "홍보와 마케팅", "네트워킹"],
+      dont: ["감정적 대응", "과시적 소비"],
     },
-    '토': {
-      do: ['저축과 투자', '관계 돈독히', '건강 관리'],
-      dont: ['무리한 일정', '신뢰 없는 거래'],
+    토: {
+      do: ["저축과 투자", "관계 돈독히", "건강 관리"],
+      dont: ["무리한 일정", "신뢰 없는 거래"],
     },
-    '금': {
-      do: ['정리와 마무리', '중요 결정', '계약 체결'],
-      dont: ['불필요한 지출', '독단적 행동'],
+    금: {
+      do: ["정리와 마무리", "중요 결정", "계약 체결"],
+      dont: ["불필요한 지출", "독단적 행동"],
     },
-    '수': {
-      do: ['학습과 연구', '소통과 협력', '여행과 이동'],
-      dont: ['우유부단', '과도한 타협'],
+    수: {
+      do: ["학습과 연구", "소통과 협력", "여행과 이동"],
+      dont: ["우유부단", "과도한 타협"],
     },
   };
 
@@ -474,27 +485,27 @@ function generateMonthAdvice(
 
   // 운세별 조언
   if (fortune.score >= 60) {
-    doList.push('적극적 행동과 도전');
+    doList.push("적극적 행동과 도전");
   } else {
-    dontList.push('큰 변화나 모험');
+    dontList.push("큰 변화나 모험");
   }
 
   // 방위 (오행별)
   const directions: Record<WuXing, string> = {
-    '목': '동쪽',
-    '화': '남쪽',
-    '토': '중앙',
-    '금': '서쪽',
-    '수': '북쪽',
+    목: "동쪽",
+    화: "남쪽",
+    토: "중앙",
+    금: "서쪽",
+    수: "북쪽",
   };
 
   // 색상 (오행별)
   const colors: Record<WuXing, string> = {
-    '목': '녹색, 청색',
-    '화': '적색, 자주색',
-    '토': '황색, 갈색',
-    '금': '백색, 금색',
-    '수': '흑색, 남색',
+    목: "녹색, 청색",
+    화: "적색, 자주색",
+    토: "황색, 갈색",
+    금: "백색, 금색",
+    수: "흑색, 남색",
   };
 
   return {
