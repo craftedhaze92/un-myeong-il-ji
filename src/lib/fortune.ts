@@ -38,10 +38,7 @@ export function analyzeFortune(
 /**
  * 종합 운세 분석
  */
-function analyzeGeneralFortune(
-  sajuData: SajuData,
-  balance: ReturnType<typeof analyzeWuXingBalance>
-): FortuneAnalysis {
+function analyzeGeneralFortune(sajuData: SajuData, balance: ReturnType<typeof analyzeWuXingBalance>): FortuneAnalysis {
   const positiveParts: string[] = [];
   const negativeParts: string[] = [];
   const adviceParts: string[] = [];
@@ -65,43 +62,42 @@ function analyzeGeneralFortune(
   if (balance.strong.length > 0) {
     const average = 8 / 5; // 총 8개 / 5개 오행
 
-    const strongDesc = balance.strong
-      .map((element) => {
-        const data = WUXING_DATA[element];
-        const count = sajuData.wuxingCount[element];
-        const ratio = count / average;
+    const strongDesc = balance.strong.map((element) => {
+      const data = WUXING_DATA[element];
+      const count = sajuData.wuxingCount[element];
+      const ratio = count / average;
 
-        // 강도에 따라 특성 개수 조정
-        let numTraits = 2;
-        if (ratio >= 2.5) {
-          numTraits = 4; // 매우 강함: 4개 특성
-        } else if (ratio >= 2.0) {
-          numTraits = 3; // 강함: 3개 특성
-        }
+      // 강도에 따라 특성 개수 조정
+      let numTraits = 2;
+      if (ratio >= 2.5) {
+        numTraits = 4; // 매우 강함: 4개 특성
+      } else if (ratio >= 2.0) {
+        numTraits = 3; // 강함: 3개 특성
+      }
 
-        const traits = data.personality.slice(0, numTraits).join(', ');
+      const traits = data.personality.slice(0, numTraits).join(', ');
 
-        // 강한 오행이 2개 이상이면 오행마다 강도 수식어(뚜렷한/강한/매우 강한)를 붙이지
-        // 않는다 — 뒤 문장이 "복합적으로 나타나 다채롭고 입체적인 성격을 형성"이라고 이미
-        // 강함/풍부함을 표현하는데, 여러 오행의 세력 비율이 같은 구간에 들면 똑같은
-        // 수식어가 그대로 반복돼("뚜렷한 ... 뚜렷한") 읽는 흐름을 끊었다. 강한 오행이
-        // 1개뿐일 때는 반복될 일이 없으므로 그대로 강도를 표현한다.
-        if (balance.strong.length > 1) {
-          return `${element}(${data.hanja}) 기운의 영향으로 ${traits} 등의 특성`;
-        }
+      // 강한 오행이 2개 이상이면 오행마다 강도 수식어(뚜렷한/강한/매우 강한)를 붙이지
+      // 않는다 — 뒤 문장이 "복합적으로 나타나 다채롭고 입체적인 성격을 형성"이라고 이미
+      // 강함/풍부함을 표현하는데, 여러 오행의 세력 비율이 같은 구간에 들면 똑같은
+      // 수식어가 그대로 반복돼("뚜렷한 ... 뚜렷한") 읽는 흐름을 끊었다. 강한 오행이
+      // 1개뿐일 때는 반복될 일이 없으므로 그대로 강도를 표현한다.
+      if (balance.strong.length > 1) {
+        return `${element}(${data.hanja}) 기운의 영향으로 ${traits} 등의 특성`;
+      }
 
-        const intensity = ratio >= 2.5 ? '매우 강한' : ratio >= 2.0 ? '강한' : '뚜렷한';
-        return `${element}(${data.hanja}) 기운의 ${intensity} 영향으로 ${traits} 등의 특성`;
-      });
+      const intensity = ratio >= 2.5 ? '매우 강한' : ratio >= 2.0 ? '강한' : '뚜렷한';
+      return `${element}(${data.hanja}) 기운의 ${intensity} 영향으로 ${traits} 등의 특성`;
+    });
     const strongDescText = joinKoreanList(strongDesc);
 
     // 여러 강한 오행이 있을 경우 혼합 표현
     if (balance.strong.length > 1) {
       positiveParts.push(
-        `${josa(strongDescText, "이/가")} 복합적으로 나타나 다채롭고 입체적인 성격을 형성하고 있습니다.`
+        `${josa(strongDescText, '이/가')} 복합적으로 나타나 다채롭고 입체적인 성격을 형성하고 있습니다.`
       );
     } else {
-      positiveParts.push(`${josa(strongDescText, "이/가")} 뚜렷하게 나타나고 있습니다.`);
+      positiveParts.push(`${josa(strongDescText, '이/가')} 뚜렷하게 나타나고 있습니다.`);
     }
   }
 
@@ -112,7 +108,7 @@ function analyzeGeneralFortune(
       return `${element} 기운을 보충하는 ${data.color.join('/')} 색상`;
     });
     const weakColorsText = joinKoreanList(weakColors);
-    adviceParts.push(`일상에서 ${josa(weakColorsText, "을/를")} 활용하면 오행의 균형을 맞추는 데 도움이 될 것입니다.`);
+    adviceParts.push(`일상에서 ${josa(weakColorsText, '을/를')} 활용하면 오행의 균형을 맞추는 데 도움이 될 것입니다.`);
   }
 
   // 십성 분석 통합 (강도 표현 활용)
@@ -140,8 +136,8 @@ function analyzeGeneralFortune(
         if (interp.weaknesses.length > 0 && interp.count >= 1.5) {
           const weaknessText =
             interp.intensity === 'very_strong'
-              ? `${josa(interp.tenGod, "이/가")} 매우 과다하여 ${interp.weaknesses[0]}`
-              : `${josa(interp.tenGod, "이/가")} 과다하여 ${interp.weaknesses[0]}`;
+              ? `${josa(interp.tenGod, '이/가')} 매우 과다하여 ${interp.weaknesses[0]}`
+              : `${josa(interp.tenGod, '이/가')} 과다하여 ${interp.weaknesses[0]}`;
           tenGodsWeaknesses.push(weaknessText);
         }
       }
@@ -187,24 +183,23 @@ function analyzeGeneralFortune(
       ? '전반적으로 균형잡힌 운세를 가지고 있습니다'
       : '오행의 균형을 맞추면 더 좋은 운세가 될 것입니다',
     details: {
-      positive: positiveParts.length > 0 ? [positiveParts.join(' ')] : [],
-      negative: negativeParts.length > 0 ? [negativeParts.join(' ')] : [],
-      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : [],
+      // 근거별 문장을 배열로 유지한다. 한 항목으로 합치면 UI에서 오행·십성·신살 근거가
+      // 거대한 단일 bullet이 되어 읽기 어렵고, 평생 총평도 근거를 나눠 제시할 수 없다.
+      positive: positiveParts,
+      negative: negativeParts,
+      advice: adviceParts
     },
     luckyElements: {
       colors: balance.weak.flatMap((e) => WUXING_DATA[e].color),
-      directions: balance.weak.map((e) => WUXING_DATA[e].direction),
-    },
+      directions: balance.weak.map((e) => WUXING_DATA[e].direction)
+    }
   };
 }
 
 /**
  * 직업운 분석
  */
-function analyzeCareerFortune(
-  sajuData: SajuData,
-  balance: ReturnType<typeof analyzeWuXingBalance>
-): FortuneAnalysis {
+function analyzeCareerFortune(sajuData: SajuData, balance: ReturnType<typeof analyzeWuXingBalance>): FortuneAnalysis {
   const positiveParts: string[] = [];
   const negativeParts: string[] = [];
   const adviceParts: string[] = [];
@@ -214,15 +209,11 @@ function analyzeCareerFortune(
 
   switch (dayStem) {
     case '목':
-      positiveParts.push(
-        '일간이 목(木) 기운을 가지고 있어 창의적이고 성장지향적인 분야에 뛰어난 적성을 보입니다.'
-      );
+      positiveParts.push('일간이 목(木) 기운을 가지고 있어 창의적이고 성장지향적인 분야에 뛰어난 적성을 보입니다.');
       adviceParts.push('교육, 예술, 기획과 같이 새로운 것을 만들어내는 분야에서 능력을 발휘할 수 있습니다.');
       break;
     case '화':
-      positiveParts.push(
-        '일간의 화(火) 기운은 활동적이고 사람을 대하는 일에 타고난 재능을 부여합니다.'
-      );
+      positiveParts.push('일간의 화(火) 기운은 활동적이고 사람을 대하는 일에 타고난 재능을 부여합니다.');
       adviceParts.push('영업, 서비스, 방송 등 사람들과 소통하며 열정을 전달하는 분야가 잘 맞을 것입니다.');
       break;
     case '토':
@@ -231,9 +222,7 @@ function analyzeCareerFortune(
       break;
     case '금':
       positiveParts.push('금(金) 일간은 원칙적이고 결단력있는 리더십의 자질을 보여줍니다.');
-      adviceParts.push(
-        '법조계, 군인, 경영 분야처럼 명확한 판단과 실행력이 요구되는 직업이 잘 맞습니다.'
-      );
+      adviceParts.push('법조계, 군인, 경영 분야처럼 명확한 판단과 실행력이 요구되는 직업이 잘 맞습니다.');
       break;
     case '수':
       positiveParts.push('수(水) 일간의 특성으로 지혜롭고 분석적인 사고력이 매우 뛰어납니다.');
@@ -249,9 +238,7 @@ function analyzeCareerFortune(
 
     // 식신/상관: 표현력, 창조력
     if (dist.식신 >= 2 || dist.상관 >= 2) {
-      tenGodsParts.push(
-        '식신과 상관이 강하게 작용하여 창의적이고 표현력이 뛰어난 성향을 지니고 있습니다'
-      );
+      tenGodsParts.push('식신과 상관이 강하게 작용하여 창의적이고 표현력이 뛰어난 성향을 지니고 있습니다');
       tenGodsAdvice.push('예술, 창작, 콘텐츠 제작 분야에서 독창적인 재능을 발휘할 수 있습니다');
     }
 
@@ -308,18 +295,15 @@ function analyzeCareerFortune(
     details: {
       positive: positiveParts.length > 0 ? [positiveParts.join(' ')] : [],
       negative: negativeParts.length > 0 ? [negativeParts.join(' ')] : [],
-      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : [],
-    },
+      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : []
+    }
   };
 }
 
 /**
  * 재물운 분석
  */
-function analyzeWealthFortune(
-  sajuData: SajuData,
-  balance: ReturnType<typeof analyzeWuXingBalance>
-): FortuneAnalysis {
+function analyzeWealthFortune(sajuData: SajuData, balance: ReturnType<typeof analyzeWuXingBalance>): FortuneAnalysis {
   const positiveParts: string[] = [];
   const negativeParts: string[] = [];
   const adviceParts: string[] = [];
@@ -331,7 +315,7 @@ function analyzeWealthFortune(
 
   if (wealthCount >= 2) {
     positiveParts.push(
-      `사주 내 ${josa(`재성(${wealthElement})`, "이/가")} 충분히 자리잡고 있어 재물을 모으고 불리는 운이 양호한 편입니다.`
+      `사주 내 ${josa(`재성(${wealthElement})`, '이/가')} 충분히 자리잡고 있어 재물을 모으고 불리는 운이 양호한 편입니다.`
     );
     adviceParts.push(
       '재물운이 뒷받침되는 시기이므로 투자 기회가 찾아올 때 적극적으로 검토하고 도전해보는 것이 좋습니다.'
@@ -357,9 +341,7 @@ function analyzeWealthFortune(
     // 정재: 안정적 재물, 근로소득
     if (dist.정재 >= 2) {
       tenGodsParts.push('정재가 강하게 작용하여 꾸준하고 안정적인 재물운을 가지고 있습니다');
-      tenGodsAdvice.push(
-        '정기적인 수입원을 확보하고 체계적인 저축 습관을 들이면 탄탄한 재정 기반을 만들 수 있습니다'
-      );
+      tenGodsAdvice.push('정기적인 수입원을 확보하고 체계적인 저축 습관을 들이면 탄탄한 재정 기반을 만들 수 있습니다');
     } else if (dist.정재 === 0) {
       negativeParts.push('정재가 없어 안정적이고 지속적인 수입원을 확보하는 데 어려움이 있을 수 있습니다.');
     }
@@ -390,9 +372,7 @@ function analyzeWealthFortune(
     // 비견/겁재: 재물 경쟁, 나눔
     if (dist.비견 + dist.겁재 >= 3) {
       if (dist.정재 + dist.편재 === 0) {
-        negativeParts.push(
-          '비겁은 많지만 재성이 없어 재물을 모으기보다는 나누거나 써야 하는 상황이 많을 수 있습니다.'
-        );
+        negativeParts.push('비겁은 많지만 재성이 없어 재물을 모으기보다는 나누거나 써야 하는 상황이 많을 수 있습니다.');
         adviceParts.push(
           '다른 사람과의 협업보다는 독립적인 수입원을 개발하고 자신만의 사업 모델을 만드는 데 집중하는 것이 좋습니다.'
         );
@@ -416,18 +396,15 @@ function analyzeWealthFortune(
     details: {
       positive: positiveParts.length > 0 ? [positiveParts.join(' ')] : [],
       negative: negativeParts.length > 0 ? [negativeParts.join(' ')] : [],
-      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : [],
-    },
+      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : []
+    }
   };
 }
 
 /**
  * 건강운 분석
  */
-function analyzeHealthFortune(
-  _sajuData: SajuData,
-  balance: ReturnType<typeof analyzeWuXingBalance>
-): FortuneAnalysis {
+function analyzeHealthFortune(_sajuData: SajuData, balance: ReturnType<typeof analyzeWuXingBalance>): FortuneAnalysis {
   const positiveParts: string[] = [];
   const negativeParts: string[] = [];
   const adviceParts: string[] = [];
@@ -476,18 +453,15 @@ function analyzeHealthFortune(
     details: {
       positive: positiveParts.length > 0 ? [positiveParts.join(' ')] : [],
       negative: negativeParts.length > 0 ? [negativeParts.join(' ')] : [],
-      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : [],
-    },
+      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : []
+    }
   };
 }
 
 /**
  * 애정운 분석
  */
-function analyzeLoveFortune(
-  sajuData: SajuData,
-  _balance: ReturnType<typeof analyzeWuXingBalance>
-): FortuneAnalysis {
+function analyzeLoveFortune(sajuData: SajuData, _balance: ReturnType<typeof analyzeWuXingBalance>): FortuneAnalysis {
   const positiveParts: string[] = [];
   const negativeParts: string[] = [];
   const adviceParts: string[] = [];
@@ -508,9 +482,7 @@ function analyzeLoveFortune(
       positiveParts.push(
         '화(火) 일간의 영향으로 열정적이고 표현이 풍부한 사랑을 하며, 상대방에게 강렬한 인상을 남깁니다.'
       );
-      adviceParts.push(
-        '때로는 차분하고 절제된 모습도 보여주면 관계가 더욱 깊어지고 오래 지속될 수 있습니다.'
-      );
+      adviceParts.push('때로는 차분하고 절제된 모습도 보여주면 관계가 더욱 깊어지고 오래 지속될 수 있습니다.');
       break;
     case '토':
       positiveParts.push(
@@ -532,9 +504,7 @@ function analyzeLoveFortune(
       positiveParts.push(
         '수(水) 일간으로 깊이있고 지적인 교감을 중시하며, 정신적인 유대감과 이해를 바탕으로 사랑을 키워갑니다.'
       );
-      adviceParts.push(
-        '생각과 감정을 말로 표현하는 연습을 통해 상대방에게 마음을 더 잘 전달할 수 있도록 노력하세요.'
-      );
+      adviceParts.push('생각과 감정을 말로 표현하는 연습을 통해 상대방에게 마음을 더 잘 전달할 수 있도록 노력하세요.');
       break;
   }
 
@@ -558,16 +528,12 @@ function analyzeLoveFortune(
           );
         }
         if (dist.편재 >= 2) {
-          negativeParts.push(
-            '편재가 많아 여러 이성과의 인연이 생기기 쉽고 관계가 복잡해질 수 있는 경향이 있습니다.'
-          );
+          negativeParts.push('편재가 많아 여러 이성과의 인연이 생기기 쉽고 관계가 복잡해질 수 있는 경향이 있습니다.');
           spouseAdvice.push('한 사람에게 집중하고 진심을 다하는 태도가 행복한 결실을 맺는 데 중요합니다');
         }
       } else if (spouseCount === 0) {
         negativeParts.push('재성이 없어 이성과의 인연이 약하거나 만남의 기회가 적을 수 있습니다.');
-        spouseAdvice.push(
-          '적극적으로 사회활동이나 모임에 참여하여 새로운 만남의 기회를 만들어가는 노력이 필요합니다'
-        );
+        spouseAdvice.push('적극적으로 사회활동이나 모임에 참여하여 새로운 만남의 기회를 만들어가는 노력이 필요합니다');
       }
     } else {
       // 여성: 관성(官星)이 배우자
@@ -580,9 +546,7 @@ function analyzeLoveFortune(
           );
         }
         if (dist.편관 >= 2) {
-          negativeParts.push(
-            '편관이 많아 애정 관계에서 복잡한 상황이 발생하거나 선택의 어려움을 겪을 수 있습니다.'
-          );
+          negativeParts.push('편관이 많아 애정 관계에서 복잡한 상황이 발생하거나 선택의 어려움을 겪을 수 있습니다.');
           spouseAdvice.push('신중하게 상대방을 선택하고 관계를 발전시켜 나가는 것이 중요합니다');
         }
       } else if (spouseCount === 0) {
@@ -616,9 +580,7 @@ function analyzeLoveFortune(
 
     // 비겁(比劫) 과다: 배우자성 경쟁
     if (dist.비견 + dist.겁재 >= 4) {
-      negativeParts.push(
-        '비겁이 많아 이성 관계에서 경쟁 상황이 발생하거나 애정 문제로 인한 갈등을 겪을 수 있습니다.'
-      );
+      negativeParts.push('비겁이 많아 이성 관계에서 경쟁 상황이 발생하거나 애정 문제로 인한 갈등을 겪을 수 있습니다.');
       adviceParts.push(
         '독점욕이나 질투심을 줄이고 상대방의 자유와 개성을 존중하며 신뢰를 바탕으로 관계를 발전시켜 나가세요.'
       );
@@ -643,8 +605,8 @@ function analyzeLoveFortune(
     details: {
       positive: positiveParts.length > 0 ? [positiveParts.join(' ')] : [],
       negative: negativeParts.length > 0 ? [negativeParts.join(' ')] : [],
-      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : [],
-    },
+      advice: adviceParts.length > 0 ? [adviceParts.join(' ')] : []
+    }
   };
 }
 
@@ -703,7 +665,7 @@ export function getDailyFortune(sajuData: SajuData, date: string): DailyFortune 
     loveLuck: Math.round(Math.min(100, Math.max(30, 68 + variance + getVariance(4)))),
     luckyColor: WUXING_DATA[dayElement].color[0]!,
     luckyDirection: WUXING_DATA[dayElement].direction,
-    advice: `오늘은 ${dayElement} 기운이 강한 날입니다. ${WUXING_DATA[dayElement].personality[0]}하게 행동하세요.`,
+    advice: `오늘은 ${dayElement} 기운이 강한 날입니다. ${WUXING_DATA[dayElement].personality[0]}하게 행동하세요.`
   };
 }
 
@@ -716,7 +678,7 @@ function getDestroyedElement(element: WuXing): WuXing {
     화: '금',
     토: '수',
     금: '목',
-    수: '화',
+    수: '화'
   };
   return map[element];
 }
@@ -730,8 +692,7 @@ function getHealthAdvice(element: string): string {
     화: '심장과 혈압에 주의하고, 과한 흥분을 자제하세요',
     토: '소화기와 비장 건강을 챙기고, 규칙적인 식사를 하세요',
     금: '호흡기와 피부를 관리하고, 건조함을 피하세요',
-    수: '신장과 방광 건강에 신경쓰고, 충분한 수분 섭취를 하세요',
+    수: '신장과 방광 건강에 신경쓰고, 충분한 수분 섭취를 하세요'
   };
   return adviceMap[element] || '건강 관리에 신경쓰세요';
 }
-

@@ -1,7 +1,7 @@
 /**
  * 사주 "풀이"(해석 서술) 프레젠테이션 레이어.
  *
- * 계산 로직을 새로 짜지 않고 src/lib의 기존 서술 엔진(analyzeFortune, interpretAllTenGods,
+ * 계산 로직을 새로 짜지 않고 src/lib의 기존 서술 엔진(analyzeLifeAreas, analyzeLifetime,
  * recommendCareer, analyzeDaeun, analyzeSeyun 등)을 조립해 화면에 바로 쓸 수 있는 VM으로 만든다.
  * view-model.ts와 같은 규약: 순수 함수, SajuData(+대운 목록) → 프레젠테이션 VM.
  */
@@ -15,24 +15,27 @@ import {
   type DaeunAnalysis,
   type DaeunPeriod,
 } from "@/lib/daeun_analysis";
-import { analyzeFortune } from "@/lib/fortune";
+import {
+  analyzeDominantTenGods,
+  analyzeLifeAreas,
+  type DominantTenGodAnalysis,
+  type LifeAreaAnalysis,
+} from "@/lib/life_area_analysis";
+import {
+  analyzeLifetime,
+  type LifetimeHighlight,
+  type LifetimeOverview,
+  type LifetimeStage,
+} from "@/lib/lifetime_analysis";
 import { analyzeSeyun } from "@/lib/seyun_analysis";
 import { analyzeWolun } from "@/lib/wolun_analysis";
 import { analyzeTimingAdvice, type DecisionType } from "@/lib/timing_advice";
 import { analyzePungsu, type SpaceType } from "@/lib/pungsu_advice";
 import { analyzeName } from "@/lib/jakmeong_analysis";
 import { getAllSinSalInfo, interpretBySinSal } from "@/lib/sin_sal";
-import { interpretAllTenGods } from "@/lib/ten_gods";
 import { getFortuneYearForManAge, getManAgeForFortuneYear } from "@/utils/date";
 import { selectYongSin, generateYongSinAdvice } from "@/lib/yong_sin";
-import type {
-  FortuneAnalysis,
-  FortuneAnalysisType,
-  HeavenlyStem,
-  SajuData,
-  TenGod,
-  WuXing,
-} from "@/types";
+import type { HeavenlyStem, SajuData, WuXing } from "@/types";
 
 // ── 공통 라벨 ──────────────────────────────────────────────────────────
 
@@ -82,14 +85,6 @@ const GYEOKGUK_STATUS_LABEL: Record<
   파격: "파격(破格)",
   성중유패: "성중유패(成中有敗)",
   패중유구: "패중유구(敗中有救)",
-};
-
-const INTENSITY_LABEL: Record<string, string> = {
-  very_strong: "매우 강함",
-  strong: "강함",
-  moderate: "보통",
-  weak: "약함",
-  very_weak: "매우 약함",
 };
 
 const SINSAL_TYPE_LABEL: Record<"lucky" | "unlucky" | "neutral", string> = {
@@ -365,82 +360,38 @@ export function buildMyeongsikViewModel(saju: SajuData): MyeongsikVM {
 
 // ── 블록 2: 총평·성격·재물·건강·애정 ─────────────────────────────────────
 
-export interface FortuneBlockVM {
-  type: FortuneAnalysisType;
-  label: string;
-  score: number;
-  summary: string;
-  positive: string[];
-  negative: string[];
-  advice: string[];
-  luckyColors: string[];
-  luckyDirections: string[];
-  luckyNumbers: number[];
-}
+export type FortuneBlockVM = LifeAreaAnalysis;
 
-export interface PersonalityAxisVM {
-  tenGod: TenGod;
-  count: number;
-  intensityLabel: string;
-  strengths: string[];
-  weaknesses: string[];
-  advice: string[];
-}
+export type PersonalityAxisVM = DominantTenGodAnalysis;
 
 export interface LifeVM {
+  overview: LifetimeOverview;
+  stages: LifetimeStage[];
+  highlights: LifetimeHighlight[];
+  precisionNote?: string;
+  /** 총평은 overview가 담당하므로 영역별 운세 3개만 둔다. */
   fortunes: FortuneBlockVM[];
   personality: PersonalityAxisVM[];
 }
 
-const FORTUNE_LABEL: Record<FortuneAnalysisType, string> = {
-  general: "총평",
-  career: "직업",
-  wealth: "재물",
-  health: "건강",
-  love: "애정",
-};
-
-function buildFortuneBlock(
+export function buildLifeViewModel(
   saju: SajuData,
-  type: FortuneAnalysisType,
-): FortuneBlockVM {
-  const result: FortuneAnalysis = analyzeFortune(saju, type);
-  return {
-    type,
-    label: FORTUNE_LABEL[type],
-    score: result.score,
-    summary: result.summary,
-    positive: result.details.positive,
-    negative: result.details.negative,
-    advice: result.details.advice,
-    luckyColors: result.luckyElements?.colors ?? [],
-    luckyDirections: result.luckyElements?.directions ?? [],
-    luckyNumbers: result.luckyElements?.numbers ?? [],
-  };
-}
-
-export function buildLifeViewModel(saju: SajuData): LifeVM {
+  daeUn: DaeUnPeriod[],
+): LifeVM {
   // 'career'는 career_recommendation.ts 기반 CareerVM(블록 4)이 이미 더 상세히 다루므로 여기서는 뺀다.
-  const fortunes = (["general", "wealth", "health", "love"] as const).map(
-    (type) => buildFortuneBlock(saju, type),
-  );
+  // 'general'은 대운까지 조합하는 평생 총평으로 확장해 별도 overview에 둔다.
+  const fortunes = analyzeLifeAreas(saju);
+  const lifetime = analyzeLifetime(saju, daeUn);
+  const personality = analyzeDominantTenGods(saju);
 
-  const personality: PersonalityAxisVM[] = saju.tenGodsDistribution
-    ? interpretAllTenGods(saju.tenGodsDistribution)
-        .filter((t) => t.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 4)
-        .map((t) => ({
-          tenGod: t.tenGod,
-          count: Math.round(t.count * 10) / 10,
-          intensityLabel: INTENSITY_LABEL[t.intensity] ?? t.intensity,
-          strengths: t.strengths,
-          weaknesses: t.weaknesses,
-          advice: t.advice,
-        }))
-    : [];
-
-  return { fortunes, personality };
+  return {
+    overview: lifetime.overview,
+    stages: lifetime.stages,
+    highlights: lifetime.highlights,
+    precisionNote: lifetime.precisionNote,
+    fortunes,
+    personality,
+  };
 }
 
 // ── 블록 3: 대운·세운 흐름 ─────────────────────────────────────────────
@@ -1029,7 +980,7 @@ export interface BuildReadingViewModelParams {
 /**
  * 풀이 전체를 한 번에 조립한다. 대운·세운 선택지를 사용자가 바꿀 때는 이 함수 전체를
  * 다시 부르지 말고 buildDaeunDetailViewModel / buildSeyunDetailViewModel을 직접 호출한다 —
- * 이 함수는 analyzeFortune 4회 + recommendCareer + 세운 9개년 분석까지 포함해 비교적 무겁다.
+ * 이 함수는 인생 영역 분석 + recommendCareer + 세운 9개년 분석까지 포함해 비교적 무겁다.
  */
 export function buildReadingViewModel({
   saju,
@@ -1038,7 +989,7 @@ export function buildReadingViewModel({
 }: BuildReadingViewModelParams): ReadingVM {
   return {
     myeongsik: buildMyeongsikViewModel(saju),
-    life: buildLifeViewModel(saju),
+    life: buildLifeViewModel(saju, daeUn),
     flow: buildFlowViewModel(saju, daeUn, nowYear),
     career: buildCareerViewModel(saju),
   };

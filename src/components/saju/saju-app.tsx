@@ -31,6 +31,20 @@ interface ResultState {
   nowYear: number;
 }
 
+function scrollToPageTop() {
+  // 결과 화면이 커밋되는 다음 프레임에 이동해, 입력 폼의 스크롤 위치가 결과 화면에
+  // 그대로 남지 않게 한다. 모션 감소 설정은 MotionConfig와 동일하게 존중한다.
+  window.requestAnimationFrame(() => {
+    const reduceMotion =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  });
+}
+
 export function SajuApp() {
   const [form, setForm] = useState<BirthFormValues>(EMPTY_BIRTH_FORM_VALUES);
   const [result, setResult] = useState<ResultState | null>(null);
@@ -82,6 +96,7 @@ export function SajuApp() {
         gender,
         nowYear: new Date().getFullYear(),
       });
+      scrollToPageTop();
     } catch (e) {
       setError(formatErrorForUser(e).error.message);
     }
@@ -123,20 +138,22 @@ export function SajuApp() {
       <div className={cn(styles.root, sajuFontVariables, dark && "dark")}>
         <div
           className={cn(
-            "flex min-h-screen flex-col items-center bg-bg px-4 pb-24 font-sans font-normal text-fg",
+            "bg-bg text-fg flex min-h-screen flex-col items-center px-4 pb-24 font-sans font-normal",
             "transition-colors duration-[400ms] ease-in-out sm:px-6 lg:px-8",
           )}
           style={{ fontFamily: "var(--font-plex-sans), sans-serif" }}
         >
-          <header className="umij-container flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 border-b border-line py-6 pb-[18px] sm:pt-7">
+          <header className="umij-container border-line flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 border-b py-6 pb-[18px] sm:pt-7">
             <div className="flex items-baseline gap-3">
               <span className="font-myeongjo text-section font-extrabold tracking-[0.02em]">
                 運命日誌
               </span>
-              <span className="text-body tracking-[0.06em] text-dim">운명일지</span>
+              <span className="text-body text-dim tracking-[0.06em]">
+                운명일지
+              </span>
             </div>
             <div className="flex items-center gap-4">
-              <span className="hidden text-body tracking-[0.04em] text-dim sm:inline">
+              <span className="text-body text-dim hidden tracking-[0.04em] sm:inline">
                 {viewModel ? viewModel.headerNote : "사주팔자"}
               </span>
               <motion.button
@@ -144,9 +161,9 @@ export function SajuApp() {
                 title="배경 전환"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex cursor-pointer items-center gap-1.5 rounded-[2px] border border-line bg-transparent px-2.5 py-1.5 font-myeongjo text-[13px] text-dim hover:text-fg"
+                className="border-line font-myeongjo text-dim hover:text-fg flex cursor-pointer items-center gap-1.5 rounded-[2px] border bg-transparent px-2.5 py-1.5 text-[13px]"
               >
-                <span className="block size-2 rounded-full bg-fg" />
+                <span className="bg-fg block size-2 rounded-full" />
                 {dark ? "먹지" : "한지"}
               </motion.button>
             </div>
@@ -162,11 +179,12 @@ export function SajuApp() {
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="w-full max-w-[640px] pt-10 text-center sm:pt-[68px]"
               >
-                <h1 className="mb-3.5 font-myeongjo text-hero leading-[1.25] font-extrabold tracking-[-0.01em]">
+                <h1 className="font-myeongjo text-hero mb-3.5 leading-[1.25] font-extrabold tracking-[-0.01em]">
                   태어난 순간을 적어주세요
                 </h1>
-                <p className="mb-12 text-label leading-[1.7] text-dim sm:mb-[62px]">
-                  시(時)를 모르면 시·분을 비워도 됩니다 — 시주 없이 삼주로 봅니다.
+                <p className="text-label text-dim mb-12 leading-[1.7] sm:mb-[62px]">
+                  시(時)를 모르면 시·분을 비워도 됩니다 — 시주 없이 삼주로
+                  봅니다.
                 </p>
 
                 <BirthForm values={form} onChange={updateForm} />
@@ -177,13 +195,17 @@ export function SajuApp() {
                   whileHover={name.trim() ? { scale: 1.02 } : undefined}
                   whileTap={name.trim() ? { scale: 0.98 } : undefined}
                   className={cn(
-                    "w-full rounded-[2px] border-none bg-fg px-8 py-3.5 font-batang text-subtitle font-bold tracking-[0.04em] text-bg sm:w-auto sm:px-[54px] sm:py-[17px]",
-                    name.trim() ? "cursor-pointer opacity-100" : "cursor-not-allowed opacity-40",
+                    "bg-fg font-batang text-subtitle text-bg w-full rounded-[2px] border-none px-8 py-3.5 font-bold tracking-[0.04em] sm:w-auto sm:px-[54px] sm:py-[17px]",
+                    name.trim()
+                      ? "cursor-pointer opacity-100"
+                      : "cursor-not-allowed opacity-40",
                   )}
                 >
                   운명 일지 보기
                 </motion.button>
-                {error && <p className="mt-[18px] text-small text-danger">{error}</p>}
+                {error && (
+                  <p className="text-small text-danger mt-[18px]">{error}</p>
+                )}
               </motion.section>
             )}
 
@@ -208,7 +230,10 @@ export function SajuApp() {
                   readingVM={readingViewModel}
                   name={result.name}
                 />
-                <CompatibilitySection mySaju={result.saju} myName={result.name} />
+                <CompatibilitySection
+                  mySaju={result.saju}
+                  myName={result.name}
+                />
               </motion.div>
             )}
           </AnimatePresence>

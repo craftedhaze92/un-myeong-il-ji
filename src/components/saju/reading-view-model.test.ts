@@ -66,14 +66,34 @@ describe("buildReadingViewModel — 4블록이 빈 값 없이 채워지는지 �
     expect(["순용", "역용"]).toContain(vm.myeongsik.gyeokGuk?.quality?.useType);
   });
 
-  it("인생 총평(life) 블록이 4개 운세(총평/재물/건강/애정)를 담는다", () => {
+  it("인생(life) 블록이 장문 총평·생애 흐름과 재물/건강/애정 운세를 담는다", () => {
     expect(vm.life.fortunes.map((f) => f.type).sort()).toEqual(
-      ["general", "health", "love", "wealth"].sort(),
+      ["health", "love", "wealth"].sort(),
     );
+    expect(vm.life.overview.paragraphs).toHaveLength(3);
+    expect(vm.life.stages.map((stage) => stage.id)).toEqual([
+      "early",
+      "middle",
+      "late",
+    ]);
+    expect(vm.life.highlights).toHaveLength(2);
     vm.life.fortunes.forEach((f) => {
       expect(f.score).toBeGreaterThanOrEqual(0);
       expect(f.score).toBeLessThanOrEqual(100);
       expect(f.summary.length).toBeGreaterThan(0);
+      expect(f.scoreLabel.length).toBeGreaterThan(0);
+      expect(f.basis.length).toBeGreaterThan(0);
+      expect(f.strengths.length).toBeGreaterThan(0);
+      expect(f.cautions.length).toBeGreaterThan(0);
+      expect(f.actions.length).toBeGreaterThan(0);
+    });
+    expect(vm.life.personality.length).toBeGreaterThan(0);
+    vm.life.personality.forEach((personality) => {
+      expect(personality.sharePct).toBeGreaterThan(0);
+      expect(personality.summary.length).toBeGreaterThan(0);
+      expect(personality.strengths.length).toBeGreaterThan(0);
+      expect(personality.cautions.length).toBeGreaterThan(0);
+      expect(personality.actions.length).toBeGreaterThan(0);
     });
   });
 
@@ -333,7 +353,9 @@ describe("시간 미상 명식으로도 4블록이 정상 생성된다", () => {
   });
 
   it("나머지 블록도 예외 없이 채워진다", () => {
-    expect(vm.life.fortunes.length).toBe(4);
+    expect(vm.life.fortunes.length).toBe(3);
+    expect(vm.life.overview.paragraphs).toHaveLength(3);
+    expect(vm.life.precisionNote).toMatch(/근사치/);
     expect(vm.flow.daeunOptions.length).toBeGreaterThan(0);
     expect(vm.career.recommendations.length).toBeGreaterThan(0);
   });

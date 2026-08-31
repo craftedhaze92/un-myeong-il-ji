@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { calculateSaju } from "@/lib/saju";
@@ -20,11 +20,28 @@ describe("ReadingPanel — 탭 내비게이션", () => {
   );
   const daeUn = calculateDaeUn(saju);
   const readingVM = buildReadingViewModel({ saju, daeUn, nowYear: 2024 });
+  const scrollIntoView = vi.fn();
 
   // useThemeStore는 모듈 싱글턴이라 테스트 파일 간(및 케이스 간) 상태가 공유된다.
   // dark={false}로 넘기던 기존 렌더 조건("light")을 매 테스트 시작 시 되살려 결정성을 지킨다.
   beforeEach(() => {
     useThemeStore.setState({ theme: "light" });
+    scrollIntoView.mockClear();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      value: (callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      },
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: false }),
+    });
   });
 
   function renderPanel() {
@@ -74,6 +91,34 @@ describe("ReadingPanel — 탭 내비게이션", () => {
       "aria-selected",
       "false",
     );
+    expect(scrollIntoView).toHaveBeenCalledOnce();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
+
+  it("이미 활성화된 탭을 다시 눌러도 불필요하게 스크롤하지 않는다", async () => {
+    renderPanel();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "명식" }));
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("모션 감소 설정에서는 부드러운 애니메이션 없이 콘텐츠 시작점으로 이동한다", async () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    renderPanel();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "인생" }));
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "auto",
+      block: "start",
+    });
   });
 
   it("활성 탭은 로컬 상태라 언마운트 후 다시 열면 명식 탭으로 돌아온다 — saju-app.tsx의 resetAll()이 ReadingPanel을 통째로 언마운트시키는 동작에 의존한다. 활성 탭을 전역(zustand) 스토어로 옮기면 이 리셋이 깨진다", async () => {
