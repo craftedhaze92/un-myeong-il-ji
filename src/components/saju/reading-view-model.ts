@@ -33,6 +33,7 @@ import { analyzeTimingAdvice, type DecisionType } from "@/lib/timing_advice";
 import { analyzePungsu, type SpaceType } from "@/lib/pungsu_advice";
 import { analyzeName } from "@/lib/jakmeong_analysis";
 import { getAllSinSalInfo, interpretBySinSal } from "@/lib/sin_sal";
+import { BRANCH_RELATION_GUIDE } from "@/lib/constants";
 import { getFortuneYearForManAge, getManAgeForFortuneYear } from "@/utils/date";
 import { selectYongSin, generateYongSinAdvice } from "@/lib/yong_sin";
 import type { HeavenlyStem, SajuData, WuXing } from "@/types";
@@ -118,9 +119,28 @@ export interface JiJangGanPillarVM {
 
 export interface BranchRelationsVM {
   summary: string;
-  samHap?: string;
-  samHyeong: string[];
-  yukHae: string[];
+  hits: {
+    kind: string;
+    hanja: string;
+    label: string;
+    branchesLabel: string;
+    pillarsLabel: string;
+    stateLabel?: string;
+    missingBranchesLabel?: string;
+    element?: WuXing;
+    description: string;
+    feature: string;
+    lifeTendencies: string[];
+    readingNote: string;
+  }[];
+  guide: {
+    kind: string;
+    hanja: string;
+    title: string;
+    description: string;
+    readingNote: string;
+    groups: readonly string[];
+  }[];
 }
 
 export interface SinSalDetailVM {
@@ -244,11 +264,23 @@ function buildBranchRelations(saju: SajuData): BranchRelationsVM | undefined {
   if (!br) return undefined;
   return {
     summary: br.summary ?? "",
-    samHap: br.samHap?.type
-      ? `${br.samHap.type} → ${br.samHap.element}`
-      : undefined,
-    samHyeong: br.samHyeong ?? [],
-    yukHae: (br.yukHae ?? []).map(([a, b]) => `${a}-${b} 육해`),
+    hits: br.hits.map((hit) => ({
+      kind: hit.kind,
+      hanja: hit.hanja,
+      label: hit.label,
+      branchesLabel: hit.branches.join(" · "),
+      pillarsLabel: hit.pillars
+        .map((pillar) => `${PILLAR_SHORT_LABEL[pillar]}지`)
+        .join(" · "),
+      stateLabel: hit.state === "complete" ? "완성" : hit.state === "partial" ? "부분 삼합" : undefined,
+      missingBranchesLabel: hit.missingBranches?.join(" · "),
+      element: hit.element,
+      description: hit.description,
+      feature: hit.feature,
+      lifeTendencies: hit.lifeTendencies,
+      readingNote: hit.readingNote,
+    })),
+    guide: BRANCH_RELATION_GUIDE.map((guide) => ({ ...guide })),
   };
 }
 

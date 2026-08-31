@@ -147,6 +147,10 @@ route.ts도 없어 현재 아무 곳에서도 호출되지 않는다** — 죽�
   통근(通根, 일간과 같은 오행의 천간을 지지에 두었는가) 플래그도 함께 반환한다
   (`{ deukRyeong, deukJi, deukSe, rootedAt }`). 합충(合沖)이 세력에 미치는 영향은 의도적으로
   반영하지 않는다 — 유파마다 결론이 갈려 단일 규칙으로 못 박으면 오히려 정확도가 떨어진다.
+- 지지 관계의 성립표와 중립적 설명은 `lib/constants.ts`의 `BRANCH_RELATION_GUIDE` 및 관련
+  그룹 상수가 단일 원본이다. `data/earthly_branches.ts#analyzeBranchRelations`는 이 표를
+  이용해 실제 성립한 글자와 연·월·일·시의 자리를 반환할 뿐, 오행 개수·일간 강약·격국·용신에는
+  영향을 주지 않는다. 시간 미상 명식은 표시용 시지를 이 판정에서도 반드시 제외한다.
 - `src/lib/twelve_stages.ts` — 십이운성(장생~양). 음간의 순역에는 두 학파가 있는데, 이 저장소는
   벤치마크 서비스(점신) 화면을 역산해 검증한 "음간 역행" 학파를 따른다.
 - `src/lib/twelve_sinsal.ts` — 십이신살(겁살~화개살). `sin_sal.ts`의 `SinSal`(천을귀인 등

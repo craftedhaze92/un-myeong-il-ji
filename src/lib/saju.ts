@@ -138,11 +138,15 @@ export function calculateSaju(
   sajuData.sinSalHits = findSinSalHits(sajuData);
   sajuData.sinSals = sajuData.sinSalHits.map((hit) => hit.sinSal);
 
-  // 지지 관계 분석 (시간 미상이면 시지는 가짜 값이므로 삼합·삼형 등 판정에서 뺀다)
-  const branches = unknownHour
-    ? [yearPillar.branch, monthPillar.branch, dayPillar.branch]
-    : [yearPillar.branch, monthPillar.branch, dayPillar.branch, hourPillar.branch];
-  sajuData.branchRelations = analyzeBranchRelations(branches);
+  // 지지 관계 분석 (시간 미상이면 시지는 표시용 가짜 값이므로 판정에서 뺀다).
+  // 각 글자의 자리도 함께 넘겨 명식 탭이 실제 성립 위치를 표시할 수 있게 한다.
+  const branchRelationInputs = [
+    { pillar: 'year' as const, branch: yearPillar.branch },
+    { pillar: 'month' as const, branch: monthPillar.branch },
+    { pillar: 'day' as const, branch: dayPillar.branch },
+    ...(unknownHour ? [] : [{ pillar: 'hour' as const, branch: hourPillar.branch }]),
+  ];
+  sajuData.branchRelations = analyzeBranchRelations(branchRelationInputs);
 
   // 지장간 세력 계산 (지지별 고정 일수비례 비율표, 4주 모두 동일한 방식).
   // 시간 미상이면 시주 지장간은 십성 분포 등 후속 계산에서 제외되도록 비워둔다.
@@ -671,4 +675,3 @@ function getYongSinAdvice(yongSin: WuXing): string {
   • 성격: ${data.personality.slice(0, 3).join(', ')}한 태도를 유지하세요
   • 직업: ${yongSin === '목' ? '교육, 예술, 기획' : yongSin === '화' ? '영업, 서비스, 방송' : yongSin === '토' ? '부동산, 금융, 중재' : yongSin === '금' ? '법조, 경영, 군인' : '연구, IT, 학문'} 분야가 유리합니다`;
 }
-

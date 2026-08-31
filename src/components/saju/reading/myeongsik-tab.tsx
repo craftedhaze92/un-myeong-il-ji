@@ -28,6 +28,7 @@ export function MyeongsikTab({ vm, saju, name }: MyeongsikTabProps) {
   // 이 탭 안에서만 로컬로 들고 있는다 — 캐시 키에 영향을 주지 않기 위함.
   const [hanjaInput, setHanjaInput] = useState("");
   const [iljuOpen, setIljuOpen] = useState(false);
+  const [branchGuideOpen, setBranchGuideOpen] = useState(false);
   const nameVm = useMemo(
     () =>
       name.trim()
@@ -280,36 +281,145 @@ export function MyeongsikTab({ vm, saju, name }: MyeongsikTabProps) {
       {/* 신살 상세는 result-panel.tsx의 "신살 — 특별한 자리" 카드 옆으로 옮겼다 —
           이 탭에서는 지지 관계만 단독 카드로 남긴다. */}
       {myeongsik.branchRelations && (
-        <SectionCard title="지지 관계">
-          <div className="text-body text-dim mb-2.5 leading-[1.75]">
-            {myeongsik.branchRelations.summary}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {myeongsik.branchRelations.samHap && (
-              <span className={BADGE_BASE} style={badgeStyle(true)}>
-                삼합 {myeongsik.branchRelations.samHap}
-              </span>
+        <Collapsible.Root
+          open={branchGuideOpen}
+          onOpenChange={setBranchGuideOpen}
+        >
+          <SectionCard
+            title="지지 관계"
+            subtitle="명식에 함께 놓인 지지의 조합과 자리를 구조적으로 보여드립니다."
+            titleRight={
+              <Collapsible.Trigger asChild>
+                <button
+                  type="button"
+                  className="text-small text-dim hover:text-fg focus-visible:outline-fg flex cursor-pointer items-center gap-1 rounded-[2px] border-none bg-transparent p-1 focus-visible:outline-2 focus-visible:outline-offset-2"
+                >
+                  {branchGuideOpen ? "참고표 접기" : "전체 관계 참고표"}
+                  <motion.span
+                    animate={{ rotate: branchGuideOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="inline-flex"
+                  >
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </motion.span>
+                </button>
+              </Collapsible.Trigger>
+            }
+          >
+            <p className="text-body text-dim leading-[1.75]">
+              {myeongsik.branchRelations.summary}
+            </p>
+
+            {myeongsik.branchRelations.hits.length > 0 ? (
+              <div className="mt-3.5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                {myeongsik.branchRelations.hits.map((hit, index) => (
+                  <article
+                    key={`${hit.kind}-${hit.label}-${index}`}
+                    className="border-line bg-track rounded-[2px] border px-3.5 py-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <h3 className="font-myeongjo text-body font-bold">
+                        {hit.kind} <span className="text-mute">{hit.hanja}</span>
+                      </h3>
+                      {hit.stateLabel && (
+                        <span className={BADGE_BASE} style={badgeStyle(true)}>
+                          {hit.stateLabel}
+                        </span>
+                      )}
+                      {hit.element && (
+                        <span
+                          className={BADGE_BASE}
+                          style={{
+                            ...badgeStyle(true),
+                            color: elementColor(hit.element, dark),
+                          }}
+                        >
+                          {hit.element}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-body mt-1.5 font-medium">{hit.label}</p>
+                    <p className="text-small text-mute mt-1">
+                      {hit.branchesLabel} · {hit.pillarsLabel}
+                    </p>
+                    {hit.missingBranchesLabel && (
+                      <p className="text-small text-mute mt-1">
+                        남은 글자: {hit.missingBranchesLabel}
+                      </p>
+                    )}
+                    <p className="text-small text-dim mt-2 leading-[1.65]">
+                      {hit.description}
+                    </p>
+                    <div className="border-line mt-3 border-t pt-3">
+                      <h4 className="text-small text-fg font-semibold">
+                        관계의 특징
+                      </h4>
+                      <p className="text-small text-dim mt-1 leading-[1.65]">
+                        {hit.feature}
+                      </p>
+                      <h4 className="text-small text-fg mt-2.5 font-semibold">
+                        생활에서 살펴볼 흐름
+                      </h4>
+                      <ul className="text-small text-dim mt-1.5 space-y-1 leading-[1.65]">
+                        {hit.lifeTendencies.map((tendency) => (
+                          <li key={tendency} className="flex gap-1.5">
+                            <span aria-hidden="true">·</span>
+                            <span>{tendency}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <p className="text-micro text-mute mt-1.5 leading-[1.6]">
+                      {hit.readingNote}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-track text-small text-mute mt-3.5 rounded-[2px] px-3.5 py-3 leading-[1.65]">
+                현재 명식에서 성립한 관계가 없더라도, 아래 참고표로 각 관계의 기준을 확인할 수 있습니다.
+              </div>
             )}
-            {myeongsik.branchRelations.samHyeong.map((s, i) => (
-              <span
-                key={`h-${i}`}
-                className={BADGE_BASE}
-                style={badgeStyle(true)}
-              >
-                {s}
-              </span>
-            ))}
-            {myeongsik.branchRelations.yukHae.map((s, i) => (
-              <span
-                key={`y-${i}`}
-                className={BADGE_BASE}
-                style={badgeStyle(true)}
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-        </SectionCard>
+
+            {saju.unknownHour && (
+              <p className="text-small text-mute mt-3 leading-[1.65]">
+                출생 시간이 미상이므로 시지는 관계 판정에서 제외했습니다.
+              </p>
+            )}
+
+            <Collapsible.Content
+              className={cn("overflow-hidden", styles.collapsibleContent)}
+            >
+              <div className="border-line mt-4.5 border-t pt-4.5">
+                <h3 className="font-myeongjo text-subtitle mb-3 font-bold">
+                  지지 관계 참고표
+                </h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {myeongsik.branchRelations.guide.map((guide) => (
+                    <article
+                      key={guide.kind}
+                      className="border-line rounded-[2px] border px-3.5 py-3"
+                    >
+                      <h4 className="font-myeongjo text-body font-bold">
+                        {guide.kind} <span className="text-mute">{guide.hanja}</span>
+                        <span className="text-dim"> · {guide.title}</span>
+                      </h4>
+                      <p className="text-small text-dim mt-1.5 leading-[1.65]">
+                        {guide.description}
+                      </p>
+                      <p className="text-small text-fg mt-2 leading-[1.65]">
+                        {guide.groups.join(" / ")}
+                      </p>
+                      <p className="text-micro text-mute mt-1.5 leading-[1.6]">
+                        {guide.readingNote}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </Collapsible.Content>
+          </SectionCard>
+        </Collapsible.Root>
       )}
 
       {nameVm && (

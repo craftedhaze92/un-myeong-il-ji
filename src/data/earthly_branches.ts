@@ -3,10 +3,30 @@
  * 12개의 지지와 관련 정보
  */
 
-import type { EarthlyBranch, HeavenlyStem, WuXing, YinYang } from '../types/index';
+import type {
+  BranchRelationAnalysis,
+  BranchRelationHit,
+  BranchRelationKind,
+  BranchRelationPillar,
+  EarthlyBranch,
+  HeavenlyStem,
+  WuXing,
+  YinYang,
+} from '../types/index';
 import { HEAVENLY_STEMS } from './heavenly_stems';
 import { josa } from '../lib/korean';
 import { JIJANGGAN_STRENGTH_DETAILED } from './jijanggan_strength_table';
+import {
+  BRANCH_RELATION_GUIDE,
+  DIRECTIONAL_HARMONY_GROUPS,
+  EARTHLY_BREAK_PAIRS,
+  EARTHLY_CONFLICT_PAIRS,
+  EARTHLY_HARM_PAIRS,
+  EARTHLY_PUNISHMENT_GROUPS,
+  SELF_PUNISHMENT_BRANCHES,
+  SIX_HARMONY_PAIRS,
+  TRIPLE_HARMONY_GROUPS,
+} from '../lib/constants';
 
 export interface EarthlyBranchData {
   korean: EarthlyBranch;
@@ -177,14 +197,18 @@ export function getAnimalSignByYear(year: number): EarthlyBranchData {
 }
 
 /**
- * 삼합(三合) - 3개 지지의 강한 조화 관계
+ * 지지 관계의 판정표는 lib/constants.ts가 단일 원본이다.
+ * 아래 세 export는 기존 데이터 모듈의 호환용 조회 표다.
  */
-export const SAM_HAP: Record<string, { branches: EarthlyBranch[]; element: WuXing; name: string }> = {
-  수국: { branches: ['신', '자', '진'], element: '수', name: '신자진 수국' },
-  목국: { branches: ['해', '묘', '미'], element: '목', name: '해묘미 목국' },
-  화국: { branches: ['인', '오', '술'], element: '화', name: '인오술 화국' },
-  금국: { branches: ['사', '유', '축'], element: '금', name: '사유축 금국' },
-};
+export const SAM_HAP: Record<
+  string,
+  { branches: EarthlyBranch[]; element: WuXing; name: string }
+> = Object.fromEntries(
+  Object.entries(TRIPLE_HARMONY_GROUPS).map(([type, data]) => [
+    type,
+    { branches: [...data.branches], element: data.element, name: data.label },
+  ]),
+);
 
 /**
  * 삼합 체크 함수
@@ -261,14 +285,9 @@ export function checkSamHyeong(branches: EarthlyBranch[]): string[] {
 /**
  * 육해(六害) - 6쌍의 해를 끼치는 관계
  */
-export const YUK_HAE: [EarthlyBranch, EarthlyBranch][] = [
-  ['자', '미'], // 子未害
-  ['축', '오'], // 丑午害
-  ['인', '사'], // 寅巳害
-  ['묘', '진'], // 卯辰害
-  ['신', '해'], // 申亥害
-  ['유', '술'], // 酉戌害
-];
+export const YUK_HAE: [EarthlyBranch, EarthlyBranch][] = EARTHLY_HARM_PAIRS.map(
+  ([first, second]) => [first, second],
+);
 
 /**
  * 육해 체크 함수
@@ -286,36 +305,139 @@ export function checkYukHae(branches: EarthlyBranch[]): [EarthlyBranch, EarthlyB
   return haeList;
 }
 
+/** 명식에 표시되는 지지와 그 자리. 시간 미상 명식은 시지를 넣지 않는다. */
+export interface BranchRelationInput {
+  pillar: BranchRelationPillar;
+  branch: EarthlyBranch;
+}
+
+const RELATION_ORDER: BranchRelationKind[] = ['삼합', '방합', '육합', '충', '형', '파', '해'];
+
+function guideFor(kind: BranchRelationKind) {
+  return BRANCH_RELATION_GUIDE.find((guide) => guide.kind === kind)!;
+}
+
+function matchingEntries(
+  entries: BranchRelationInput[],
+  branches: readonly EarthlyBranch[],
+): BranchRelationInput[] {
+  return entries.filter((entry) => branches.includes(entry.branch));
+}
+
+function createHit(
+  kind: BranchRelationKind,
+  label: string,
+  branches: EarthlyBranch[],
+  entries: BranchRelationInput[],
+  options: Pick<BranchRelationHit, 'element' | 'state' | 'missingBranches'> = {},
+): BranchRelationHit {
+  const guide = guideFor(kind);
+  const elementFeature = options.element
+    ? guide.elementFeatures?.[options.element]
+    : undefined;
+  return {
+    kind,
+    hanja: guide.hanja,
+    label,
+    branches,
+    pillars: entries.map((entry) => entry.pillar),
+    description: guide.description,
+    feature: options.state === 'partial'
+      ? guide.partialFeature ?? guide.feature
+      : elementFeature?.feature ?? guide.feature,
+    lifeTendencies: [
+      ...guide.lifeTendencies,
+      ...(elementFeature?.lifeTendencies ?? []),
+    ],
+    readingNote: guide.readingNote,
+    ...options,
+  };
+}
+
 /**
- * 지지 관계 종합 분석
+ * 지지 관계 종합 분석.
+ *
+ * 이 함수는 명식에 실제로 보이는 지지의 조합과 자리를 반환한다. 합·충 등의 세력
+ * 가감은 학파별 차이가 크므로 day_master_strength나 용신 계산에는 반영하지 않는다.
  */
-export function analyzeBranchRelations(branches: EarthlyBranch[]): {
-  samHap: { type: string | null; element: WuXing | null };
-  samHyeong: string[];
-  yukHae: [EarthlyBranch, EarthlyBranch][];
-  summary: string;
-} {
-  const samHap = checkSamHap(branches);
-  const samHyeong = checkSamHyeong(branches);
-  const yukHae = checkYukHae(branches);
+export function analyzeBranchRelations(
+  inputs: BranchRelationInput[],
+): BranchRelationAnalysis {
+  const visible = new Set(inputs.map((input) => input.branch));
+  const hits: BranchRelationHit[] = [];
 
-  let summary = '';
-  if (samHap.type) {
-    summary += `${josa(samHap.type, "이/가")} 형성되어 ${samHap.element} 기운이 강화됩니다. `;
-  }
-  if (samHyeong.length > 0) {
-    summary += `${samHyeong.join(', ')} 형벌 관계가 있어 갈등이 있을 수 있습니다. `;
-  }
-  if (yukHae.length > 0) {
-    const haeStr = yukHae.map(([a, b]) => `${a}${b}`).join(', ');
-    summary += `${haeStr} 해 관계가 있어 서로 방해할 수 있습니다.`;
-  }
-
-  if (!summary) {
-    summary = '특별한 지지 관계가 없습니다.';
+  for (const data of Object.values(TRIPLE_HARMONY_GROUPS)) {
+    const present = data.branches.filter((branch) => visible.has(branch));
+    if (present.length === data.branches.length) {
+      hits.push(createHit(
+        '삼합', data.label, [...data.branches], matchingEntries(inputs, data.branches),
+        { element: data.element, state: 'complete' },
+      ));
+    } else if (present.length === 2) {
+      const missingBranches = data.branches.filter((branch) => !visible.has(branch));
+      hits.push(createHit(
+        '삼합', `${present.join('')} 반합 (${data.element})`, [...present], matchingEntries(inputs, present),
+        { element: data.element, state: 'partial', missingBranches: [...missingBranches] },
+      ));
+    }
   }
 
-  return { samHap, samHyeong, yukHae, summary };
+  for (const data of Object.values(DIRECTIONAL_HARMONY_GROUPS)) {
+    if (data.branches.every((branch) => visible.has(branch))) {
+      hits.push(createHit(
+        '방합', data.label, [...data.branches], matchingEntries(inputs, data.branches),
+        { element: data.element },
+      ));
+    }
+  }
+
+  const pairRelations: Array<{
+    kind: Extract<BranchRelationKind, '육합' | '충' | '파' | '해'>;
+    pairs: readonly (readonly [EarthlyBranch, EarthlyBranch])[];
+  }> = [
+    { kind: '육합', pairs: SIX_HARMONY_PAIRS },
+    { kind: '충', pairs: EARTHLY_CONFLICT_PAIRS },
+    { kind: '파', pairs: EARTHLY_BREAK_PAIRS },
+    { kind: '해', pairs: EARTHLY_HARM_PAIRS },
+  ];
+  for (const relation of pairRelations) {
+    for (const pair of relation.pairs) {
+      if (pair.every((branch) => visible.has(branch))) {
+        hits.push(createHit(
+          relation.kind, `${pair.join('')} ${relation.kind}`, [...pair], matchingEntries(inputs, pair),
+        ));
+      }
+    }
+  }
+
+  for (const punishment of EARTHLY_PUNISHMENT_GROUPS) {
+    if (punishment.branches.every((branch) => visible.has(branch))) {
+      hits.push(createHit(
+        '형', `${punishment.label}(${punishment.branches.join('')})`, [...punishment.branches],
+        matchingEntries(inputs, punishment.branches),
+      ));
+    }
+  }
+  for (const branch of SELF_PUNISHMENT_BRANCHES) {
+    const matched = inputs.filter((input) => input.branch === branch);
+    if (matched.length >= 2) {
+      hits.push(createHit('형', `자형(${branch}${branch})`, [branch, branch], matched));
+    }
+  }
+
+  hits.sort((left, right) => {
+    const kindOrder = RELATION_ORDER.indexOf(left.kind) - RELATION_ORDER.indexOf(right.kind);
+    if (kindOrder !== 0) return kindOrder;
+    if (left.state !== right.state) return left.state === 'complete' ? -1 : 1;
+    return left.label.localeCompare(right.label, 'ko');
+  });
+
+  return {
+    hits,
+    summary: hits.length > 0
+      ? `명식에서 ${hits.length}개의 지지 관계가 확인됩니다. 각 관계는 글자의 배치 정보이며, 하나만으로 길흉이나 강약을 확정하지 않습니다.`
+      : '표시된 지지 사이에서 삼합·방합·육합·충·형·파·해의 성립 조합은 확인되지 않습니다.',
+  };
 }
 
 /**
@@ -455,4 +577,3 @@ export function checkWolRyeong(
     strength: 'medium',
   };
 }
-

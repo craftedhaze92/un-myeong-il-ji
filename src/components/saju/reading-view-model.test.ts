@@ -39,6 +39,28 @@ describe("buildReadingViewModel — 4블록이 빈 값 없이 채워지는지 �
     expect(vm.myeongsik.yongSin?.advice.length).toBeGreaterThan(0);
   });
 
+  it("지지 관계 VM은 실제 성립 자리와 전체 참고표를 함께 제공한다", () => {
+    const relations = vm.myeongsik.branchRelations;
+
+    expect(relations).toBeDefined();
+    expect(relations?.guide.map((guide) => guide.kind)).toEqual([
+      "삼합",
+      "방합",
+      "육합",
+      "충",
+      "형",
+      "파",
+      "해",
+    ]);
+    relations?.hits.forEach((hit) => {
+      expect(hit.pillarsLabel).toMatch(/(년|월|일|시)지/);
+      expect(hit.description.length).toBeGreaterThan(0);
+      expect(hit.feature.length).toBeGreaterThan(0);
+      expect(hit.lifeTendencies.length).toBeGreaterThan(0);
+      expect(hit.readingNote.length).toBeGreaterThan(0);
+    });
+  });
+
   // Phase F(사주 계산 코어 정밀화) — day_master_strength.ts/johu.ts/gyeok_guk_quality.ts에서
   // 새로 계산되는 근거(득령·득지·득세, 용신 선정 방식, 격국 성격/파격)가 VM까지 배선됐는지 확인.
   it("일간 강약 VM에 득령·득지·득세 3요소 판정이 함께 담긴다", () => {

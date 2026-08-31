@@ -32,6 +32,41 @@ export type WuXing = '목' | '화' | '토' | '금' | '수';
 // 음양
 export type YinYang = '음' | '양';
 
+/** 지지 관계의 분류. 관계 표시는 명식에 보이는 지지의 구조만 설명하며 강약 계산에는 쓰지 않는다. */
+export type BranchRelationKind = '삼합' | '방합' | '육합' | '충' | '형' | '파' | '해';
+
+/** 지지 관계가 성립한 명식의 자리 */
+export type BranchRelationPillar = 'year' | 'month' | 'day' | 'hour';
+
+/** 명식에서 실제로 성립한 지지 관계 한 건 */
+export interface BranchRelationHit {
+  kind: BranchRelationKind;
+  hanja: string;
+  /** 예: 신자진 수국, 자오 충 */
+  label: string;
+  branches: EarthlyBranch[];
+  pillars: BranchRelationPillar[];
+  /** 삼합의 경우 완성 또는 부분(반합) */
+  state?: 'complete' | 'partial';
+  /** 부분 삼합에서 아직 명식에 보이지 않는 글자 */
+  missingBranches?: EarthlyBranch[];
+  /** 삼합·방합의 국(局) 오행 */
+  element?: WuXing;
+  /** 관계를 읽는 최소 단위에 대한 중립적 설명 */
+  description: string;
+  /** 실제로 성립한 관계의 구조적 특징 */
+  feature: string;
+  /** 대인·일·일상에서 조건부로 살펴볼 수 있는 흐름 */
+  lifeTendencies: string[];
+  /** 결과를 단정하지 않기 위한 읽기 안내 */
+  readingNote: string;
+}
+
+export interface BranchRelationAnalysis {
+  hits: BranchRelationHit[];
+  summary: string;
+}
+
 // 십성 (十星)
 export type TenGod =
   | '비견'
@@ -101,12 +136,7 @@ export interface SajuData {
   sinSalHits?: SinSalHit[];
 
   // 지지 관계
-  branchRelations?: {
-    samHap?: { type: string | null; element: WuXing | null };
-    samHyeong?: string[];
-    yukHae?: [EarthlyBranch, EarthlyBranch][];
-    summary?: string;
-  };
+  branchRelations?: BranchRelationAnalysis;
 
   // 지장간(支藏干) 정보
   jiJangGan?: {
@@ -354,4 +384,3 @@ export class SajuError extends Error {
 
 // 해석 유파 관련 타입
 export * from './interpretation';
-
