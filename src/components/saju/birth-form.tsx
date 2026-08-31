@@ -40,6 +40,29 @@ export const EMPTY_BIRTH_FORM_VALUES: BirthFormValues = {
   gender: "male",
 };
 
+const BIRTH_TIME_OPTIONS = [
+  { value: "자", label: "子(23:00~00:59)", hh: "00", mi: "00" },
+  { value: "축", label: "丑(01:00~02:59)", hh: "02", mi: "00" },
+  { value: "인", label: "寅(03:00~04:59)", hh: "04", mi: "00" },
+  { value: "묘", label: "卯(05:00~06:59)", hh: "06", mi: "00" },
+  { value: "진", label: "辰(07:00~08:59)", hh: "08", mi: "00" },
+  { value: "사", label: "巳(09:00~10:59)", hh: "10", mi: "00" },
+  { value: "오", label: "午(11:00~12:59)", hh: "12", mi: "00" },
+  { value: "미", label: "未(13:00~14:59)", hh: "14", mi: "00" },
+  { value: "신", label: "申(15:00~16:59)", hh: "16", mi: "00" },
+  { value: "유", label: "酉(17:00~18:59)", hh: "18", mi: "00" },
+  { value: "술", label: "戌(19:00~20:59)", hh: "20", mi: "00" },
+  { value: "해", label: "亥(21:00~22:59)", hh: "22", mi: "00" },
+] as const;
+
+function getBirthTimeBranch(hour: string): string {
+  if (hour === "") return "";
+  const hourNum = Number(hour);
+  if (!Number.isInteger(hourNum) || hourNum < 0 || hourNum > 23) return "";
+  if (hourNum >= 23 || hourNum < 1) return "자";
+  return BIRTH_TIME_OPTIONS[Math.floor((hourNum + 1) / 2)]?.value ?? "";
+}
+
 /**
  * BirthFormValues를 calculateSaju가 받는 (birthDate, birthTime, unknownHour)로 검증·변환한다.
  * saju-app.tsx#submit과 compatibility-section.tsx(상대방 입력) 둘 다 같은 검증을 거쳐야 하므로
@@ -110,7 +133,9 @@ const MONO_INPUT =
 function pillBtnClass(active: boolean) {
   return cn(
     "cursor-pointer rounded-[2px] border px-6 py-2.5 font-myeongjo text-body-lg transition-all duration-200",
-    active ? "border-fg bg-track text-fg" : "border-line bg-transparent text-dim",
+    active
+      ? "border-fg bg-track text-fg"
+      : "border-line bg-transparent text-dim",
   );
 }
 
@@ -127,6 +152,7 @@ export function BirthForm({
 }: BirthFormProps) {
   const { name, city, y, m, d, hh, mi, calendarType, isLeapMonth, gender } =
     values;
+  const selectedTimeBranch = getBirthTimeBranch(hh);
 
   const numericField =
     (key: "y" | "m" | "d" | "hh" | "mi") =>
@@ -155,7 +181,9 @@ export function BirthForm({
 
         <label className={FIELD_LABEL}>
           <span className="flex items-baseline gap-1.5">
-            <span className="font-myeongjo text-form-label text-dim">出生地</span>
+            <span className="font-myeongjo text-form-label text-dim">
+              出生地
+            </span>
             <span className="text-form-label text-dim">출생지</span>
           </span>
           <input
@@ -171,11 +199,12 @@ export function BirthForm({
               <option key={c} value={c} />
             ))}
           </datalist>
-          {city.trim() !== "" && KOREA_CITY_LONGITUDE[city.trim()] === undefined && (
-            <span className="text-micro text-mute">
-              등록되지 않은 지명 — 서울 기준으로 계산됩니다
-            </span>
-          )}
+          {city.trim() !== "" &&
+            KOREA_CITY_LONGITUDE[city.trim()] === undefined && (
+              <span className="text-micro text-mute">
+                등록되지 않은 지명 — 서울 기준으로 계산됩니다
+              </span>
+            )}
         </label>
       </div>
 
@@ -188,7 +217,7 @@ export function BirthForm({
           <input
             value={y}
             onChange={numericField("y")}
-            placeholder="년도"
+            placeholder="4자리 년도"
             inputMode="numeric"
             maxLength={4}
             className={MONO_INPUT}
@@ -227,6 +256,24 @@ export function BirthForm({
             <span className="font-myeongjo text-form-label text-dim">時分</span>
             <span className="text-form-label text-dim">시·분</span>
           </span>
+          <select
+            aria-label="시진 선택"
+            value={selectedTimeBranch}
+            onChange={(e) => {
+              const option = BIRTH_TIME_OPTIONS.find(
+                ({ value }) => value === e.target.value,
+              );
+              onChange(option ? { hh: option.hh, mi: option.mi } : { hh: "", mi: "" });
+            }}
+            className={cn(MONO_INPUT, "cursor-pointer appearance-auto")}
+          >
+            <option value="">선택</option>
+            {BIRTH_TIME_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
           <span className="flex w-full items-center gap-1.5">
             <input
               value={hh}
@@ -254,16 +301,24 @@ export function BirthForm({
         <ToggleGroup.Root
           type="single"
           value={calendarType}
-          onValueChange={(v) => v && onChange({ calendarType: v as CalendarType })}
+          onValueChange={(v) =>
+            v && onChange({ calendarType: v as CalendarType })
+          }
           className="flex flex-wrap justify-center gap-2"
         >
           <ToggleGroup.Item value="solar" asChild>
-            <motion.button whileTap={{ scale: 0.95 }} className={pillBtnClass(calendarType === "solar")}>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className={pillBtnClass(calendarType === "solar")}
+            >
               양력
             </motion.button>
           </ToggleGroup.Item>
           <ToggleGroup.Item value="lunar" asChild>
-            <motion.button whileTap={{ scale: 0.95 }} className={pillBtnClass(calendarType === "lunar")}>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className={pillBtnClass(calendarType === "lunar")}
+            >
               음력
             </motion.button>
           </ToggleGroup.Item>
@@ -274,7 +329,10 @@ export function BirthForm({
             onPressedChange={(v) => onChange({ isLeapMonth: v })}
             asChild
           >
-            <motion.button whileTap={{ scale: 0.95 }} className={cn(pillBtnClass(isLeapMonth), "text-small")}>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className={cn(pillBtnClass(isLeapMonth), "text-small")}
+            >
               윤달
             </motion.button>
           </Toggle.Root>
@@ -288,12 +346,18 @@ export function BirthForm({
         className="mb-12 flex justify-center gap-2 sm:mb-[54px]"
       >
         <ToggleGroup.Item value="male" asChild>
-          <motion.button whileTap={{ scale: 0.95 }} className={pillBtnClass(gender === "male")}>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            className={pillBtnClass(gender === "male")}
+          >
             남
           </motion.button>
         </ToggleGroup.Item>
         <ToggleGroup.Item value="female" asChild>
-          <motion.button whileTap={{ scale: 0.95 }} className={pillBtnClass(gender === "female")}>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            className={pillBtnClass(gender === "female")}
+          >
             여
           </motion.button>
         </ToggleGroup.Item>

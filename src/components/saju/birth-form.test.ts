@@ -1,5 +1,13 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createElement } from "react";
 import { describe, expect, it } from "vitest";
-import { deriveBirthInput, type BirthFormValues } from "./birth-form";
+import {
+  BirthForm,
+  deriveBirthInput,
+  EMPTY_BIRTH_FORM_VALUES,
+  type BirthFormValues,
+} from "./birth-form";
 
 const BASE: BirthFormValues = {
   name: "홍길동",
@@ -57,5 +65,40 @@ describe("deriveBirthInput — saju-app.tsx#submit과 궁합 상대방 입력이
       isLeapMonth: true,
     });
     expect(result.birthDate).toBe("1990-04-22");
+  });
+});
+
+describe("BirthForm — 표준 시진 드롭다운과 정확한 시·분 입력", () => {
+  it("시진을 선택하면 중앙 시각을 채우고 정확한 시·분으로 다시 조정할 수 있다", async () => {
+    const user = userEvent.setup();
+    let values = { ...EMPTY_BIRTH_FORM_VALUES };
+    render(
+      createElement(BirthForm, {
+        values,
+        onChange: (patch) => {
+          values = { ...values, ...patch };
+        },
+      }),
+    );
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "시진 선택" }), "오");
+    expect(values).toMatchObject({ hh: "12", mi: "00" });
+  });
+
+  it("시간 미상 선택은 시·분을 비워 unknownHour 처리를 유지한다", async () => {
+    const user = userEvent.setup();
+    let values = { ...BASE };
+    render(
+      createElement(BirthForm, {
+        values,
+        onChange: (patch) => {
+          values = { ...values, ...patch };
+        },
+      }),
+    );
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "시진 선택" }), "");
+    expect(values).toMatchObject({ hh: "", mi: "" });
+    expect(deriveBirthInput(values).unknownHour).toBe(true);
   });
 });
