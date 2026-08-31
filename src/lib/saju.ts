@@ -144,14 +144,13 @@ export function calculateSaju(
     : [yearPillar.branch, monthPillar.branch, dayPillar.branch, hourPillar.branch];
   sajuData.branchRelations = analyzeBranchRelations(branches);
 
-  // 지장간 세력 계산 (절입으로부터의 경과일 기반 사령 가중). 사령은 월령용사(月令用事)
-  // 개념이라 월지에만 적용하고, 연지·일지·시지는 지장간 일수 비례 고정 세력을 쓴다.
+  // 지장간 세력 계산 (지지별 고정 일수비례 비율표, 4주 모두 동일한 방식).
   // 시간 미상이면 시주 지장간은 십성 분포 등 후속 계산에서 제외되도록 비워둔다.
   sajuData.jiJangGan = {
-    year: calculateJiJangGanSlot(yearPillar.branch, adjustedDate),
-    month: calculateJiJangGanSlot(monthPillar.branch, adjustedDate, { applySaRyeong: true }),
-    day: calculateJiJangGanSlot(dayPillar.branch, adjustedDate),
-    hour: unknownHour ? undefined : calculateJiJangGanSlot(hourPillar.branch, adjustedDate),
+    year: calculateJiJangGanSlot(yearPillar.branch),
+    month: calculateJiJangGanSlot(monthPillar.branch),
+    day: calculateJiJangGanSlot(dayPillar.branch),
+    hour: unknownHour ? undefined : calculateJiJangGanSlot(hourPillar.branch),
   };
 
   // 월령 득실 판단

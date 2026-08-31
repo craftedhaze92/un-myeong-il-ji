@@ -186,25 +186,25 @@ describe('unknownHour면 시주가 오행·십성·신살 집계에서 빠져야
   });
 });
 
-describe('지장간 세력 — 사령(司令) 가중은 월지에만 적용되고, 연·일·시지는 절입 경과일과 무관하다', () => {
-  // jijanggan_precise.ts 배선: saju.ts는 월지에만 { applySaRyeong: true }를 주고
-  // 연·일·시지는 일수 비례 고정 세력만 쓴다(사령은 월령용사 개념이라 다른 자리에는
-  // 명리학적으로 적용되지 않는다).
-  it('같은 월지(인)라도 절입 후 경과일이 다르면 월지 지장간 세력이 달라진다', () => {
-    // 2020년 입춘은 2/4 17:53(KST). 2/7은 절입+2일(여기 구간), 2/25는 절입+20일(정기 구간).
+describe('지장간 세력 — 4주 모두 고정 일수비례 비율표를 쓰고, 같은 지지면 날짜와 무관하게 항상 동일하다', () => {
+  // jijanggan_precise.ts 배선: 절입 경과일에 따라 특정 phase를 추가로 가중하는
+  // "사령(司令) 가중"을 시도했으나, 대부분의 명리 실무는 지장간 세력을 절기(월지)
+  // 단위 고정 비율표로만 판단하고 개별 출생 시각으로 추가 가중하지 않는다는
+  // 판단에 따라 제외했다 — 연·월·일·시지 모두 지지 하나만으로 결정되는 고정값이다.
+  it('같은 월지(인)라면 절입 후 경과일이 달라도 월지 지장간 세력이 동일하다', () => {
+    // 2020년 입춘은 2/4 17:53(KST). 2/7은 절입+2일, 2/25는 절입+20일로 경과일이
+    // 크게 다르지만 둘 다 인월이므로 지장간 세력은 같아야 한다.
     const early = calculateSaju('2020-02-07', '10:00', 'solar', false, 'male', '서울');
     const late = calculateSaju('2020-02-25', '10:00', 'solar', false, 'male', '서울');
 
     expect(early.month.branch).toBe('인');
     expect(late.month.branch).toBe('인');
-    expect(early.jiJangGan?.month).not.toEqual(late.jiJangGan?.month);
-
-    // 절입 직후(여기 구간)는 여기 무(戊)가 가중되어 정기와의 격차가 좁고,
-    // 정기 구간에 들어서면 정기 갑(甲)이 훨씬 크게 가중된다.
-    expect(early.jiJangGan?.month.residual?.strength).toBe(37); // 무(여기) 가중
-    expect(late.jiJangGan?.month.residual?.strength).toBe(15);
-    expect(early.jiJangGan?.month.primary.strength).toBe(44); // 갑(정기)
-    expect(late.jiJangGan?.month.primary.strength).toBe(70);
+    expect(early.jiJangGan?.month).toEqual(late.jiJangGan?.month);
+    expect(early.jiJangGan?.month).toEqual({
+      primary: { stem: '갑', strength: 54 },
+      secondary: { stem: '병', strength: 23 },
+      residual: { stem: '무', strength: 23 },
+    });
   });
 
   it('연지가 같으면(같은 사주 연도) 날짜가 달라도 연지 지장간 세력이 동일하다', () => {

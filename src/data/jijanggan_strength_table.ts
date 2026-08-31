@@ -99,7 +99,9 @@ export const JIJANGGAN_STRENGTH_DETAILED: Record<EarthlyBranch, JiJangGanStrengt
 };
 
 /**
- * 지지별 총 일수 (절기 간 평균 일수)
+ * 지지별 총 일수 (절기 간 평균 일수). 런타임 계산에는 쓰이지 않지만, 각 지지
+ * phase의 days 합이 이 값과 일치하는지 검증하는 데이터 무결성 테스트용으로 남긴다
+ * (jijanggan_precise.test.ts 참고).
  */
 export const BRANCH_TOTAL_DAYS: Record<EarthlyBranch, number> = {
   인: 30,
@@ -115,45 +117,3 @@ export const BRANCH_TOTAL_DAYS: Record<EarthlyBranch, number> = {
   자: 30,
   축: 31,
 };
-
-/**
- * 절기 시작일로부터 경과 일수를 기반으로 현재 사령(司令) 중인 phase의 인덱스를 찾는다.
- * 인덱스는 JIJANGGAN_STRENGTH_DETAILED[branch] 배열 기준이며, 항상 0=여기 쪽,
- * 마지막=정기(正氣) 순서다.
- *
- * 경계 처리: 절입 이전(daysSinceTermStart < 0)은 여기(0)로, 해당 지지의 총 일수를
- * 넘어서면(다음 절기로 넘어갔어야 할 날짜가 잘못 들어온 경우) 정기(마지막 인덱스)로
- * clamp한다 — 예전 calculateJiJangGanStrengthByDays는 이 상한 경계에서 루프가
- * break 없이 끝나 currentPhaseIndex가 초기값 0(여기)에 머무르는 버그가 있었다
- * (월말 출생이 "여기 사령"으로 잘못 계산됨).
- */
-export function findSaRyeongPhaseIndex(
-  branch: EarthlyBranch,
-  daysSinceTermStart: number
-): number {
-  const strengthTable = JIJANGGAN_STRENGTH_DETAILED[branch];
-
-  if (!strengthTable) {
-    throw new Error(`지지 ${branch}에 대한 지장간 세력 테이블을 찾을 수 없습니다.`);
-  }
-
-  if (daysSinceTermStart < 0) {
-    return 0;
-  }
-
-  const totalDays = BRANCH_TOTAL_DAYS[branch]!;
-  if (daysSinceTermStart >= totalDays) {
-    return strengthTable.length - 1;
-  }
-
-  let cumulativeDays = 0;
-  for (let i = 0; i < strengthTable.length; i++) {
-    cumulativeDays += strengthTable[i]!.days;
-    if (daysSinceTermStart < cumulativeDays) {
-      return i;
-    }
-  }
-
-  // 위 totalDays 체크로 도달하지 않아야 하지만, 안전망으로 정기(마지막)를 반환한다.
-  return strengthTable.length - 1;
-}

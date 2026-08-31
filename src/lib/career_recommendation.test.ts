@@ -29,14 +29,11 @@ describe('추천 직업의 specificJobs는 카테고리마다 달라야 한다 �
 });
 
 describe('오행별 직업 적성 — 발달 오행(strengthScore)이 용신(yongsinScore)과 별개로 계산되고, 발달할수록 감점이 아니라 가점된다', () => {
-  // 1992-05-05 06:20 양력 남성: 금(비겁)이 "발달"(38%대), 화가 "부족"(10% 미만)으로
-  // 뚜렷이 갈리는 명식 — element_distribution.ts와 동일 소스를 쓰므로 pct가 정확히
-  // 일치해야 한다. (지장간 정밀 계산 배선 전에는 17:50으로도 같은 조건을 만족했으나,
-  // 절입 경과일 기반 사령 가중이 반영되면서 이 명식의 화가 10% 문턱을 살짝 넘겨
-  // "부족"이 사라졌다 — 같은 날짜에서 시주만 바꿔 발달·부족이 둘 다 뜨는 시각으로 교체했다.)
+  // 1992-05-05 17:50 양력 남성: 금(비겁)이 오행과 십성 카드에서도 "발달"로 뜨는 명식
+  // (element_distribution.ts와 동일 소스를 쓰므로 pct가 정확히 일치해야 한다).
   // 예전 구현(getElementStrength, 천간 4개만 셈)은 강한 오행에 -10을 줘서 발달할수록
   // 오히려 감점됐다 — 이 테스트는 그 방향이 뒤집혔는지 확인하는 회귀 테스트다.
-  const saju = calculateSaju('1992-05-05', '06:20', 'solar', false, 'male', '서울');
+  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
   const { elementalAffinity } = recommendCareer(saju);
   const dist = calculateElementDistribution(saju);
 
