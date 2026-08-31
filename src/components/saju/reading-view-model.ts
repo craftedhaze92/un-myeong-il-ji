@@ -6,6 +6,7 @@
  * view-model.ts와 같은 규약: 순수 함수, SajuData(+대운 목록) → 프레젠테이션 VM.
  */
 import { getHeavenlyStemByKorean } from "@/data/heavenly_stems";
+import { getIljuInterpretation } from "@/data/ilju_interpretations";
 import { recommendCareer } from "@/lib/career_recommendation";
 import type { ElementStatus } from "@/lib/element_distribution";
 import type { DaeUnPeriod } from "@/lib/dae_un";
@@ -155,8 +156,26 @@ export interface GyeokGukQualityVM {
   explanation: string;
 }
 
+export interface IljuInterpretationVM {
+  name: string;
+  hanja: string;
+  summary: string;
+  keywords: string[];
+  temperament: string;
+  innerStyle: string;
+  relation: string;
+  strengths: string[];
+  cautions: string[];
+}
+
 export interface MyeongsikVM {
-  gyeokGuk?: { name: string; hanja: string; description: string; quality?: GyeokGukQualityVM };
+  ilju: IljuInterpretationVM;
+  gyeokGuk?: {
+    name: string;
+    hanja: string;
+    description: string;
+    quality?: GyeokGukQualityVM;
+  };
   dayMasterStrength?: {
     levelLabel: string;
     score: number;
@@ -283,9 +302,23 @@ function buildGyeokGukQuality(
 export function buildMyeongsikViewModel(saju: SajuData): MyeongsikVM {
   const yongSinAnalysis = selectYongSin(saju);
   const strength = saju.dayMasterStrength;
-  const rootedAtLabels = (strength?.rootedAt ?? []).map((p) => PILLAR_SHORT_LABEL[p]);
+  const rootedAtLabels = (strength?.rootedAt ?? []).map(
+    (p) => PILLAR_SHORT_LABEL[p],
+  );
+  const ilju = getIljuInterpretation(saju.day.stem, saju.day.branch);
 
   return {
+    ilju: {
+      name: ilju.name,
+      hanja: ilju.hanja,
+      summary: ilju.summary,
+      keywords: ilju.keywords,
+      temperament: ilju.temperament,
+      innerStyle: ilju.innerStyle,
+      relation: ilju.relation,
+      strengths: ilju.strengths,
+      cautions: ilju.cautions,
+    },
     gyeokGuk: saju.gyeokGuk
       ? {
           name: saju.gyeokGuk.name,
@@ -320,7 +353,9 @@ export function buildMyeongsikViewModel(saju: SajuData): MyeongsikVM {
           secondary: saju.yongSin.secondaryYongSin,
           reasoning: saju.yongSin.reasoning,
           advice: generateYongSinAdvice(yongSinAnalysis),
-          methodLabel: saju.yongSin.method ? YONGSIN_METHOD_LABEL[saju.yongSin.method] : undefined,
+          methodLabel: saju.yongSin.method
+            ? YONGSIN_METHOD_LABEL[saju.yongSin.method]
+            : undefined,
         }
       : undefined,
     sinsal: buildSinsalDetails(saju),
@@ -536,8 +571,7 @@ export function buildSeyunSpark(
   nowYear: number,
 ): SeyunPointVM[] {
   const years: number[] = [];
-  for (let y = startYear; y <= endYear; y++)
-    years.push(y);
+  for (let y = startYear; y <= endYear; y++) years.push(y);
 
   return years.map((year) => {
     const analysis = analyzeSeyun(saju, year);
@@ -826,7 +860,7 @@ export interface NameCharacterVM {
   char: string;
   element: WuXing;
   /** 이 글자의 오행을 한자(자원오행)로 정했는지 발음(초성)으로 정했는지 */
-  elementSourceLabel: '자원오행' | '발음오행';
+  elementSourceLabel: "자원오행" | "발음오행";
   /** elementSourceLabel이 자원오행이면서 부수 근거가 약할 때만 표시 */
   lowConfidenceElement: boolean;
   meaning?: string;
@@ -885,8 +919,9 @@ export function buildNameAnalysisVM(
     characters: analysis.characters.map((c) => ({
       char: c.char,
       element: c.element,
-      elementSourceLabel: c.elementSource === '자원' ? '자원오행' : '발음오행',
-      lowConfidenceElement: c.elementSource === '자원' && c.elementVerified === false,
+      elementSourceLabel: c.elementSource === "자원" ? "자원오행" : "발음오행",
+      lowConfidenceElement:
+        c.elementSource === "자원" && c.elementVerified === false,
       meaning: c.meaning,
     })),
     wuxingBalanceLabel: analysis.wuxingComposition.balance,
@@ -905,7 +940,9 @@ export function buildNameAnalysisVM(
           hasUnverifiedStroke: !strokeAnalysis.allVerified,
         }
       : undefined,
-    strokeUnavailableReason: strokeAnalysis.available ? undefined : strokeAnalysis.reason,
+    strokeUnavailableReason: strokeAnalysis.available
+      ? undefined
+      : strokeAnalysis.reason,
   };
 }
 

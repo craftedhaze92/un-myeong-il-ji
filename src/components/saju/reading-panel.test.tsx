@@ -10,7 +10,14 @@ import { buildReadingViewModel } from "./reading-view-model";
 // 탭 UI를 박스형에서 밑줄형으로 바꾼 뒤에도 Radix가 주는 tab/aria-selected 시맨틱이
 // 그대로 유지되는지 확인한다 — 스타일 변경이 접근성 계약을 깨뜨리지 않았는지가 핵심.
 describe("ReadingPanel — 탭 내비게이션", () => {
-  const saju = calculateSaju("1990-05-15", "14:30", "solar", false, "male", "서울");
+  const saju = calculateSaju(
+    "1990-05-15",
+    "14:30",
+    "solar",
+    false,
+    "male",
+    "서울",
+  );
   const daeUn = calculateDaeUn(saju);
   const readingVM = buildReadingViewModel({ saju, daeUn, nowYear: 2024 });
 
@@ -47,7 +54,9 @@ describe("ReadingPanel — 탭 내비게이션", () => {
   it("초기에는 명식 탭만 선택돼 있다", () => {
     renderPanel();
     const tabs = screen.getAllByRole("tab");
-    const selected = tabs.filter((t) => t.getAttribute("aria-selected") === "true");
+    const selected = tabs.filter(
+      (t) => t.getAttribute("aria-selected") === "true",
+    );
     expect(selected).toHaveLength(1);
     expect(selected[0]!.textContent).toBe("명식");
   });
@@ -71,13 +80,18 @@ describe("ReadingPanel — 탭 내비게이션", () => {
     const { unmount } = renderPanel();
     const user = userEvent.setup();
     await user.click(screen.getByRole("tab", { name: "흐름" }));
-    expect(screen.getByRole("tab", { name: "흐름" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "흐름" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
     unmount();
     renderPanel();
 
     const tabs = screen.getAllByRole("tab");
-    const selected = tabs.filter((t) => t.getAttribute("aria-selected") === "true");
+    const selected = tabs.filter(
+      (t) => t.getAttribute("aria-selected") === "true",
+    );
     expect(selected).toHaveLength(1);
     expect(selected[0]!.textContent).toBe("명식");
   });
@@ -89,5 +103,30 @@ describe("ReadingPanel — 탭 내비게이션", () => {
     expect(badge.tagName).toBe("SPAN");
     expect(badge).not.toHaveAttribute("role", "button");
     expect(badge.closest("button")).toBeNull();
+  });
+
+  it("일주 카드는 요약을 먼저 보여주고 상세 설명은 접근 가능한 버튼으로 펼친다", async () => {
+    renderPanel();
+    const user = userEvent.setup();
+    const ilju = readingVM.myeongsik.ilju;
+
+    expect(
+      screen.getByText(`나의 일주 — ${ilju.name} (${ilju.hanja})`),
+    ).toBeInTheDocument();
+    expect(screen.getByText(ilju.summary)).toBeInTheDocument();
+    expect(
+      screen.queryByText("일간 · 겉으로 드러나는 기질"),
+    ).not.toBeInTheDocument();
+
+    const trigger = screen.getByRole("button", { name: "자세히 보기" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await user.click(trigger);
+
+    expect(screen.getByRole("button", { name: "간단히 보기" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getByText("일간 · 겉으로 드러나는 기질")).toBeInTheDocument();
+    expect(screen.getByText(ilju.relation)).toBeInTheDocument();
   });
 });
