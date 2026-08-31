@@ -186,6 +186,49 @@ describe('unknownHour면 시주가 오행·십성·신살 집계에서 빠져야
   });
 });
 
+describe('지장간 세력 — 사령(司令) 가중은 월지에만 적용되고, 연·일·시지는 절입 경과일과 무관하다', () => {
+  // jijanggan_precise.ts 배선: saju.ts는 월지에만 { applySaRyeong: true }를 주고
+  // 연·일·시지는 일수 비례 고정 세력만 쓴다(사령은 월령용사 개념이라 다른 자리에는
+  // 명리학적으로 적용되지 않는다).
+  it('같은 월지(인)라도 절입 후 경과일이 다르면 월지 지장간 세력이 달라진다', () => {
+    // 2020년 입춘은 2/4 17:53(KST). 2/7은 절입+2일(여기 구간), 2/25는 절입+20일(정기 구간).
+    const early = calculateSaju('2020-02-07', '10:00', 'solar', false, 'male', '서울');
+    const late = calculateSaju('2020-02-25', '10:00', 'solar', false, 'male', '서울');
+
+    expect(early.month.branch).toBe('인');
+    expect(late.month.branch).toBe('인');
+    expect(early.jiJangGan?.month).not.toEqual(late.jiJangGan?.month);
+
+    // 절입 직후(여기 구간)는 여기 무(戊)가 가중되어 정기와의 격차가 좁고,
+    // 정기 구간에 들어서면 정기 갑(甲)이 훨씬 크게 가중된다.
+    expect(early.jiJangGan?.month.residual?.strength).toBe(37); // 무(여기) 가중
+    expect(late.jiJangGan?.month.residual?.strength).toBe(15);
+    expect(early.jiJangGan?.month.primary.strength).toBe(44); // 갑(정기)
+    expect(late.jiJangGan?.month.primary.strength).toBe(70);
+  });
+
+  it('연지가 같으면(같은 사주 연도) 날짜가 달라도 연지 지장간 세력이 동일하다', () => {
+    const a = calculateSaju('2020-02-07', '10:00', 'solar', false, 'male', '서울');
+    const b = calculateSaju('2020-02-25', '10:00', 'solar', false, 'male', '서울');
+    expect(a.year.branch).toBe(b.year.branch);
+    expect(a.jiJangGan?.year).toEqual(b.jiJangGan?.year);
+  });
+
+  it('일지가 같으면(60갑자 주기, 60일 차이) 날짜가 달라도 일지 지장간 세력이 동일하다', () => {
+    const a = calculateSaju('1992-01-01', '10:00', 'solar', false, 'male', '서울');
+    const b = calculateSaju('1992-03-01', '10:00', 'solar', false, 'male', '서울'); // 60일 후, 윤년
+    expect(a.day.branch).toBe(b.day.branch);
+    expect(a.jiJangGan?.day).toEqual(b.jiJangGan?.day);
+  });
+
+  it('시지가 같으면 날짜가 달라도(같은 날 다른 분) 시지 지장간 세력이 동일하다', () => {
+    const a = calculateSaju('1992-05-05', '10:00', 'solar', false, 'male', '서울');
+    const b = calculateSaju('1992-05-05', '10:50', 'solar', false, 'male', '서울');
+    expect(a.hour.branch).toBe(b.hour.branch);
+    expect(a.jiJangGan?.hour).toEqual(b.jiJangGan?.hour);
+  });
+});
+
 describe('unknownHour 명식과 12:00 명식이 캐시 키를 공유하지 않는다', () => {
   it('같은 생년월일시·출생지라도 unknownHour 여부에 따라 다른 wuxingCount를 돌려준다', () => {
     // performance_cache.ts#sajuCache는 프로세스 내에서 유지되므로, 캐시 키에 unknownHour가

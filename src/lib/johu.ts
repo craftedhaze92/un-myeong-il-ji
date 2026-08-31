@@ -9,6 +9,7 @@
 import type { EarthlyBranch, HeavenlyStem, SajuData, WuXing } from '../types/index';
 import { getHeavenlyStemByKorean } from '../data/heavenly_stems';
 import { COLD_BRANCHES, HOT_BRANCHES, JOHU_TABLE, type JohuEntry } from '../data/johu_table';
+import { josa } from './korean';
 
 export interface JohuYongSinResult {
   /** 주 조후용신 (천간 단위) */
@@ -86,9 +87,10 @@ export function selectJohuYongSin(saju: SajuData): JohuYongSinResult {
     : HOT_BRANCHES.includes(monthBranch)
       ? '무더운 계절'
       : '온화한 계절';
+  const yongSinPhrase = `${entry.primary.join('·')}${entry.secondary.length ? `(보조 ${entry.secondary.join('·')})` : ''}`;
   const reasoning =
     `${saju.day.stem}(${dayStem}) 일간이 ${monthBranch}월(${seasonLabel})에 태어나, ` +
-    `궁통보감 조후용신표에 따라 ${entry.primary.join('·')}${entry.secondary.length ? `(보조 ${entry.secondary.join('·')})` : ''}이(가) 필요합니다.` +
+    `궁통보감 조후용신표에 따라 ${josa(yongSinPhrase, '이/가')} 필요합니다.` +
     (entry.note ? ` ${entry.note}` : '') +
     (hasInChart ? ' 원국에 이미 해당 글자가 있어 조절이 어느 정도 되어 있습니다.' : ' 원국에 해당 글자가 없어 대운·세운에서 만나야 합니다.');
 

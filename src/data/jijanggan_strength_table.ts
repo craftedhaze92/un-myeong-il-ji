@@ -117,62 +117,43 @@ export const BRANCH_TOTAL_DAYS: Record<EarthlyBranch, number> = {
 };
 
 /**
- * 절기 시작일로부터 경과 일수를 기반으로 지장간 세력 계산
- * @param branch 지지
- * @param daysSinceTermStart 절기 시작일로부터 경과 일수
- * @returns 지장간별 세력 정보
+ * 절기 시작일로부터 경과 일수를 기반으로 현재 사령(司令) 중인 phase의 인덱스를 찾는다.
+ * 인덱스는 JIJANGGAN_STRENGTH_DETAILED[branch] 배열 기준이며, 항상 0=여기 쪽,
+ * 마지막=정기(正氣) 순서다.
+ *
+ * 경계 처리: 절입 이전(daysSinceTermStart < 0)은 여기(0)로, 해당 지지의 총 일수를
+ * 넘어서면(다음 절기로 넘어갔어야 할 날짜가 잘못 들어온 경우) 정기(마지막 인덱스)로
+ * clamp한다 — 예전 calculateJiJangGanStrengthByDays는 이 상한 경계에서 루프가
+ * break 없이 끝나 currentPhaseIndex가 초기값 0(여기)에 머무르는 버그가 있었다
+ * (월말 출생이 "여기 사령"으로 잘못 계산됨).
  */
-export function calculateJiJangGanStrengthByDays(
+export function findSaRyeongPhaseIndex(
   branch: EarthlyBranch,
   daysSinceTermStart: number
-): {
-  primary: { stem: HeavenlyStem; strength: number };
-  secondary?: { stem: HeavenlyStem; strength: number };
-  residual?: { stem: HeavenlyStem; strength: number };
-} {
+): number {
   const strengthTable = JIJANGGAN_STRENGTH_DETAILED[branch];
 
   if (!strengthTable) {
     throw new Error(`지지 ${branch}에 대한 지장간 세력 테이블을 찾을 수 없습니다.`);
   }
 
-  // 경과 일수를 해당 지지의 총 일수로 제한
+  if (daysSinceTermStart < 0) {
+    return 0;
+  }
+
   const totalDays = BRANCH_TOTAL_DAYS[branch]!;
-  const adjustedDays = Math.min(daysSinceTermStart, totalDays - 1);
+  if (daysSinceTermStart >= totalDays) {
+    return strengthTable.length - 1;
+  }
 
   let cumulativeDays = 0;
-  let currentPhaseIndex = 0;
-
-  // 현재 경과 일수가 어느 단계에 속하는지 찾기
   for (let i = 0; i < strengthTable.length; i++) {
     cumulativeDays += strengthTable[i]!.days;
-    if (adjustedDays < cumulativeDays) {
-      currentPhaseIndex = i;
-      break;
+    if (daysSinceTermStart < cumulativeDays) {
+      return i;
     }
   }
 
-  // 현재 단계의 천간이 주력
-  const currentPhase = strengthTable[currentPhaseIndex]!;
-  const result: {
-    primary: { stem: HeavenlyStem; strength: number };
-    secondary?: { stem: HeavenlyStem; strength: number };
-    residual?: { stem: HeavenlyStem; strength: number };
-  } = {
-    primary: { stem: currentPhase.stem, strength: currentPhase.strength },
-  };
-
-  // 다음 단계 천간 (있으면 secondary)
-  if (currentPhaseIndex + 1 < strengthTable.length) {
-    const nextPhase = strengthTable[currentPhaseIndex + 1]!;
-    result.secondary = { stem: nextPhase.stem, strength: nextPhase.strength };
-  }
-
-  // 이전 단계 천간 (있으면 residual)
-  if (currentPhaseIndex > 0) {
-    const prevPhase = strengthTable[currentPhaseIndex - 1]!;
-    result.residual = { stem: prevPhase.stem, strength: prevPhase.strength };
-  }
-
-  return result;
+  // 위 totalDays 체크로 도달하지 않아야 하지만, 안전망으로 정기(마지막)를 반환한다.
+  return strengthTable.length - 1;
 }

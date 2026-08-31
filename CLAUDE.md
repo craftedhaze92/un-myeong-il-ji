@@ -36,21 +36,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **같은 값을 구하는 함수가 근사판/정밀판으로 쌍을 이루는 경우가 많다** — 반드시 정밀판을 써야 한다:
 - `getCurrentSolarTerm`(±1일 오차 고정 날짜표) vs `getCurrentSolarTermPrecise`/`getPreviousJieSolarTermByInstant`(실제 timestamp)
-- `earthly_branches.ts#calculateJiJangGanStrength`(절기 인덱스 4구간 근사, `saju.ts`가 실제 쓰는 함수)
-  vs `jijanggan_precise.ts#calculateJiJangGanStrengthPrecise`(절기 시작일로부터 경과 일수 기반 정밀
-  계산) — **후자는 저장소 어디서도 import되지 않는 죽은 코드다.** `saju.ts:146-151`은 항상 전자를
-  쓴다. 이 파일 이름만 보고 "정밀판이 이미 연결돼 있겠지"라고 넘겨짚지 말 것 — 더 정확한 계산이
-  필요하면 `jijanggan_precise.ts`를 실제로 배선하는 작업이 별도로 필요하다.
 
 `saju.ts`가 근사 함수를 쓰다가 절입 당일 경계에서 월주가 틀리는 버그가 실제로 있었다(`saju.test.ts`의
 "절입 경계 회귀 테스트" 참고). **절기·월건 관련 로직을 만지거나 리뷰할 때는 어느 쪽 함수를 쓰는지부터 확인할 것.**
 
-`earthly_branches.ts#calculateJiJangGanStrength`에는 별개로 **월 인덱스 기준 불일치 버그**가 있었다
-(수정 완료) — 파라미터 `monthIndex`는 `saju.ts#getPreciseSolarTermMonthIndex`가 주는 "인(寅)월=0"
-기준인데, 함수 내부에서 `EARTHLY_BRANCHES`의 "자(子)=0" 기준 인덱스와 보정 없이 직접 뺐다. 2칸
-어긋나 있어서 당령(當令, 지금 이 달의 지지)인데도 "먼 시기"로 계산돼 지장간 세력이 과소 계상됐다
-— `saju.ts:240`의 `(monthIndex + 2) % 12` 보정을 그대로 적용해서 고쳤다. 이 함수를 다시 만질 때는
-두 인덱스 기준이 다르다는 것부터 기억할 것.
+지장간 세력은 이제 `jijanggan_precise.ts#calculateJiJangGanSlot`(절입으로부터의 경과일 기반 사령司令
+가중, `saju.ts`가 실제 쓰는 함수)로 계산한다 — 예전엔 이 파일이 저장소 어디서도 import되지 않는
+죽은 코드였고, `saju.ts`는 `earthly_branches.ts#calculateJiJangGanStrength`(월지와의 거리만 보는
+4구간 근사, 출생일이 절입 직후인지 월말인지는 전혀 반영 안 됨)를 4주 전부에 썼다. 지금은:
+- **월지에만** 사령 가중을 적용한다(`{ applySaRyeong: true }`) — 사령은 월령용사(月令用事) 개념이라
+  연지·일지·시지에는 명리학적으로 적용되지 않는다. 나머지 세 자리는 지장간 일수 비례 고정 세력만 쓴다.
+- 절기 조회는 `getUnifiedCurrentSolarTerm`(24절기 전체 — 우수·춘분 같은 중기中氣도 절입으로 오인)이
+  아니라 `saju.ts`의 월주 계산과 동일한 `getPreviousJieSolarTermByInstant`(節 12개만)를 쓴다 —
+  중기를 절입으로 오인하면 경과일이 월 중간에 리셋되는 버그가 생긴다.
+- `data/earthly_branches.ts#calculateJiJangGanStrength`는 재배선 후 호출자가 없어져 **삭제했다.**
+  같은 이름의 근사/정밀 이중 함수 함정을 다시 만들지 말 것 — 이 값을 구하는 곳은 이제
+  `jijanggan_precise.ts` 하나뿐이다.
+- `data/earthly_branches.ts#JI_JANG_GAN`은 이제 `data/jijanggan_strength_table.ts#JIJANGGAN_STRENGTH_DETAILED`에서
+  파생된 값이다. 예전엔 손으로 채운 별개의 상수라 사(巳)의 중기/여기가 뒤바뀌어 있었고(정기 丙·중기
+  庚·여기 戊가 맞는데 secondary: 무/residual: 경으로 반대) 자·묘·유의 여기(壬/甲/庚)가 통째로
+  빠져 있었다 — 단일 출처로 합쳐 고쳤다.
 
 ### `src/tools/` — 예전 MCP 핸들러, 현재 미연결
 
@@ -106,10 +111,10 @@ route.ts도 없어 현재 아무 곳에서도 호출되지 않는다** — 죽�
   천간이라, 다른 자리의 동일 천간은 통근·비겁이지 "일간 자신"이 아니다). 지금은 그 버그를 고쳐
   다른 자리의 동일 천간은 옵션과 무관하게 항상 정상 집계되고, `includeDayMaster`는 순수하게
   "일주 천간 자신(1개)"을 비견에 더 얹을지만 결정한다. 오행 파이차트처럼 8글자(시간 미상이면
-  6글자) 전체가 분모여야 하는 곳만 이 옵션을 켠다. 지장간 세력(`calculateJiJangGanStrength`)이
-  절기 근접도에 따라 40~100 사이로 변하므로, 총합이 정확히 8/6으로 떨어지지는 않는다 — 정확한
-  합계를 검증하려면 지장간 세력이 100으로 딱 떨어지는 통제된 합성 명식이 필요하다
-  (`element_distribution.test.ts`/`ten_gods.test.ts` 참고).
+  6글자) 전체가 분모여야 하는 곳만 이 옵션을 켠다. 지장간 세력(`jijanggan_precise.ts#calculateJiJangGanSlot`)은
+  지지 하나당 정기·중기·여기 합이 항상 정확히 100이 되도록 계산하므로(사령 가중을 적용해도
+  정규화 후 합은 100 그대로), 지장간 4자리(각 1.0) + 천간 4자리(각 1) = 총합이 정확히 8(시간
+  미상이면 6)로 떨어진다(`element_distribution.test.ts`/`ten_gods.test.ts` 참고).
 - `day_master_strength.ts#analyzeDayMasterStrength`는 위 십성 분포 개수가 아니라, 8글자를 직접
   순회해 자리 가중치(월지 3.0 > 일지 2.0 > 시지/월간 1.5 > 년지/년간·시간 1.0)를 곱한 아군(비겁·
   인성)/적군(식상·재성·관성) 세력비로 재작성됐다. 득령(得令)·득지(得地)·득세(得勢) 3요소와

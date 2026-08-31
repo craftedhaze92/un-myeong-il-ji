@@ -6,7 +6,8 @@ import { differenceInCalendarDays } from 'date-fns';
 import { formatInTimeZone, toDate } from 'date-fns-tz';
 import type { SajuData, Pillar, Gender, CalendarType, WuXing } from '../types/index';
 import { getHeavenlyStemByIndex } from '../data/heavenly_stems';
-import { getEarthlyBranchByIndex, analyzeBranchRelations, checkWolRyeong, calculateJiJangGanStrength } from '../data/earthly_branches';
+import { getEarthlyBranchByIndex, analyzeBranchRelations, checkWolRyeong } from '../data/earthly_branches';
+import { calculateJiJangGanSlot } from './jijanggan_precise';
 import {
   getCurrentSolarTerm,
   getSolarTermMonthIndex,
@@ -143,14 +144,14 @@ export function calculateSaju(
     : [yearPillar.branch, monthPillar.branch, dayPillar.branch, hourPillar.branch];
   sajuData.branchRelations = analyzeBranchRelations(branches);
 
-  // 지장간 세력 계산 (월주와 동일한 정밀 절기 기준). 시간 미상이면 시주 지장간은
-  // 십성 분포 등 후속 계산에서 제외되도록 비워둔다.
-  const monthIndex = getPreciseSolarTermMonthIndex(adjustedDate);
+  // 지장간 세력 계산 (절입으로부터의 경과일 기반 사령 가중). 사령은 월령용사(月令用事)
+  // 개념이라 월지에만 적용하고, 연지·일지·시지는 지장간 일수 비례 고정 세력을 쓴다.
+  // 시간 미상이면 시주 지장간은 십성 분포 등 후속 계산에서 제외되도록 비워둔다.
   sajuData.jiJangGan = {
-    year: calculateJiJangGanStrength(yearPillar.branch, monthIndex),
-    month: calculateJiJangGanStrength(monthPillar.branch, monthIndex),
-    day: calculateJiJangGanStrength(dayPillar.branch, monthIndex),
-    hour: unknownHour ? undefined : calculateJiJangGanStrength(hourPillar.branch, monthIndex),
+    year: calculateJiJangGanSlot(yearPillar.branch, adjustedDate),
+    month: calculateJiJangGanSlot(monthPillar.branch, adjustedDate, { applySaRyeong: true }),
+    day: calculateJiJangGanSlot(dayPillar.branch, adjustedDate),
+    hour: unknownHour ? undefined : calculateJiJangGanSlot(hourPillar.branch, adjustedDate),
   };
 
   // 월령 득실 판단

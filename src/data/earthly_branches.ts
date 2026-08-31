@@ -6,6 +6,7 @@
 import type { EarthlyBranch, HeavenlyStem, WuXing, YinYang } from '../types/index';
 import { HEAVENLY_STEMS } from './heavenly_stems';
 import { josa } from '../lib/korean';
+import { JIJANGGAN_STRENGTH_DETAILED } from './jijanggan_strength_table';
 
 export interface EarthlyBranchData {
   korean: EarthlyBranch;
@@ -318,7 +319,30 @@ export function analyzeBranchRelations(branches: EarthlyBranch[]): {
 }
 
 /**
+ * data/jijanggan_strength_table.ts의 세력 분배 테이블(JIJANGGAN_STRENGTH_DETAILED,
+ * [여기?, 중기?, 정기] 순서)에서 JI_JANG_GAN 한 지지분을 파생한다.
+ */
+function deriveJiJangGan(branch: EarthlyBranch): {
+  primary: HeavenlyStem;
+  secondary?: HeavenlyStem;
+  residual?: HeavenlyStem;
+} {
+  const phases = JIJANGGAN_STRENGTH_DETAILED[branch];
+  const lastIndex = phases.length - 1;
+  return {
+    primary: phases[lastIndex]!.stem, // 정기(正氣) - 마지막 phase
+    secondary: phases.length === 3 ? phases[1]!.stem : undefined, // 중기(中氣) - 3단계일 때만
+    residual: phases[0]!.stem, // 여기(餘氣) - 첫 phase
+  };
+}
+
+/**
  * 지장간(支藏干) - 각 지지 안에 숨어있는 천간들
+ *
+ * 예전엔 이 테이블과 별개로 손으로 채운 상수였는데, 사(巳)는 중기/여기가 뒤바뀌어
+ * 있었고(정확히는 여기 戊·중기 庚인데 secondary: 무/residual: 경으로 반대였다)
+ * 자/묘/유의 여기(壬/甲/庚)가 통째로 빠져 있었다. data/jijanggan_strength_table.ts를
+ * 단일 출처로 삼아 파생시켜 그 불일치를 없앤다.
  */
 export const JI_JANG_GAN: Record<
   EarthlyBranch,
@@ -328,18 +352,18 @@ export const JI_JANG_GAN: Record<
     residual?: HeavenlyStem; // 여기(餘氣)
   }
 > = {
-  자: { primary: '계' }, // 子: 계수만
-  축: { primary: '기', secondary: '신', residual: '계' }, // 丑: 기토, 신금, 계수
-  인: { primary: '갑', secondary: '병', residual: '무' }, // 寅: 갑목, 병화, 무토
-  묘: { primary: '을' }, // 卯: 을목만
-  진: { primary: '무', secondary: '을', residual: '계' }, // 辰: 무토, 을목, 계수
-  사: { primary: '병', secondary: '무', residual: '경' }, // 巳: 병화, 무토, 경금
-  오: { primary: '정', secondary: '기' }, // 午: 정화, 기토
-  미: { primary: '기', secondary: '정', residual: '을' }, // 未: 기토, 정화, 을목
-  신: { primary: '경', secondary: '임', residual: '무' }, // 申: 경금, 임수, 무토
-  유: { primary: '신' }, // 酉: 신금만
-  술: { primary: '무', secondary: '신', residual: '정' }, // 戌: 무토, 신금, 정화
-  해: { primary: '임', secondary: '갑' }, // 亥: 임수, 갑목
+  자: deriveJiJangGan('자'),
+  축: deriveJiJangGan('축'),
+  인: deriveJiJangGan('인'),
+  묘: deriveJiJangGan('묘'),
+  진: deriveJiJangGan('진'),
+  사: deriveJiJangGan('사'),
+  오: deriveJiJangGan('오'),
+  미: deriveJiJangGan('미'),
+  신: deriveJiJangGan('신'),
+  유: deriveJiJangGan('유'),
+  술: deriveJiJangGan('술'),
+  해: deriveJiJangGan('해'),
 };
 
 /**
@@ -351,77 +375,6 @@ export function extractJiJangGan(branch: EarthlyBranch): HeavenlyStem[] {
   if (jiJang.secondary) stems.push(jiJang.secondary);
   if (jiJang.residual) stems.push(jiJang.residual);
   return stems;
-}
-
-/**
- * 지장간 세력 계산 (절기 기준)
- * 절기에 따라 정기/중기/여기의 강도가 달라짐
- */
-export function calculateJiJangGanStrength(
-  branch: EarthlyBranch,
-  monthIndex: number // 0-11 (0=입춘~, 1=경칩~, ...)
-): {
-  primary: { stem: HeavenlyStem; strength: number }; // 0-100
-  secondary?: { stem: HeavenlyStem; strength: number };
-  residual?: { stem: HeavenlyStem; strength: number };
-} {
-  const jiJang = JI_JANG_GAN[branch];
-
-  // 지지와 월령의 관계로 세력 결정
-  const branchIndex = EARTHLY_BRANCHES.findIndex((b) => b.korean === branch);
-  // monthIndex는 saju.ts#getPreciseSolarTermMonthIndex가 주는 "인(寅)월=0" 기준인데
-  // EARTHLY_BRANCHES는 "자(子)=0" 기준이라 그대로 빼면 2칸 어긋난다. saju.ts:240의
-  // `(monthIndex + 2) % 12`와 같은 보정을 적용해야 "지금 이 달의 지지"가 당령(monthDiff=0)으로
-  // 잡힌다 — 보정 전에는 당령이어야 할 달도 "먼 시기"로 떨어져 지장간 세력이 과소 계상됐다.
-  const currentMonthBranchIndex = (monthIndex + 2) % 12;
-  const monthDiff = (currentMonthBranchIndex - branchIndex + 12) % 12;
-
-  let primaryStrength = 70; // 기본 정기 세력
-  let secondaryStrength = 20; // 기본 중기 세력
-  let residualStrength = 10; // 기본 여기 세력
-
-  // 월령과 완전 일치 (당령): 정기가 가장 강함
-  if (monthDiff === 0) {
-    primaryStrength = 90;
-    secondaryStrength = 7;
-    residualStrength = 3;
-  }
-  // 전월 (퇴기): 여기가 상대적으로 강함
-  else if (monthDiff === 11) {
-    primaryStrength = 50;
-    secondaryStrength = 30;
-    residualStrength = 20;
-  }
-  // 다음월 (진기): 중기가 상대적으로 강함
-  else if (monthDiff === 1) {
-    primaryStrength = 60;
-    secondaryStrength = 30;
-    residualStrength = 10;
-  }
-  // 먼 시기: 정기만 약하게
-  else {
-    primaryStrength = 40;
-    secondaryStrength = 10;
-    residualStrength = 5;
-  }
-
-  const result: {
-    primary: { stem: HeavenlyStem; strength: number };
-    secondary?: { stem: HeavenlyStem; strength: number };
-    residual?: { stem: HeavenlyStem; strength: number };
-  } = {
-    primary: { stem: jiJang.primary, strength: primaryStrength },
-  };
-
-  if (jiJang.secondary) {
-    result.secondary = { stem: jiJang.secondary, strength: secondaryStrength };
-  }
-
-  if (jiJang.residual) {
-    result.residual = { stem: jiJang.residual, strength: residualStrength };
-  }
-
-  return result;
 }
 
 /**
