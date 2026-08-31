@@ -12,27 +12,16 @@ import {
   type ElementStatus,
 } from './element_distribution';
 import { CareerMatcher, type CareerMatch } from './career_matcher';
-import type { CareerCategory as ModernCareerCategory } from '../data/modern_careers';
+import {
+  CAREER_CATEGORY_INFO,
+  type CareerCategory as ModernCareerCategory,
+} from '../data/modern_careers';
 import { DEFAULT_PRESETS } from '../data/school_presets';
 
 /**
  * 직업 카테고리
  */
-export type CareerCategory =
-  | '경영/관리'
-  | '금융/재무'
-  | '법률/행정'
-  | '교육/연구'
-  | '예술/문화'
-  | '의료/보건'
-  | 'IT/기술'
-  | '제조/생산'
-  | '서비스/영업'
-  | '언론/미디어'
-  | '건설/부동산'
-  | '농업/환경'
-  | '종교/상담'
-  | '안전/보안';
+export type CareerCategory = ModernCareerCategory;
 
 /**
  * 직업 추천 결과
@@ -41,18 +30,24 @@ export interface CareerRecommendation {
   /** 추천 직업 목록 (우선순위 순) */
   recommendations: {
     category: CareerCategory;
+    categoryLabel: string;
     score: number; // 0-100
     specificJobs: string[];
+    roleSummary: string;
+    requiredSkills: string[];
+    workConditions: string[];
+    basis: string[];
     reason: string;
-    yongsinAlignment: string; // 용신과의 관계
+    yongsinAlignment: string;
     strength: '매우 적합' | '적합' | '보통' | '부적합';
   }[];
 
-  /** 피해야 할 직업 */
-  jobsToAvoid: {
-    category: CareerCategory;
+  /** 절대 배제가 아닌, 부담이 될 수 있어 살펴볼 업무 조건 */
+  workConditionsToConsider: {
+    condition: string;
     reason: string;
     alternativeSuggestion: string;
+    basis: string[];
   }[];
 
   /** 오행별 직업 적성 — 발달 오행(타고난 강점)과 용신(보완 방향) 두 관점을 블렌드한다 */
@@ -69,10 +64,10 @@ export interface CareerRecommendation {
 
   /** 경력 개발 조언 */
   careerAdvice: {
-    earlyCareer: string[]; // 초기 경력 (20-30대)
-    midCareer: string[]; // 중기 경력 (40-50대)
-    lateCareer: string[]; // 후기 경력 (60대 이상)
-    entrepreneurship: string; // 창업 적성
+    explore: string[];
+    grow: string[];
+    expand: string[];
+    entrepreneurship: string;
   };
 
   /** 직장 환경 선호도 */
@@ -150,29 +145,6 @@ export const ELEMENT_CAREERS: Record<
 } as const;
 
 /**
- * career_recommendation.ts의 CareerCategory ↔ modern_careers.ts의 CareerCategory 매핑.
- * 두 파일이 카테고리 이름을 서로 다르게 쓴다("금융/재무" vs "금융/경제" 등) — 같은 뜻인데
- * 이름이 다른 경우만 연결한다. modern_careers.ts#MODERN_CAREERS_DB는 지금 IT/기술·금융/경제
- * 두 카테고리만 실제 데이터가 있어서(21개), 나머지 매핑은 당장은 빈 배열로 귀결돼
- * ELEMENT_CAREERS 폴백으로 넘어간다 — modern_careers.ts가 나중에 채워지면 이 표를 손대지
- * 않아도 자동으로 반영되는 구조다. 종교/상담·안전/보안은 modern_careers.ts에 대응 카테고리가
- * 없어 매핑하지 않는다(자동으로 폴백).
- */
-const MODERN_CATEGORY_MAP: Partial<Record<CareerCategory, ModernCareerCategory[]>> = {
-  'IT/기술': ['IT/기술'],
-  '금융/재무': ['금융/경제'],
-  '법률/행정': ['법률/행정'],
-  '교육/연구': ['교육/연구'],
-  '예술/문화': ['예술/문화'],
-  '의료/보건': ['의료/건강'],
-  '제조/생산': ['제조/생산'],
-  '건설/부동산': ['건설/부동산'],
-  '농업/환경': ['농업/환경'],
-  '경영/관리': ['경영/컨설팅'],
-  '언론/미디어': ['미디어/방송'],
-  '서비스/영업': ['서비스/유통', '마케팅/광고'],
-};
-
 /**
  * 십성별 직업 특성 및 적합 직군
  */
@@ -559,11 +531,11 @@ export function recommendCareer(saju: SajuData): CareerRecommendation {
     modernMatches
   );
 
-  // 4. 피해야 할 직업
-  const jobsToAvoid = identifyJobsToAvoid(saju, yongsin);
+  // 4. 부담이 될 수 있어 살펴볼 업무 조건 — 직업을 금지하지 않는다.
+  const workConditionsToConsider = identifyWorkConditionsToConsider(yongsin);
 
   // 5. 경력 조언
-  const careerAdvice = generateCareerAdvice(saju, yongsin);
+  const careerAdvice = generateCareerAdvice(saju, yongsin, recommendations);
 
   // 6. 직장 환경 선호도 (십성 기반)
   const workEnvironment = analyzeWorkEnvironment(saju, tenGodsAnalysis);
@@ -573,7 +545,7 @@ export function recommendCareer(saju: SajuData): CareerRecommendation {
 
   return {
     recommendations,
-    jobsToAvoid,
+    workConditionsToConsider,
     elementalAffinity,
     careerAdvice,
     workEnvironment,
@@ -634,26 +606,42 @@ function calculateElementalAffinity(
  * 직업 추천 생성 (십성 + 오행 + modern DB 통합)
  */
 /**
- * 카테고리별 구체적 직업 3개를 고른다 — modern_careers.ts(career_matcher.ts로 매칭한 개별
- * 직업 점수)를 먼저 쓰고, 그 카테고리에 modern 데이터가 없거나 3개를 못 채우면
- * ELEMENT_CAREERS의 카테고리 매핑으로 나머지를 채운다. modern DB에서 나온 직업이 있으면
- * 그 중 가장 점수 높은 직업의 recommendationReason도 같이 돌려줘서 reason 문구에 붙인다.
+ * 카테고리별 구체적 직업 3개를 고른다. 현대 카탈로그와 기존 오행 폴백을 섞되, 현대
+ * 카탈로그에 저장된 역할·역량·업무 조건은 추천 카드의 설명에도 사용한다.
  */
 function pickSpecificJobs(
   category: CareerCategory,
   elementData: { jobsByCategory: Partial<Record<CareerCategory, string[]>> },
   modernMatches: CareerMatch[]
-): { jobs: string[]; modernReason?: string } {
-  const modernCategories = MODERN_CATEGORY_MAP[category] ?? [];
+): {
+  jobs: string[];
+  modernReason?: string;
+  requiredSkills: string[];
+  workConditions: string[];
+} {
   const sortedModernMatches = modernMatches
-    .filter((m) => modernCategories.includes(m.career.category))
+    .filter((m) => m.career.category === category)
     .sort((a, b) => b.matchScore - a.matchScore);
 
   const modernJobs = sortedModernMatches.map((m) => m.career.name);
   const fallbackJobs = elementData.jobsByCategory[category] ?? [];
   const jobs = Array.from(new Set([...modernJobs, ...fallbackJobs])).slice(0, 3);
 
-  return { jobs, modernReason: sortedModernMatches[0]?.career.recommendationReason };
+  const matchedCareers = sortedModernMatches.slice(0, 3).map((match) => match.career);
+  const categoryInfo = CAREER_CATEGORY_INFO[category];
+  return {
+    jobs,
+    modernReason: sortedModernMatches[0]?.career.recommendationReason,
+    requiredSkills: Array.from(
+      new Set(matchedCareers.flatMap((career) => career.requiredSkills))
+    ).slice(0, 4),
+    workConditions: Array.from(
+      new Set([
+        ...matchedCareers.flatMap((career) => career.workConditions),
+        ...categoryInfo.workConditions,
+      ])
+    ).slice(0, 3),
+  };
 }
 
 function generateRecommendations(
@@ -663,7 +651,10 @@ function generateRecommendations(
   tenGodsAnalysis: TenGodsCareerAnalysis,
   modernMatches: CareerMatch[]
 ): CareerRecommendation['recommendations'] {
-  const recommendations: CareerRecommendation['recommendations'] = [];
+  const byCategory = new Map<
+    CareerCategory,
+    CareerRecommendation['recommendations'][number]
+  >();
 
   // 십성 기반 직군에 가점 부여
   const tenGodsCategoryBonus: Record<string, number> = {};
@@ -686,7 +677,13 @@ function generateRecommendations(
 
       const isYongsin = element === yongsin;
       const isTenGodsMatch = tenGodsAnalysis.suitableCategories.includes(category);
-      const { jobs: specificJobs, modernReason } = pickSpecificJobs(category, elementData, modernMatches);
+      const {
+        jobs: specificJobs,
+        modernReason,
+        requiredSkills,
+        workConditions,
+      } = pickSpecificJobs(category, elementData, modernMatches);
+      const categoryInfo = CAREER_CATEGORY_INFO[category];
 
       // 발달 오행(타고난 강점)과 용신(보완 방향) 두 관점을 각각 문장으로 만들어 이어붙인다 —
       // 조합마다 문장을 따로 쓰면 경우의 수가 폭발하므로, 해당하는 절만 골라 join한다.
@@ -714,48 +711,99 @@ function generateRecommendations(
           ? `${reasonClauses.join(". ")}.`
           : `${element} 기운이 적성에 맞습니다.`;
 
-      recommendations.push({
+      const basis = [
+        element + ' ' + (
+          affinity.developedStatus === '발달'
+            ? '강점'
+            : affinity.developedStatus === '부족'
+              ? '보완 방향'
+              : '균형'
+        ),
+        isYongsin
+          ? '용신 ' + yongsin + ' 일치'
+          : generates(element, yongsin)
+            ? '용신 ' + yongsin + ' 생조'
+            : '십성 ' + tenGodsAnalysis.dominantTenGod,
+      ];
+      const candidate: CareerRecommendation['recommendations'][number] = {
         category,
+        categoryLabel: categoryInfo.label,
         score: Math.max(0, Math.min(100, score)),
         specificJobs,
+        roleSummary: categoryInfo.roleSummary,
+        requiredSkills,
+        workConditions,
+        basis,
         reason,
         yongsinAlignment: isYongsin ? '용신 일치' : generates(element, yongsin) ? '용신 생조' : '보통',
         strength: score >= 80 ? '매우 적합' : score >= 60 ? '적합' : score >= 40 ? '보통' : '부적합',
+      };
+
+      // 여러 오행이 같은 직군을 가리킬 수 있다. 카드 하나로 합쳐야 직군이 중복되지
+      // 않고, 근거도 누락되지 않는다.
+      const existing = byCategory.get(category);
+      if (!existing) {
+        byCategory.set(category, candidate);
+        return;
+      }
+
+      const best = candidate.score > existing.score ? candidate : existing;
+      byCategory.set(category, {
+        ...best,
+        specificJobs: Array.from(
+          new Set([...existing.specificJobs, ...candidate.specificJobs])
+        ).slice(0, 3),
+        requiredSkills: Array.from(
+          new Set([...existing.requiredSkills, ...candidate.requiredSkills])
+        ).slice(0, 4),
+        workConditions: Array.from(
+          new Set([...existing.workConditions, ...candidate.workConditions])
+        ).slice(0, 3),
+        basis: Array.from(new Set([...existing.basis, ...candidate.basis])),
       });
     });
   });
 
   // 점수순 정렬 및 상위 10개 반환
-  return recommendations
+  return [...byCategory.values()]
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 }
 
 /**
- * 피해야 할 직업 식별
+ * 특정 직업을 금지하지 않고, 용신과 충돌하는 오행이 강하게 요구되는 업무 조건을
+ * “살펴볼 점”으로만 정리한다.
  */
-function identifyJobsToAvoid(
-  _saju: SajuData,
+function identifyWorkConditionsToConsider(
   yongsin: WuXing
-): CareerRecommendation['jobsToAvoid'] {
-  const jobsToAvoid: CareerRecommendation['jobsToAvoid'] = [];
+): CareerRecommendation['workConditionsToConsider'] {
+  const conditions: CareerRecommendation['workConditionsToConsider'] = [];
 
-  // 용신을 극하는 오행의 직업은 피해야 함
   const elements: WuXing[] = ['목', '화', '토', '금', '수'];
   const harmfulElements = elements.filter((el) => controls(el, yongsin));
 
   harmfulElements.forEach((element) => {
     const elementData = ELEMENT_CAREERS[element];
     elementData.categories.forEach((category) => {
-      jobsToAvoid.push({
-        category,
-        reason: `${element} 기운이 ${josa(`용신(${yongsin})`, "을/를")} 극하여 불리합니다.`,
-        alternativeSuggestion: `대신 ${yongsin} 관련 직업을 고려하세요.`,
+      conditions.push({
+        condition: CAREER_CATEGORY_INFO[category].label,
+        reason:
+          element +
+          ' 기운이 ' +
+          josa('용신(' + yongsin + ')', '을/를') +
+          ' 극하는 방향이라, 이 직군의 업무 조건이 오래 지속될 때 부담으로 느껴질 수 있습니다.',
+        alternativeSuggestion:
+          '대신 ' +
+          CAREER_CATEGORY_INFO[ELEMENT_CAREERS[yongsin].categories[0]].label +
+          '처럼 ' +
+          yongsin +
+          ' 기운을 활용하는 역할도 함께 비교해 보세요.',
+        basis: ['용신 ' + yongsin, element + ' 기운의 업무 조건'],
       });
     });
   });
 
-  return jobsToAvoid.slice(0, 5);
+  return conditions.slice(0, 4);
 }
 
 /**
@@ -763,29 +811,32 @@ function identifyJobsToAvoid(
  */
 function generateCareerAdvice(
   saju: SajuData,
-  yongsin: WuXing
+  yongsin: WuXing,
+  recommendations: CareerRecommendation['recommendations']
 ): CareerRecommendation['careerAdvice'] {
-  // const dayMaster = saju.day.stem; // 향후 활용 예정
+  const topRecommendation = recommendations[0];
+  const skills = topRecommendation?.requiredSkills.slice(0, 2) ?? [];
+  const skillLabel = skills.length > 0 ? skills.join('·') : yongsin + ' 관련 역량';
 
   return {
-    earlyCareer: [
-      `${yongsin} 오행 관련 분야에서 경험을 쌓으세요.`,
-      '다양한 경험을 통해 적성을 찾는 시기입니다.',
-      '인맥 구축과 기술 습득에 집중하세요.',
+    explore: [
+      (topRecommendation?.categoryLabel ?? yongsin + ' 관련 분야') + '의 실제 업무를 인터뷰·프로젝트·체험으로 비교해 보세요.',
+      skillLabel + ' 같은 역량을 작게라도 직접 써 보는 경험을 만드세요.',
+      '흥미뿐 아니라 업무 조건과 자격·경력 요건을 함께 확인하세요.',
     ],
-    midCareer: [
-      '축적된 경험을 바탕으로 전문성을 키우세요.',
-      `${yongsin} 기운이 강한 시기에 중요한 결정을 내리세요.`,
-      '리더십 역량을 개발할 시기입니다.',
+    grow: [
+      '반복해서 성과를 낸 역할을 골라 전문성과 포트폴리오를 쌓으세요.',
+      '나에게 맞는 협업 방식과 책임 범위를 문서화해 다음 역할 선택에 활용하세요.',
+      '직군의 핵심 역량을 보완할 교육·자격·멘토링을 계획하세요.',
     ],
-    lateCareer: [
-      '후배 양성과 지식 전수에 집중하세요.',
-      '안정적인 수입원을 확보하세요.',
-      '새로운 도전보다는 기존 경력을 활용하세요.',
+    expand: [
+      '쌓은 전문성을 프로젝트 리드·교육·자문처럼 더 넓은 역할로 연결해 보세요.',
+      '직무 전환 시에는 공통 역량과 이전 성과를 먼저 정리하세요.',
+      '환경 변화에 맞춰 도구와 지식을 갱신하는 루틴을 유지하세요.',
     ],
     entrepreneurship: isEntrepreneurshipSuitable(saju)
-      ? `창업 적성이 있습니다. ${yongsin} 관련 사업을 고려하세요.`
-      : '직장 생활이 더 안정적입니다. 부업으로 시작하는 것을 권장합니다.',
+      ? '독립적으로 주도하는 일에도 강점이 있을 수 있습니다. 작은 검증과 수지 계획을 먼저 세워 보세요.'
+      : '조직 안에서 전문성을 쌓는 경로도 잘 맞을 수 있습니다. 독립 프로젝트는 작은 범위에서 검증해 보세요.',
   };
 }
 
@@ -861,11 +912,18 @@ function generateSummary(
   recommendations: CareerRecommendation['recommendations'],
   workEnvironment: CareerRecommendation['workEnvironment']
 ): string {
-  const topCategory = recommendations[0]?.category || '다양한 분야';
+  const topCategory = recommendations[0]?.categoryLabel || '다양한 분야';
   const preferredSize = workEnvironment.preferredSize;
   const workStyle = workEnvironment.workStyle;
 
-  return `${topCategory} 분야에서 가장 큰 성공 가능성을 보입니다. ${preferredSize} 환경에서 ${workStyle} 업무 스타일이 적합합니다.`;
+  return (
+    topCategory +
+    '에서 쓰기 좋은 역할 자원이 두드러집니다. ' +
+    preferredSize +
+    '처럼 느껴지는 환경에서 ' +
+    workStyle +
+    ' 방식으로 일할 때 강점을 살펴볼 수 있습니다.'
+  );
 }
 
 // ==================== 헬퍼 함수 ====================
@@ -897,4 +955,3 @@ function controls(from: WuXing, to: WuXing): boolean {
   };
   return cycle[from] === to;
 }
-

@@ -182,15 +182,11 @@ analyzeGyeokGukQuality`가 별도로 판단한다(단일 책임 분리). 자평�
 **예전에는 용신 점수만 썼고, 오행이 강할수록(발달할수록) 오히려 감점(-10)했다** — 실제로 그 오행이
 발달해 잘 다루는 사람에게 "이 분야는 안 맞다"는 결과가 나오는 문제가 있었다.
 
-카테고리별 구체적 직업 목록(`specificJobs`)은 이제 **`career_matcher.ts#CareerMatcher`를 실제로
-호출**해서 만든다(예전엔 이 파일 전체가 저장소 어디서도 import되지 않는 죽은 코드였다). 카테고리별
-직업은 `ELEMENT_CAREERS[element].jobsByCategory[category]`(오행 자체 데이터, 카테고리를 키로
-명시적으로 매핑 — **예전엔 `jobs: string[]` 평평한 배열을 categories 개수로 기계적으로 등분해서
-배정하다가 5개 오행 전부에서 어긋나 있었다**, 예: 화 오행의 "예술/문화"에 "프로그래머"가 들어가던
-회귀)과, `career_matcher.ts`가 `modern_careers.ts#MODERN_CAREERS_DB`(십성·오행 태그가 붙은 개별
-직업 500+ 라는 주석과 달리 **실제로는 IT/기술·금융/경제 두 카테고리, 21개뿐**)에서 점수 매긴 결과를
-합쳐서 만든다 — 카테고리 이름이 두 파일에서 서로 달라(`career_recommendation.ts`의
-"금융/재무" vs `modern_careers.ts`의 "금융/경제" 등) `MODERN_CATEGORY_MAP`으로 연결한다.
+카테고리별 구체적 직업 목록(`specificJobs`)은 **`career_matcher.ts#CareerMatcher`를 실제로
+호출**해서 만든다. `modern_careers.ts`의 `CareerCategory`가 직업 추천·매칭 엔진의 단일
+직군 체계이며, 현재 직업탭이 쓰는 14개 직군마다 대표 역할 4개와 역할 설명·필요 역량·업무 조건을
+가진다. 오행 폴백(`ELEMENT_CAREERS[element].jobsByCategory[category]`)은 현대 직업 매칭 결과를
+보완할 뿐이며, 카테고리 이름을 다시 변환하는 별도 매핑을 만들지 않는다.
 
 `CareerMatcher.matchCareers`는 원래 내부에서 `yongsin/selector.ts#YongSinSelector`(4-알고리즘
 레지스트리)로 용신을 **자체 재계산**했다 — 화면에 이미 표시 중인 용신(`saju.yongSin`, `saju.ts`가
@@ -199,9 +195,9 @@ analyzeGyeokGukQuality`가 별도로 판단한다(단일 책임 분리). 자평�
 `saju.yongSin`을 그대로 넘기도록 고쳤다 — 이 옵션 없이 `CareerMatcher`를 새로 호출하는 코드를
 추가하면 똑같은 불일치가 재발한다.
 
-`src/data/modern_careers.ts#CAREER_BY_ELEMENT`/`CAREER_BY_TEN_GOD`는 위 흐름과 무관한
-**여전히 죽은 코드**다(정의부만 있고 어디서도 안 쓰임) — `MODERN_CAREERS_DB`(위 흐름에서 실제로
-쓰임)와 혼동하지 말 것.
+직업 추천은 같은 직군이 여러 오행 근거에서 나오면 하나의 카드로 병합하고, 근거 배지·대표 역할·준비
+역량·어울리는 업무 조건을 함께 낸다. 용신 상극은 “피해야 할 직업”이 아니라 장기적으로 부담이 될 수
+있는 업무 조건으로만 안내한다.
 
 ### 캐싱
 

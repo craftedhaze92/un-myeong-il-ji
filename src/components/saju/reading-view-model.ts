@@ -756,8 +756,13 @@ export function buildTimingViewModel(
 
 export interface CareerRecommendationVM {
   category: string;
+  categoryLabel: string;
   score: number;
   specificJobs: string[];
+  roleSummary: string;
+  requiredSkills: string[];
+  workConditions: string[];
+  basis: string[];
   reason: string;
   yongsinAlignment: string;
   strengthLabel: string;
@@ -765,10 +770,11 @@ export interface CareerRecommendationVM {
 
 export interface CareerVM {
   recommendations: CareerRecommendationVM[];
-  jobsToAvoid: {
-    category: string;
+  workConditionsToConsider: {
+    condition: string;
     reason: string;
     alternativeSuggestion: string;
+    basis: string[];
   }[];
   elementalAffinity: {
     element: WuXing;
@@ -779,10 +785,16 @@ export interface CareerVM {
     careers: string[];
   }[];
   careerAdvice: {
-    earlyCareer: string[];
-    midCareer: string[];
-    lateCareer: string[];
+    explore: string[];
+    grow: string[];
+    expand: string[];
     entrepreneurship: string;
+  };
+  workEnvironment: {
+    preferredSize: string;
+    workStyle: string;
+    leadership: string;
+    stability: string;
   };
   summary: string;
 }
@@ -792,15 +804,21 @@ export function buildCareerViewModel(saju: SajuData): CareerVM {
   return {
     recommendations: result.recommendations.slice(0, 5).map((r) => ({
       category: r.category,
+      categoryLabel: r.categoryLabel,
       score: r.score,
       specificJobs: r.specificJobs,
+      roleSummary: r.roleSummary,
+      requiredSkills: r.requiredSkills,
+      workConditions: r.workConditions,
+      basis: r.basis,
       reason: r.reason,
       yongsinAlignment: r.yongsinAlignment,
       strengthLabel: r.strength,
     })),
-    jobsToAvoid: result.jobsToAvoid,
+    workConditionsToConsider: result.workConditionsToConsider,
     elementalAffinity: result.elementalAffinity,
     careerAdvice: result.careerAdvice,
+    workEnvironment: result.workEnvironment,
     summary: result.summary,
   };
 }

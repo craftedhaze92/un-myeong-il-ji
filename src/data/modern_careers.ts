@@ -1,388 +1,162 @@
-﻿/**
- * 현대 직업 데이터베이스 (500+ 직업)
- * Modern Career Database
+/**
+ * 직업 탐색 카탈로그.
  *
- * 십성 기반 직업 매칭 + 시대 반영 (IT, 글로벌, 원격 근무)
+ * 한국고용정보원의 직업 대분류와 NCS의 직무 중심 분류를 참고한 적성 탐색용 정적 목록이다.
+ * 실시간 채용·임금 데이터가 아니며, 직업 수나 채용 가능성을 과장하지 않는다.
  */
 
 import type { TenGod, WuXing } from '../types/index';
 
-/**
- * 직업 카테고리
- */
+/** 직업 탭과 매칭 엔진이 함께 쓰는 단일 직군 체계. */
 export type CareerCategory =
-  | 'IT/기술'
-  | '금융/경제'
-  | '의료/건강'
+  | '경영/관리'
+  | '금융/재무'
+  | '법률/행정'
   | '교육/연구'
   | '예술/문화'
-  | '미디어/방송'
-  | '법률/행정'
-  | '경영/컨설팅'
-  | '마케팅/광고'
+  | '의료/보건'
+  | 'IT/기술'
   | '제조/생산'
+  | '서비스/영업'
+  | '언론/미디어'
   | '건설/부동산'
-  | '서비스/유통'
   | '농업/환경'
-  | '사회복지'
-  | '스포츠/레저'
-  | '기타';
+  | '종교/상담'
+  | '안전/보안';
 
-/**
- * 직업 정보
- */
+export interface CareerCategoryInfo {
+  label: string;
+  /** 한국직업정보/NCS와 대조할 때 쓰는 대표 분류군 */
+  standardGroup: string;
+  roleSummary: string;
+  workConditions: string[];
+}
+
+/** 직군별 설명의 단일 출처. */
+export const CAREER_CATEGORY_INFO: Record<CareerCategory, CareerCategoryInfo> = {
+  '경영/관리': { label: '경영·관리', standardGroup: '경영·사무·금융·보험직', roleSummary: '사람·자원·일정을 조율해 목표를 실행하는 역할입니다.', workConditions: ['우선순위를 정할 권한', '부서 간 조율', '성과와 운영을 함께 보는 환경'] },
+  '금융/재무': { label: '금융·재무', standardGroup: '경영·사무·금융·보험직', roleSummary: '수치와 규정을 바탕으로 자금·위험·의사결정을 관리하는 역할입니다.', workConditions: ['정확한 기록과 검토', '장기적 판단', '규정과 책임이 분명한 환경'] },
+  '법률/행정': { label: '법률·행정', standardGroup: '교육·법률·사회복지·경찰·소방직 및 군인', roleSummary: '기준을 해석하고 절차를 설계해 공정한 운영을 돕는 역할입니다.', workConditions: ['명확한 기준과 절차', '책임 범위가 분명한 조직', '문서·검토 중심 업무'] },
+  '교육/연구': { label: '교육·연구', standardGroup: '연구직 및 공학 기술직', roleSummary: '지식을 탐구·구조화해 다른 사람의 이해와 성장을 돕는 역할입니다.', workConditions: ['깊이 있게 탐구할 시간', '지식 공유', '학습과 개선이 이어지는 환경'] },
+  '예술/문화': { label: '예술·문화', standardGroup: '예술·디자인·방송·스포츠직', roleSummary: '아이디어를 경험·형태·이야기로 전환해 사람에게 전달하는 역할입니다.', workConditions: ['표현의 자율성', '사용자·관객 피드백', '프로젝트 단위 협업'] },
+  '의료/보건': { label: '의료·보건', standardGroup: '보건·의료직', roleSummary: '전문 지식과 돌봄으로 건강·안전·회복을 지원하는 역할입니다.', workConditions: ['정확한 전문 절차', '신뢰 기반의 대인 접점', '꾸준한 학습과 팀 협업'] },
+  'IT/기술': { label: 'IT·기술', standardGroup: '연구직 및 공학 기술직', roleSummary: '문제를 분석하고 기술·시스템으로 재현 가능한 해결책을 만드는 역할입니다.', workConditions: ['문제 해결에 집중할 시간', '실험과 개선의 반복', '기술 문서와 협업 도구'] },
+  '제조/생산': { label: '제조·생산', standardGroup: '설치·정비·생산직', roleSummary: '품질·공정·설비를 개선해 안정적으로 결과물을 만드는 역할입니다.', workConditions: ['표준과 품질 기준', '현장 문제 해결', '정확한 실행과 개선 활동'] },
+  '서비스/영업': { label: '서비스·영업', standardGroup: '영업·판매·운전·운송직', roleSummary: '고객의 문제를 이해하고 관계와 제안으로 가치를 연결하는 역할입니다.', workConditions: ['사람과 직접 만나는 접점', '빠른 피드백', '목표와 보상이 투명한 환경'] },
+  '언론/미디어': { label: '언론·미디어', standardGroup: '예술·디자인·방송·스포츠직', roleSummary: '정보를 선별·구성해 이해하기 쉬운 이야기와 콘텐츠로 전달하는 역할입니다.', workConditions: ['사회·사용자 관찰', '빠른 제작과 검토', '기획자·제작자 간 협업'] },
+  '건설/부동산': { label: '건설·부동산', standardGroup: '건설·채굴직', roleSummary: '공간·자산·인프라를 계획하고 장기적으로 운영하는 역할입니다.', workConditions: ['현장과 문서를 함께 보는 업무', '장기 프로젝트', '안전·규정·이해관계 조율'] },
+  '농업/환경': { label: '농업·환경', standardGroup: '농림어업직', roleSummary: '자연 자원과 생활 환경을 보전·관리하며 지속 가능한 해법을 만드는 역할입니다.', workConditions: ['현장 관찰', '장기적 개선', '지역·생태계와 연결된 업무'] },
+  '종교/상담': { label: '상담·돌봄', standardGroup: '교육·법률·사회복지·경찰·소방직 및 군인', roleSummary: '경청과 전문적 개입으로 사람의 회복·관계·의사결정을 돕는 역할입니다.', workConditions: ['신뢰를 쌓을 시간', '윤리와 경계가 명확한 체계', '사례를 함께 검토하는 동료'] },
+  '안전/보안': { label: '안전·보안', standardGroup: '교육·법률·사회복지·경찰·소방직 및 군인', roleSummary: '위험을 미리 찾고 기준·대응 체계로 사람과 자산을 보호하는 역할입니다.', workConditions: ['명확한 책임과 절차', '위험 신호를 점검하는 일', '침착한 대응과 팀 공조'] },
+};
+
 export interface CareerInfo {
-  /** 직업명 */
   name: string;
-  /** 영문명 */
   nameEn?: string;
-  /** 카테고리 */
   category: CareerCategory;
-  /** 주요 십성 (우선순위 순) */
   primaryTenGods: TenGod[];
-  /** 보조 십성 */
   secondaryTenGods?: TenGod[];
-  /** 주요 오행 */
   primaryElements: WuXing[];
-  /** 보조 오행 */
   secondaryElements?: WuXing[];
-  /** 직업 설명 */
   description: string;
-  /** 필요 역량 */
   requiredSkills: string[];
-  /** 현대 트렌드 */
+  workConditions: string[];
   modernTrends?: string[];
-  /** 원격 근무 가능 여부 */
   remoteWorkPossible: boolean;
-  /** 글로벌 기회 */
   globalOpportunity: boolean;
-  /** 추천 사유 */
   recommendationReason: string;
 }
 
-/**
- * IT/기술 분야 (100개)
- */
-export const IT_TECH_CAREERS: CareerInfo[] = [
-  // 소프트웨어 개발
-  {
-    name: '소프트웨어 개발자',
-    nameEn: 'Software Developer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '상관'],
-    secondaryTenGods: ['편인', '정인'],
-    primaryElements: ['수', '금'],
-    secondaryElements: ['목'],
-    description: '프로그램 설계 및 개발',
-    requiredSkills: ['프로그래밍', '논리적 사고', '문제 해결'],
-    modernTrends: ['AI/ML', '클라우드', '마이크로서비스'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 창의성과 논리적 사고가 필요한 직업',
-  },
-  {
-    name: '프론트엔드 개발자',
-    nameEn: 'Frontend Developer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '상관'],
-    secondaryTenGods: ['편재', '정재'],
-    primaryElements: ['화', '목'],
-    secondaryElements: ['수'],
-    description: '웹/앱 사용자 인터페이스 개발',
-    requiredSkills: ['HTML/CSS/JS', 'UI/UX', '디자인 감각'],
-    modernTrends: ['React', 'Vue', 'TypeScript', '반응형 디자인'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 창의성과 미적 감각이 중요',
-  },
-  {
-    name: '백엔드 개발자',
-    nameEn: 'Backend Developer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '정인'],
-    secondaryTenGods: ['편인'],
-    primaryElements: ['수', '금'],
-    description: '서버 및 데이터베이스 개발',
-    requiredSkills: ['서버 프로그래밍', '데이터베이스', '시스템 설계'],
-    modernTrends: ['Node.js', 'Python', 'Go', 'Kubernetes'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '정인의 체계적 사고와 분석력 필요',
-  },
-  {
-    name: '풀스택 개발자',
-    nameEn: 'Full-stack Developer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '상관', '편인'],
-    primaryElements: ['수', '화', '목'],
-    description: '프론트엔드와 백엔드 전체 개발',
-    requiredSkills: ['다양한 프로그래밍 언어', '시스템 설계', '문제 해결'],
-    modernTrends: ['MERN/MEAN 스택', 'DevOps', '클라우드'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '다재다능한 식신과 편인의 조합',
-  },
-  {
-    name: '모바일 앱 개발자',
-    nameEn: 'Mobile App Developer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '상관'],
-    secondaryTenGods: ['편재'],
-    primaryElements: ['화', '수'],
-    description: 'iOS/Android 앱 개발',
-    requiredSkills: ['Swift/Kotlin', 'UI/UX', '모바일 아키텍처'],
-    modernTrends: ['Flutter', 'React Native', 'SwiftUI'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 창의성과 실용성',
-  },
-
-  // 데이터/AI
-  {
-    name: '데이터 사이언티스트',
-    nameEn: 'Data Scientist',
-    category: 'IT/기술',
-    primaryTenGods: ['정인', '편인'],
-    secondaryTenGods: ['식신'],
-    primaryElements: ['수', '금'],
-    description: '데이터 분석 및 머신러닝 모델 개발',
-    requiredSkills: ['통계', 'Python/R', '머신러닝', '데이터 분석'],
-    modernTrends: ['AI/ML', '빅데이터', '예측 모델'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '정인의 학문적 깊이와 분석력',
-  },
-  {
-    name: 'AI 엔지니어',
-    nameEn: 'AI Engineer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '정인'],
-    primaryElements: ['수', '금'],
-    description: '인공지능 시스템 개발',
-    requiredSkills: ['딥러닝', 'TensorFlow/PyTorch', '알고리즘'],
-    modernTrends: ['ChatGPT', '생성형 AI', 'LLM'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 창의성과 정인의 학습 능력',
-  },
-  {
-    name: '데이터 엔지니어',
-    nameEn: 'Data Engineer',
-    category: 'IT/기술',
-    primaryTenGods: ['정인', '식신'],
-    primaryElements: ['수', '토'],
-    description: '데이터 파이프라인 및 인프라 구축',
-    requiredSkills: ['SQL', 'ETL', '클라우드', '빅데이터'],
-    modernTrends: ['Spark', 'Kafka', 'Airflow'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '정인의 체계적 설계 능력',
-  },
-
-  // 보안/인프라
-  {
-    name: '정보보안 전문가',
-    nameEn: 'Cybersecurity Specialist',
-    category: 'IT/기술',
-    primaryTenGods: ['편관', '정관'],
-    secondaryTenGods: ['정인'],
-    primaryElements: ['금', '수'],
-    description: '시스템 보안 및 해킹 방어',
-    requiredSkills: ['보안 기술', '네트워크', '해킹 방어'],
-    modernTrends: ['제로 트러스트', '클라우드 보안', 'AI 보안'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '정관의 규칙 준수와 보안 의식',
-  },
-  {
-    name: 'DevOps 엔지니어',
-    nameEn: 'DevOps Engineer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '편관'],
-    primaryElements: ['수', '금', '토'],
-    description: '개발과 운영 자동화',
-    requiredSkills: ['CI/CD', 'Docker', 'Kubernetes', '자동화'],
-    modernTrends: ['GitOps', 'SRE', 'Infrastructure as Code'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 효율성과 편관의 실행력',
-  },
-
-  // 더 많은 IT 직업들... (간결성을 위해 대표적인 것만 표시)
-  {
-    name: '클라우드 아키텍트',
-    nameEn: 'Cloud Architect',
-    category: 'IT/기술',
-    primaryTenGods: ['정인', '편관'],
-    primaryElements: ['수', '토'],
-    description: '클라우드 인프라 설계',
-    requiredSkills: ['AWS/Azure/GCP', '시스템 설계', '비용 최적화'],
-    modernTrends: ['멀티 클라우드', '서버리스', 'FinOps'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '정인의 설계 능력과 편관의 실행력',
-  },
-  {
-    name: 'UX/UI 디자이너',
-    nameEn: 'UX/UI Designer',
-    category: 'IT/기술',
-    primaryTenGods: ['상관', '식신'],
-    secondaryTenGods: ['편재'],
-    primaryElements: ['화', '목'],
-    description: '사용자 경험 및 인터페이스 디자인',
-    requiredSkills: ['디자인 툴', '사용자 리서치', '프로토타이핑'],
-    modernTrends: ['디자인 시스템', '접근성', '다크 모드'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '상관의 미적 감각과 사용자 공감 능력',
-  },
-  {
-    name: '게임 개발자',
-    nameEn: 'Game Developer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '상관'],
-    secondaryTenGods: ['편재'],
-    primaryElements: ['화', '수'],
-    description: '게임 프로그래밍 및 개발',
-    requiredSkills: ['Unity/Unreal', '그래픽스', '게임 물리'],
-    modernTrends: ['메타버스', 'VR/AR', '크로스 플랫폼'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 창의성과 재미 추구',
-  },
-  {
-    name: '블록체인 개발자',
-    nameEn: 'Blockchain Developer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '정인'],
-    primaryElements: ['수', '금'],
-    description: '블록체인 및 스마트 컨트랙트 개발',
-    requiredSkills: ['Solidity', '암호학', '분산 시스템'],
-    modernTrends: ['DeFi', 'NFT', 'Web3'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 혁신성과 정인의 기술 이해',
-  },
-  {
-    name: 'IoT 엔지니어',
-    nameEn: 'IoT Engineer',
-    category: 'IT/기술',
-    primaryTenGods: ['식신', '편인'],
-    primaryElements: ['금', '수'],
-    description: '사물인터넷 시스템 개발',
-    requiredSkills: ['임베디드', '센서', '통신 프로토콜'],
-    modernTrends: ['스마트홈', '산업 IoT', 'Edge Computing'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 실용성과 편인의 기술력',
-  },
-];
+function entry(
+  category: CareerCategory,
+  name: string,
+  primaryTenGods: TenGod[],
+  primaryElements: WuXing[],
+  description: string,
+  requiredSkills: string[],
+  workConditions: string[],
+  options: Partial<Pick<CareerInfo, 'secondaryTenGods' | 'secondaryElements' | 'modernTrends' | 'remoteWorkPossible' | 'globalOpportunity' | 'nameEn'>> = {},
+): CareerInfo {
+  return {
+    category, name, primaryTenGods, primaryElements, description, requiredSkills, workConditions,
+    remoteWorkPossible: false, globalOpportunity: false,
+    recommendationReason: `${primaryTenGods.join('·')}의 역할 특성과 ${primaryElements.join('·')} 기운을 함께 살릴 수 있는 직무`,
+    ...options,
+  };
+}
 
 /**
- * 금융/경제 분야 (80개)
- */
-export const FINANCE_CAREERS: CareerInfo[] = [
-  {
-    name: '퀀트 애널리스트',
-    nameEn: 'Quantitative Analyst',
-    category: '금융/경제',
-    primaryTenGods: ['정인', '식신'],
-    primaryElements: ['금', '수'],
-    description: '금융 모델링 및 알고리즘 트레이딩',
-    requiredSkills: ['수학', '통계', '프로그래밍', '금융 지식'],
-    modernTrends: ['AI 트레이딩', '암호화폐', '알고리즘'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '정인의 분석력과 식신의 전략 수립',
-  },
-  {
-    name: '핀테크 개발자',
-    nameEn: 'Fintech Developer',
-    category: '금융/경제',
-    primaryTenGods: ['식신', '편재'],
-    primaryElements: ['금', '수'],
-    description: '금융 서비스 플랫폼 개발',
-    requiredSkills: ['프로그래밍', '금융 지식', '보안'],
-    modernTrends: ['디지털 뱅킹', '간편 결제', 'DeFi'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '식신의 기술력과 편재의 재물 감각',
-  },
-  {
-    name: '투자 분석가',
-    nameEn: 'Investment Analyst',
-    category: '금융/경제',
-    primaryTenGods: ['정인', '편재'],
-    primaryElements: ['금', '토'],
-    description: '투자 기회 분석 및 포트폴리오 관리',
-    requiredSkills: ['재무 분석', '시장 조사', '리스크 관리'],
-    modernTrends: ['ESG 투자', '로보어드바이저', '글로벌 투자'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '정인의 분석력과 편재의 재물 운용',
-  },
-  {
-    name: '재무 설계사',
-    nameEn: 'Financial Planner',
-    category: '금융/경제',
-    primaryTenGods: ['편재', '정재'],
-    secondaryTenGods: ['상관'],
-    primaryElements: ['금', '토'],
-    description: '개인 재무 상담 및 포트폴리오 설계',
-    requiredSkills: ['금융 상품', '상담', '세금 지식'],
-    modernTrends: ['자산 관리', '은퇴 설계', '디지털 자산'],
-    remoteWorkPossible: true,
-    globalOpportunity: false,
-    recommendationReason: '편재의 재물 감각과 상관의 소통 능력',
-  },
-  {
-    name: '암호화폐 트레이더',
-    nameEn: 'Crypto Trader',
-    category: '금융/경제',
-    primaryTenGods: ['편재', '식신'],
-    primaryElements: ['금', '수'],
-    description: '암호화폐 거래 및 투자',
-    requiredSkills: ['시장 분석', '리스크 관리', '기술 분석'],
-    modernTrends: ['DeFi', 'NFT', '메타버스'],
-    remoteWorkPossible: true,
-    globalOpportunity: true,
-    recommendationReason: '편재의 재물 감각과 식신의 혁신성',
-  },
-];
-
-/**
- * 전체 현대 직업 데이터베이스
- * (실제로는 500개 이상이지만, 간결성을 위해 주요 카테고리별 대표 직업만 표시)
+ * 직군별 4개 대표 역할. 자격이 필요한 직업도 포함될 수 있으므로 화면에서는 자격·경력
+ * 요건을 보장하지 않고, 탐색할 역할의 예시로만 제시한다.
  */
 export const MODERN_CAREERS_DB: CareerInfo[] = [
-  ...IT_TECH_CAREERS,
-  ...FINANCE_CAREERS,
-  // 추가 카테고리들은 필요시 확장
+  entry('경영/관리', '사업기획자', ['편재', '정관'], ['토', '화'], '사업 목표와 실행 계획을 설계합니다.', ['문제 정의', '데이터 해석', '이해관계자 조율'], ['부서 간 조율', '우선순위 결정'], { secondaryTenGods: ['식신'], remoteWorkPossible: true, globalOpportunity: true }),
+  entry('경영/관리', '프로젝트 매니저', ['정관', '편관'], ['토', '금'], '일정·위험·협업을 관리해 프로젝트를 완수합니다.', ['일정 관리', '의사소통', '위험 관리'], ['명확한 책임', '다양한 협업'], { secondaryTenGods: ['편재'], remoteWorkPossible: true, globalOpportunity: true }),
+  entry('경영/관리', '인사 담당자', ['정관', '정인'], ['토', '목'], '채용·평가·조직문화를 통해 구성원을 지원합니다.', ['경청', '문서 작성', '제도 이해'], ['신뢰 기반 대화', '제도 운영']),
+  entry('경영/관리', '운영 관리자', ['정재', '정관'], ['토', '금'], '업무 흐름과 자원을 안정적으로 운영합니다.', ['프로세스 개선', '정확성', '문제 해결'], ['반복 업무 개선', '운영 기준']),
+
+  entry('금융/재무', '회계사', ['정재', '정인'], ['금', '토'], '회계 기준에 따라 재무 정보를 검토합니다.', ['회계 기준', '정확성', '문서 검토'], ['명확한 규정', '정밀한 검토'], { globalOpportunity: true }),
+  entry('금융/재무', '재무 분석가', ['정재', '편인'], ['금', '수'], '재무 데이터로 의사결정을 지원합니다.', ['재무 모델링', '데이터 분석', '보고서 작성'], ['수치 기반 판단', '장기적 관찰'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('금융/재무', '리스크 관리자', ['정관', '정인'], ['금', '수'], '재무·운영 위험을 파악하고 통제 방안을 설계합니다.', ['위험 분석', '규정 이해', '시나리오 설계'], ['예방 중심 업무', '책임 있는 검토'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('금융/재무', '세무사', ['정재', '정관'], ['금', '토'], '세법에 맞춰 신고와 상담을 수행합니다.', ['세법', '상담', '문서 관리'], ['전문 자격', '고객 신뢰']),
+
+  entry('법률/행정', '법무 담당자', ['정관', '정인'], ['금', '토'], '계약·규정·분쟁 예방 업무를 지원합니다.', ['법률 문서', '논리적 글쓰기', '리스크 검토'], ['기준과 절차', '세밀한 검토'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('법률/행정', '컴플라이언스 담당자', ['정관', '편관'], ['금', '수'], '조직의 준법·윤리 기준을 관리합니다.', ['규정 해석', '점검', '교육'], ['책임 범위가 명확한 조직', '예방 중심 업무'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('법률/행정', '행정 사무원', ['정관', '정재'], ['토', '금'], '문서·민원·절차를 정확하게 운영합니다.', ['문서 관리', '고객 응대', '절차 이해'], ['안정적 프로세스', '정확한 기록']),
+  entry('법률/행정', '정책 연구원', ['정인', '정관'], ['수', '토'], '사회 현상을 조사해 정책 대안을 제안합니다.', ['리서치', '자료 분석', '보고서 작성'], ['깊이 있는 탐구', '공공성'], { remoteWorkPossible: true, globalOpportunity: true }),
+
+  entry('교육/연구', '교사', ['정인', '식신'], ['목', '화'], '학습자의 이해와 성장을 돕습니다.', ['설명력', '관찰', '수업 설계'], ['지식 공유', '지속적 관계']),
+  entry('교육/연구', '연구원', ['정인', '편인'], ['수', '목'], '질문을 세우고 자료와 실험으로 답을 찾습니다.', ['연구 설계', '분석', '보고서 작성'], ['집중 시간', '검증과 토론'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('교육/연구', '학습 콘텐츠 기획자', ['식신', '정인'], ['목', '화'], '학습 목적에 맞는 콘텐츠와 경험을 설계합니다.', ['교육 설계', '글쓰기', '사용자 이해'], ['기획과 제작의 협업', '학습자 피드백'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('교육/연구', '출판 편집자', ['정인', '상관'], ['목', '수'], '원고를 다듬고 독자에게 닿는 책을 만듭니다.', ['편집', '문장력', '기획'], ['세밀한 검토', '창작자 협업'], { remoteWorkPossible: true }),
+
+  entry('예술/문화', '그래픽 디자이너', ['상관', '식신'], ['화', '목'], '정보와 브랜드를 시각 언어로 표현합니다.', ['시각화', '디자인 도구', '피드백 반영'], ['표현의 자율성', '프로젝트 협업'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('예술/문화', '문화 기획자', ['식신', '편재'], ['화', '목'], '전시·공연·지역 문화 프로그램을 기획합니다.', ['기획', '관객 이해', '협업'], ['사람과 현장의 접점', '행사 운영']),
+  entry('예술/문화', '작가', ['식신', '상관'], ['목', '수'], '경험과 생각을 글과 이야기로 만듭니다.', ['글쓰기', '관찰', '구성'], ['집중할 시간', '독자 피드백'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('예술/문화', '큐레이터', ['정인', '식신'], ['목', '화'], '작품과 맥락을 연구해 전시 경험을 구성합니다.', ['리서치', '스토리텔링', '전시 기획'], ['지식과 감각의 결합', '다분야 협업'], { globalOpportunity: true }),
+
+  entry('의료/보건', '간호사', ['정인', '정관'], ['수', '목'], '환자 관찰과 전문 간호로 치료를 지원합니다.', ['임상 지식', '관찰', '팀 의사소통'], ['명확한 절차', '돌봄과 협업'], { globalOpportunity: true }),
+  entry('의료/보건', '약사', ['정인', '정재'], ['금', '수'], '의약품 정보를 검토하고 복약을 지원합니다.', ['약학 지식', '정확성', '상담'], ['정밀한 검토', '신뢰 기반 상담'], { globalOpportunity: true }),
+  entry('의료/보건', '물리치료사', ['식신', '정인'], ['목', '화'], '움직임과 기능 회복을 돕는 치료를 수행합니다.', ['해부학', '관찰', '설명'], ['지속적 관계', '전문 절차']),
+  entry('의료/보건', '보건 교육사', ['정인', '식신'], ['목', '수'], '건강 정보를 이해하기 쉽게 교육합니다.', ['건강 지식', '교육 설계', '소통'], ['예방 중심 업무', '지식 공유'], { remoteWorkPossible: true }),
+
+  entry('IT/기술', '소프트웨어 개발자', ['식신', '상관'], ['수', '금'], '요구사항을 소프트웨어 기능으로 구현합니다.', ['프로그래밍', '문제 해결', '협업'], ['집중 시간', '반복 개선'], { nameEn: 'Software Developer', secondaryTenGods: ['편인'], modernTrends: ['클라우드', '자동화'], remoteWorkPossible: true, globalOpportunity: true }),
+  entry('IT/기술', '데이터 분석가', ['정인', '식신'], ['수', '금'], '데이터에서 의사결정에 필요한 신호를 찾습니다.', ['통계', 'SQL', '시각화'], ['질문과 검증', '수치 기반 대화'], { modernTrends: ['데이터 활용', 'AI 보조 분석'], remoteWorkPossible: true, globalOpportunity: true }),
+  entry('IT/기술', '정보보안 전문가', ['편관', '정관'], ['금', '수'], '시스템 위험을 점검하고 보안 대응을 설계합니다.', ['보안 기술', '위험 분석', '문서화'], ['명확한 절차', '침착한 대응'], { secondaryTenGods: ['정인'], modernTrends: ['클라우드 보안', '보안 자동화'], remoteWorkPossible: true, globalOpportunity: true }),
+  entry('IT/기술', 'UX/UI 디자이너', ['상관', '식신'], ['화', '목'], '사용자 경험과 화면 흐름을 설계합니다.', ['사용자 리서치', '프로토타이핑', '시각화'], ['사용자 피드백', '기획·개발 협업'], { secondaryTenGods: ['편재'], modernTrends: ['접근성', '디자인 시스템'], remoteWorkPossible: true, globalOpportunity: true }),
+
+  entry('제조/생산', '품질관리원', ['정관', '정재'], ['금', '토'], '품질 기준을 점검하고 개선 과제를 찾습니다.', ['품질 기준', '문제 분석', '문서화'], ['정확한 표준', '현장 개선']),
+  entry('제조/생산', '생산관리원', ['정관', '편재'], ['토', '금'], '생산 일정·자재·인력을 조율합니다.', ['공정 관리', '조율', '문제 해결'], ['현장과 일정 관리', '부서 간 협업']),
+  entry('제조/생산', '기계공학 기술자', ['식신', '편인'], ['금', '토'], '기계와 설비의 설계·개선을 수행합니다.', ['설계', '도면 해석', '실험'], ['기술 문제 해결', '정밀한 검증'], { globalOpportunity: true }),
+  entry('제조/생산', '공정기술 엔지니어', ['식신', '정관'], ['금', '화'], '생산 공정을 분석해 효율과 안정성을 높입니다.', ['공정 분석', '개선 활동', '데이터 해석'], ['반복 개선', '품질 책임'], { globalOpportunity: true }),
+
+  entry('서비스/영업', '영업기획자', ['편재', '식신'], ['화', '토'], '고객·시장 정보를 바탕으로 영업 전략을 만듭니다.', ['시장 분석', '제안', '관계 관리'], ['고객 접점', '목표가 투명한 환경'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('서비스/영업', '고객 성공 매니저', ['정재', '식신'], ['화', '수'], '고객이 서비스를 잘 활용하도록 지원합니다.', ['경청', '문제 해결', '제품 이해'], ['지속적 고객 관계', '빠른 피드백'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('서비스/영업', '마케터', ['식신', '편재'], ['화', '목'], '고객의 관심을 분석해 메시지와 캠페인을 설계합니다.', ['콘텐츠 기획', '데이터 해석', '실험'], ['시장 관찰', '빠른 개선'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('서비스/영업', '무역 사무원', ['편재', '정관'], ['수', '금'], '거래 문서와 물류 절차를 관리합니다.', ['문서 관리', '외국어', '조율'], ['거래처 협업', '정확한 절차'], { globalOpportunity: true }),
+
+  entry('언론/미디어', '기자', ['상관', '정인'], ['화', '수'], '사실을 취재하고 맥락 있는 기사로 전달합니다.', ['취재', '글쓰기', '검증'], ['사회 관찰', '빠른 마감과 검토'], { globalOpportunity: true }),
+  entry('언론/미디어', '콘텐츠 기획자', ['식신', '상관'], ['화', '목'], '대상에게 닿는 콘텐츠 흐름을 설계합니다.', ['스토리텔링', '사용자 이해', '기획'], ['아이디어 실험', '제작 협업'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('언론/미디어', '영상 제작자', ['식신', '상관'], ['화', '수'], '영상의 촬영·편집·구성을 완성합니다.', ['촬영', '편집', '구성'], ['프로젝트 단위 제작', '표현의 자율성'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('언론/미디어', '홍보 담당자', ['편재', '식신'], ['화', '목'], '조직의 메시지와 관계를 관리합니다.', ['글쓰기', '관계 관리', '이슈 대응'], ['대외 소통', '빠른 판단'], { remoteWorkPossible: true, globalOpportunity: true }),
+
+  entry('건설/부동산', '건축가', ['식신', '정관'], ['토', '화'], '공간의 기능과 형태를 설계합니다.', ['설계', '도면 해석', '협업'], ['장기 프로젝트', '현장과 기획의 연결'], { globalOpportunity: true }),
+  entry('건설/부동산', '토목공학 기술자', ['정관', '식신'], ['토', '금'], '인프라의 설계·시공·안전을 관리합니다.', ['구조 이해', '현장 관리', '안전 기준'], ['현장 문제 해결', '책임 있는 검토'], { globalOpportunity: true }),
+  entry('건설/부동산', '도시계획가', ['정인', '정관'], ['토', '목'], '지역의 공간·교통·환경 계획을 수립합니다.', ['조사', '공간 분석', '공론화'], ['장기적 관점', '다양한 이해관계자'], { globalOpportunity: true }),
+  entry('건설/부동산', '부동산 자산관리자', ['정재', '편재'], ['토', '금'], '부동산 자산의 운영·계약·수익성을 관리합니다.', ['계약 관리', '시장 분석', '관계 조율'], ['장기 자산 관리', '현장과 수치의 결합']),
+
+  entry('농업/환경', '환경공학 기술자', ['정인', '식신'], ['목', '수'], '환경 문제를 측정하고 기술적 개선안을 만듭니다.', ['환경 분석', '문제 해결', '보고서 작성'], ['현장 관찰', '장기적 개선'], { globalOpportunity: true }),
+  entry('농업/환경', '생태복원 전문가', ['정인', '식신'], ['목', '토'], '훼손된 생태계를 조사하고 복원 계획을 수립합니다.', ['생태 조사', '계획 수립', '현장 관리'], ['자연과 현장', '장기 프로젝트']),
+  entry('농업/환경', '스마트팜 운영자', ['편재', '식신'], ['목', '화'], '농업 생산과 기술 운영을 결합합니다.', ['재배 지식', '데이터 활용', '운영 관리'], ['자율적 운영', '기술 기반 개선']),
+  entry('농업/환경', '산림 관리자', ['정관', '정인'], ['목', '토'], '산림 자원을 보전하고 관리 계획을 실행합니다.', ['자원 관리', '현장 안전', '계획 수립'], ['자연 환경', '지속적 관리']),
+
+  entry('종교/상담', '진로상담사', ['정인', '식신'], ['수', '목'], '개인의 경험과 선택을 정리해 진로 결정을 돕습니다.', ['경청', '질문 설계', '정보 탐색'], ['신뢰 기반 대화', '윤리적 경계'], { remoteWorkPossible: true }),
+  entry('종교/상담', '사회복지사', ['정인', '정관'], ['수', '목'], '필요한 자원과 서비스를 연결해 생활을 지원합니다.', ['상담', '자원 연계', '사례 관리'], ['사람과 지역사회', '팀 사례 검토']),
+  entry('종교/상담', '심리상담사', ['편인', '정인'], ['수', '목'], '상담 과정을 통해 정서와 관계의 회복을 돕습니다.', ['경청', '상담 이론', '기록'], ['신뢰와 비밀 보장', '전문 수련'], { remoteWorkPossible: true }),
+  entry('종교/상담', '청소년 지도사', ['식신', '정인'], ['목', '화'], '청소년 활동과 성장을 지원합니다.', ['프로그램 기획', '관찰', '소통'], ['교육적 관계', '현장 활동']),
+
+  entry('안전/보안', '산업안전관리자', ['정관', '편관'], ['금', '토'], '작업장의 위험을 점검하고 안전 체계를 운영합니다.', ['안전 기준', '점검', '교육'], ['예방 중심', '명확한 책임']),
+  entry('안전/보안', '소방설비 기술자', ['편관', '식신'], ['화', '금'], '화재 예방과 설비의 점검·설계를 수행합니다.', ['설비 지식', '점검', '문제 해결'], ['현장 안전', '정확한 절차']),
+  entry('안전/보안', '개인정보보호 담당자', ['정관', '정인'], ['금', '수'], '개인정보 처리 기준과 보호 체계를 관리합니다.', ['규정 이해', '점검', '문서화'], ['세밀한 검토', '예방과 교육'], { remoteWorkPossible: true, globalOpportunity: true }),
+  entry('안전/보안', '재난안전 관리자', ['편관', '정관'], ['토', '금'], '재난 대응 계획과 현장 협업 체계를 운영합니다.', ['대응 계획', '조율', '상황 판단'], ['긴급 상황 대응', '팀 공조']),
 ];
-
-/**
- * 십성별 추천 직업
- */
-export const CAREER_BY_TEN_GOD: Record<TenGod, string[]> = {
-  비견: ['경영자', '사업가', '프리랜서', '독립 컨설턴트', '1인 기업'],
-  겁재: ['영업', '마케팅', '스타트업 창업', '경쟁 분야', '스포츠'],
-  식신: ['개발자', '디자이너', '작가', '콘텐츠 크리에이터', '요리사', '예술가'],
-  상관: ['연예인', '방송인', '디자이너', 'UX 전문가', '광고 기획', '콘텐츠 제작자'],
-  편재: ['투자자', '트레이더', '부동산', '유통', '무역', '영업'],
-  정재: ['회계사', '재무 관리', '은행원', '자산 관리사', '세무사'],
-  편관: ['경찰', '군인', 'CEO', '프로젝트 매니저', '스타트업 대표', '리더'],
-  정관: ['공무원', '법조인', '인사 담당', '컴플라이언스', '품질 관리'],
-  편인: ['연구원', '개발자', 'R&D', '학자', '전문 기술자', '엔지니어'],
-  정인: ['교수', '교사', '연구원', '전문 상담사', '의사', '변호사'],
-};
-
-/**
- * 오행별 추천 직업
- */
-export const CAREER_BY_ELEMENT: Record<WuXing, string[]> = {
-  목: ['교육', '출판', '섬유', '목재', '종이', '환경', '바이오', '헬스케어'],
-  화: ['IT', '전기', '광고', '방송', '예술', '에너지', '요리', '엔터테인먼트'],
-  토: ['건설', '부동산', '농업', '도자기', '중개', '물류', '컨설팅'],
-  금: ['금융', '은행', '법조', '금속', '기계', '자동차', '반도체', '정밀 산업'],
-  수: ['물류', '유통', '무역', '수산', '음료', '화학', '연구', '의료', 'IT'],
-};

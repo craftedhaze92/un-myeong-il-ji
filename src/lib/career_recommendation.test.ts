@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { calculateSaju } from './saju';
 import { recommendCareer, ELEMENT_CAREERS } from './career_recommendation';
 import { calculateElementDistribution } from './element_distribution';
-import { IT_TECH_CAREERS } from '../data/modern_careers';
+import {
+  CAREER_CATEGORY_INFO,
+  MODERN_CAREERS_DB,
+} from '../data/modern_careers';
 import type { WuXing } from '../types/index';
 
 describe('추천 직업의 specificJobs는 카테고리마다 달라야 한다 — 같은 오행의 카테고리가 모두 동일한 3개 직업을 반환하던 회귀', () => {
@@ -118,18 +121,57 @@ describe('ELEMENT_CAREERS — 카테고리마다 실제로 그 카테고리에 �
 
 describe('직업 탭이 career_matcher.ts(modern_careers.ts)를 실제로 반영한다', () => {
   // 1992-05-05 17:50 양력 남성은 화(火) 기운이 발달한 명식이고, 화의 ELEMENT_CAREERS는
-  // 'IT/기술' 카테고리를 갖는다 — MODERN_CATEGORY_MAP이 이를 modern_careers.ts의 'IT/기술'과
-  // 연결하므로, career_matcher.ts#CareerMatcher가 실제 IT 직업(예: '프론트엔드 개발자')을
-  // specificJobs에 끼워넣어야 한다. 이 테스트는 career_matcher.ts가 죽은 코드로 남아있지 않고
-  // 실제로 호출되는지를 검증한다.
+  // 'IT/기술' 카테고리를 갖는다. 현대 직업 카탈로그도 같은 단일 직군 키를 쓰므로,
+  // career_matcher.ts#CareerMatcher가 실제 IT 직업을 specificJobs에 끼워넣어야 한다.
+  // 이 테스트는 매칭 엔진이 죽은 코드로 남아 있지 않은지를 검증한다.
   const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
   const { recommendations } = recommendCareer(saju);
-  const itModernJobNames = new Set(IT_TECH_CAREERS.map((c) => c.name));
+  const itModernJobNames = new Set(
+    MODERN_CAREERS_DB.filter((career) => career.category === 'IT/기술').map(
+      (career) => career.name,
+    ),
+  );
 
   it('IT/기술 카테고리 추천이 존재하고, 그 specificJobs 중 하나 이상이 modern_careers.ts의 실제 직업이다', () => {
     const itRecommendation = recommendations.find((r) => r.category === 'IT/기술');
     expect(itRecommendation).toBeDefined();
     const hasModernJob = itRecommendation!.specificJobs.some((job) => itModernJobNames.has(job));
     expect(hasModernJob).toBe(true);
+  });
+});
+
+describe('현대 직업 카탈로그와 직업 추천은 전 직군을 역할·역량·업무 조건으로 연결한다', () => {
+  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  const { recommendations, workConditionsToConsider } = recommendCareer(saju);
+
+  it('현재 추천에 쓰는 14개 직군은 모두 대표 직무와 분류 설명을 가진다', () => {
+    for (const category of Object.keys(CAREER_CATEGORY_INFO)) {
+      const careers = MODERN_CAREERS_DB.filter((career) => career.category === category);
+      expect(careers.length).toBeGreaterThanOrEqual(4);
+      careers.forEach((career) => {
+        expect(career.requiredSkills.length).toBeGreaterThan(0);
+        expect(career.workConditions.length).toBeGreaterThan(0);
+      });
+    }
+  });
+
+  it('여러 오행이 같은 직군을 가리켜도 추천 카드가 중복되지 않고, 역할·근거·역량을 함께 준다', () => {
+    expect(new Set(recommendations.map((recommendation) => recommendation.category)).size)
+      .toBe(recommendations.length);
+    recommendations.forEach((recommendation) => {
+      expect(recommendation.categoryLabel).toBeTruthy();
+      expect(recommendation.basis.length).toBeGreaterThan(0);
+      expect(recommendation.requiredSkills.length).toBeGreaterThan(0);
+      expect(recommendation.workConditions.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('용신 상극 직군을 직업 금지가 아닌 살펴볼 업무 조건으로 안내한다', () => {
+    expect(workConditionsToConsider.length).toBeGreaterThan(0);
+    workConditionsToConsider.forEach((condition) => {
+      expect(condition.condition).toBeTruthy();
+      expect(condition.reason).toContain('부담');
+      expect(condition.alternativeSuggestion).toContain('비교');
+    });
   });
 });
