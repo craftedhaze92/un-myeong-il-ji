@@ -201,7 +201,7 @@ function calculateTwelveGods(
   dayBranch: EarthlyBranch
 ): IljinAnalysis['twelveGods'] {
   // 월지 기준으로 십이신 결정. 예전엔 date.getMonth()에 (month+2)%12로 근사해 절기를 무시했다 —
-  // 절입 전후 최대 보름 어긋난다(CLAUDE.md의 "근사/정밀 이중 함수" 함정과 같은 계열).
+  // 절입 전후 최대 보름 어긋난다(docs/AI_AGENT_GUIDE.md의 "근사/정밀 이중 함수" 함정과 같은 계열).
   // saju.ts#calculateMonthPillar와 같은 기준(절기 인덱스 + 2 = 인월부터)을 공유한다.
   const solarTermMonthIndex = getPreciseSolarTermMonthIndex(date);
   const monthBranchIndex = (solarTermMonthIndex + 2) % 12; // 인(寅)월부터

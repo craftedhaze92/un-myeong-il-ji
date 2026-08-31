@@ -12,7 +12,7 @@
  * 웹 검색으로 복수 출처가 서로 일치함을 직접 확인한 칸만 verified: true로 표시하고,
  * 나머지는 통설을 따르되 verified: false로 남긴다 — johu.ts#selectJohuYongSin이 이 값을
  * 보고 신뢰도(confidence)를 낮춘다. 미확정 칸을 확정처럼 내보내지 않는다는 원칙은
- * jakmeong_analysis.ts의 가짜 획수를 화면에서 비노출한 것과 같다(CLAUDE.md 참고).
+ * jakmeong_analysis.ts의 가짜 획수를 화면에서 비노출한 것과 같다(docs/AI_AGENT_GUIDE.md 참고).
  *
  * 참고: https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002857929
  *       (『궁통보감』에서 용신의 의미와 〈희용제요〉 — 甲木과 庚金을 중심으로)

@@ -305,7 +305,7 @@ function selectTonggwanYongSin(sajuData: SajuData): YongSinCore {
  * 용신 선정 메인 함수.
  *
  * 우선순위(궁통보감·자평명리·적천수의 통설): 종격(전왕) > 조후(한난조습 극단) > 억부(강약 명확) >
- * 통관(중화). CLAUDE.md가 경고하는 "경쟁하는 두 용신 구현" 함정을 늘리지 않기 위해, 종격 판정은
+ * 통관(중화). docs/AI_AGENT_GUIDE.md가 경고하는 "경쟁하는 두 용신 구현" 함정을 늘리지 않기 위해, 종격 판정은
  * gyeok_guk.ts#checkSpecialGyeokGuk을, 조후는 johu.ts#selectJohuYongSin을 그대로 재사용한다.
  */
 export function selectYongSin(sajuData: SajuData): YongSinAnalysis {
