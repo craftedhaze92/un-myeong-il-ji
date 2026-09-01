@@ -40,3 +40,23 @@ describe('세운의 유리/주의 달이 절기 기준 월지와 어긋나던 �
     });
   });
 });
+
+describe('세운 해석 — 실제 도전 근거가 없을 때 단정적인 기본 문구를 만들지 않는다', () => {
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
+
+  it('충·불리 오행·낮은 점수가 모두 없는 해는 도전 과제를 빈 목록으로 반환한다', () => {
+    const calmYear = Array.from({ length: 30 }, (_, index) => 2024 + index)
+      .map((year) => analyzeSeyun(saju, year))
+      .find((analysis) => analysis.interpretation.challenges.length === 0);
+
+    expect(calmYear).toBeDefined();
+    expect(calmYear?.interpretation.challenges).toEqual([]);
+  });
+
+  it('모든 세운 결과에서 특별한 어려움이 없다는 기본 문구를 생성하지 않는다', () => {
+    const challenges = Array.from({ length: 30 }, (_, index) => 2024 + index)
+      .flatMap((year) => analyzeSeyun(saju, year).interpretation.challenges);
+
+    expect(challenges).not.toContain('특별한 어려움은 없습니다.');
+  });
+});

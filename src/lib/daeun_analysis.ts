@@ -347,7 +347,9 @@ function generateInterpretation(
   return {
     summary,
     opportunities: opportunities.length > 0 ? opportunities : ['꾸준한 노력이 필요한 시기입니다.'],
-    challenges: challenges.length > 0 ? challenges : ['특별한 도전과제는 없습니다.'],
+    // 실제 불리 요인이나 충돌이 없으면 빈 목록을 유지한다. "도전과제 없음" 같은
+    // 기본 문구는 분석 근거처럼 보이고 과도한 확신을 줄 수 있어 채우지 않는다.
+    challenges,
     advice,
   };
 }

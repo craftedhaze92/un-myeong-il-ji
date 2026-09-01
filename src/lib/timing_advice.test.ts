@@ -83,6 +83,14 @@ describe("analyzeTimingAdvice — 실제 목적별 월운·세운·대운 점수
       expect(year.overallRating).toBe(toTimingRating(expected));
     });
   });
+
+  it("실제 분석 근거가 아닌 '특별한 도전과제는 없습니다' 기본 문구는 표시 데이터에서 제외한다", () => {
+    const challenges = advice.longTermOutlook.flatMap(
+      (year) => year.majorChallenges,
+    );
+
+    expect(challenges).not.toContain("특별한 도전과제는 없습니다.");
+  });
 });
 
 describe("analyzeTimingAdvice — 근거 문구와 택일 범위를 실제 계산 지원 여부에 맞춘다", () => {

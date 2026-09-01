@@ -515,7 +515,9 @@ function generateInterpretation(
   return {
     summary,
     opportunities: opportunities.length > 0 ? opportunities : ['안정적인 상황이 유지됩니다.'],
-    challenges: challenges.length > 0 ? challenges : ['특별한 어려움은 없습니다.'],
+    // 실제 도전 근거가 없으면 빈 목록을 유지한다. "어려움 없음" 같은 기본 문구는
+    // 분석 결과처럼 보이고 과도한 확신을 줄 수 있어 채우지 않는다.
+    challenges,
     advice,
   };
 }
