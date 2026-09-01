@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Tooltip } from "radix-ui";
 import type { DaeUnPeriod } from "@/lib/dae_un";
 import { selectIsDark, useThemeStore } from "@/store/theme-store";
 import type { SajuData } from "@/types";
@@ -33,8 +32,6 @@ export interface FlowTabProps {
  * 이 탭 하나가 이번 리팩토링에서 유일하게 쪼개지지 않고 남는다 — 파일이 크지만
  * 4개 선택 상태와 6개 파생값이 서로 의존해 나누면 오히려 회귀 위험이 커진다.
  *
- * 12개월 예보의 Tooltip.Root/Portal/Content는 이 탭이 reading-panel.tsx 안에서
- * Tooltip.Provider로 감싸여 있다는 것을 전제한다 — Provider는 파일 경계 밖(부모)에 있다.
  */
 export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
   const dark = useThemeStore(selectIsDark);
@@ -374,88 +371,83 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
               {timingVm.summary.overallAdvice}
             </div>
             <div className="text-small text-mute">
-              적기: {timingVm.summary.bestYear}년 {timingVm.summary.bestMonth}
-              월({timingVm.summary.bestSeason}) · 시급도{" "}
+              {timingVm.summary.recommendationLabel}: {timingVm.summary.bestYear}
+              년 {timingVm.summary.bestMonth}월(
+              {timingVm.summary.bestSeason}) · 예상 시점{" "}
               {timingVm.summary.urgency}
             </div>
+            {timingVm.summary.disclaimer && (
+              <div className="border-danger text-caption text-dim border-l-2 pl-3 leading-[1.7]">
+                {timingVm.summary.disclaimer}
+              </div>
+            )}
 
             <div>
               <div className="font-batang text-small mb-2 font-bold">
-                최적 시기
+                {timingVm.summary.recommendationLabel}
               </div>
-              <div className="flex flex-col gap-2.5">
+              <div className="grid gap-3 md:grid-cols-3">
                 {timingVm.optimalTiming.map((o, i) => (
-                  <div key={i}>
+                  <div key={o.yearMonth} className="border-line rounded-[2px] border p-3">
                     <div className="flex items-baseline gap-2">
                       <span className="font-mono-plex font-bold">
-                        {o.period}
+                        {i + 1}. {o.period}
                       </span>
                       <span className="text-caption text-mute">
                         {o.rating} · {o.score}점
                       </span>
                     </div>
-                    <div className="text-small text-dim">
-                      {o.yongsinSupport}
+                    <div className="text-caption text-mute mt-1">
+                      월운 {o.scoreBreakdown.month} · 세운{" "}
+                      {o.scoreBreakdown.seyun}
+                      {o.scoreBreakdown.daeun !== undefined
+                        ? ` · 대운 ${o.scoreBreakdown.daeun}`
+                        : ""}
                     </div>
+                    {o.yongsinSupport && (
+                      <div className="text-small text-dim mt-1">
+                        {o.yongsinSupport}
+                      </div>
+                    )}
                     <BulletList items={o.reasons} tone="positive" />
                     <BulletList items={o.cautions} tone="negative" />
+                    {o.specificDates && o.specificDates.length > 0 && (
+                      <div className="mt-2.5">
+                        <div className="font-batang text-caption mb-1 font-bold">
+                          월 안의 참고 날짜
+                        </div>
+                        {o.specificDates.map((date) => (
+                          <div
+                            key={date.dateLabel}
+                            className="text-caption text-dim mb-1"
+                          >
+                            <span className="font-mono-plex font-bold">
+                              {date.dateLabel}
+                            </span>{" "}
+                            · {date.dayPillar}일 · {date.score}점
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
+              {timingVm.specificDateNotice && (
+                <div className="text-caption text-mute mt-2">
+                  {timingVm.specificDateNotice}
+                </div>
+              )}
             </div>
 
             <div>
               <div className="font-batang text-small mb-2 font-bold">
-                12개월 예보
+                주의 시기
               </div>
-              <div className="flex h-[60px] items-end gap-1">
-                {timingVm.monthlyForecast.map((m, i) => (
-                  <Tooltip.Root key={i}>
-                    <Tooltip.Trigger asChild>
-                      <motion.div
-                        initial={{ scaleY: 0 }}
-                        animate={{ scaleY: 1 }}
-                        transition={{
-                          duration: 0.3,
-                          delay: i * 0.02,
-                          ease: "easeOut",
-                        }}
-                        className="flex-1 origin-bottom rounded-sm"
-                        style={{
-                          height: `${Math.max(6, m.score)}%`,
-                          background:
-                            m.rating === "최적기" || m.rating === "좋음"
-                              ? "var(--fg)"
-                              : m.rating === "불가" || m.rating === "주의"
-                                ? "var(--danger)"
-                                : "var(--track)",
-                        }}
-                      />
-                    </Tooltip.Trigger>
-                    <Tooltip.Portal>
-                      <Tooltip.Content
-                        side="top"
-                        sideOffset={6}
-                        className="border-line bg-surface text-micro text-fg z-50 max-w-[220px] rounded-[2px] border px-2.5 py-1.5 shadow-md"
-                      >
-                        {`${m.yearMonth} ${m.rating} · ${m.briefAdvice}`}
-                        <Tooltip.Arrow className="fill-surface" />
-                      </Tooltip.Content>
-                    </Tooltip.Portal>
-                  </Tooltip.Root>
-                ))}
-              </div>
-            </div>
-
-            {timingVm.timesToAvoid.length > 0 && (
-              <div>
-                <div className="font-batang text-small mb-2 font-bold">
-                  피해야 할 시기
-                </div>
-                {timingVm.timesToAvoid.map((t, i) => (
-                  <div key={i} className="text-small mb-1.5">
+              {timingVm.timesToAvoid.length > 0 ? (
+                timingVm.timesToAvoid.map((t) => (
+                  <div key={t.yearMonth} className="text-small mb-1.5">
                     <span className="text-danger">
-                      {t.period} ({t.severity})
+                      {t.period} · {t.score}점 ({t.severity})
                     </span>{" "}
                     <span className="text-dim">{t.reason}</span>
                     {t.alternatives.length > 0 && (
@@ -465,24 +457,26 @@ export function FlowTab({ saju, daeUn, vm }: FlowTabProps) {
                       </span>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              ) : (
+                <div className="text-small text-mute">
+                  분석 기간에 뚜렷한 주의 월이 없습니다.
+                </div>
+              )}
+            </div>
 
             <div>
               <div className="font-batang text-small mb-2 font-bold">
-                3년 장기 전망
+                연도별 큰 흐름
               </div>
-              <div
-                className="grid gap-3.5"
-                style={{
-                  gridTemplateColumns: `repeat(${timingVm.longTermOutlook.length}, minmax(0, 1fr))`,
-                }}
-              >
+              <div className="grid gap-3.5 md:grid-cols-2">
                 {timingVm.longTermOutlook.map((y) => (
                   <div key={y.year}>
                     <div className="font-mono-plex text-small mb-1 font-bold">
-                      {y.year}년 · {y.overallRating}
+                      {y.year}년 · {y.overallRating} · {y.overallScore}점
+                    </div>
+                    <div className="text-caption text-mute mb-1">
+                      상대적으로 좋은 달: {y.keyPeriods.join(", ")}
                     </div>
                     <BulletList items={y.majorOpportunities} tone="positive" />
                     <BulletList items={y.majorChallenges} tone="negative" />

@@ -179,7 +179,7 @@ describe("buildReadingViewModel — 4블록이 빈 값 없이 채워지는지 �
   });
 });
 
-describe("buildTimingViewModel — 결정 타입 10종 모두 예외 없이 시기 조언을 낸다", () => {
+describe("buildTimingViewModel — 결정 타입 10종 모두 36개월 시기 조언을 낸다", () => {
   const saju = calculateSaju(
     "1990-05-15",
     "14:30",
@@ -190,11 +190,11 @@ describe("buildTimingViewModel — 결정 타입 10종 모두 예외 없이 시�
   );
 
   it.each(DECISION_TYPES)(
-    "%s: 12개월 예보·3년 전망·요약이 채워진다",
+    "%s: 36개월 예보·연도별 전망·요약이 채워진다",
     (decisionType) => {
       const vm = buildTimingViewModel(saju, decisionType, new Date(2024, 0, 1));
       expect(vm.decisionType).toBe(decisionType);
-      expect(vm.monthlyForecast.length).toBe(12);
+      expect(vm.monthlyForecast.length).toBe(36);
       expect(vm.longTermOutlook.length).toBe(3);
       expect(vm.summary.overallAdvice.length).toBeGreaterThan(0);
       vm.monthlyForecast.forEach((m) => {
@@ -205,7 +205,7 @@ describe("buildTimingViewModel — 결정 타입 10종 모두 예외 없이 시�
   );
 
   // 흐름 탭에서 대운/세운을 바꿔도 "시기 조언"이 항상 오늘 기준으로 고정되던 회귀 —
-  // startDate를 바꾸면 12개월 예보 창과 3년 전망 연도가 함께 이동해야 한다.
+  // startDate를 바꾸면 36개월 예보 창과 연도별 전망이 함께 이동해야 한다.
   it("startDate를 바꾸면 monthlyForecast/longTermOutlook의 연도가 그 시점을 따라간다", () => {
     const near = buildTimingViewModel(saju, "결혼", new Date(2024, 0, 1));
     const far = buildTimingViewModel(saju, "결혼", new Date(2044, 0, 1));

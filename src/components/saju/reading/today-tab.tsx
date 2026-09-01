@@ -31,6 +31,7 @@ function dateKey(date: Date): string {
 
 const PURPOSES: TaekilPurpose[] = [
   "계약",
+  "취업/이직",
   "이사",
   "개업",
   "혼인",

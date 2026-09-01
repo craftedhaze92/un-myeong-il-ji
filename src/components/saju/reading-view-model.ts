@@ -698,26 +698,56 @@ export const DECISION_TYPES: DecisionType[] = [
 ];
 
 export interface TimingOptimalVM {
+  year: number;
+  month: number;
+  yearMonth: string;
   period: string;
   rating: string;
   score: number;
+  scoreBreakdown: {
+    month: number;
+    seyun: number;
+    daeun?: number;
+    purposeLabel: string;
+  };
   reasons: string[];
-  yongsinSupport: string;
+  yongsinSupport?: string;
   cautions: string[];
+  specificDates?: {
+    dateLabel: string;
+    score: number;
+    dayPillar: string;
+    reasons: string[];
+    cautions: string[];
+  }[];
 }
 
 export interface TimingAvoidVM {
+  yearMonth: string;
   period: string;
+  score: number;
   reason: string;
   severity: string;
   alternatives: string[];
 }
 
 export interface TimingMonthVM {
+  year: number;
+  month: number;
   yearMonth: string;
+  period: string;
   rating: string;
   score: number;
+  scoreBreakdown: {
+    month: number;
+    seyun: number;
+    daeun?: number;
+    purposeLabel: string;
+  };
+  yongsinMatched: boolean;
   briefAdvice: string;
+  reasons: string[];
+  cautions: string[];
 }
 
 export interface TimingOutlookVM {
@@ -736,12 +766,15 @@ export interface TimingVM {
   timesToAvoid: TimingAvoidVM[];
   monthlyForecast: TimingMonthVM[];
   longTermOutlook: TimingOutlookVM[];
+  specificDateNotice?: string;
   summary: {
     bestYear: number;
     bestMonth: number;
     bestSeason: string;
     overallAdvice: string;
     urgency: string;
+    recommendationLabel: string;
+    disclaimer?: string;
   };
 }
 
@@ -759,24 +792,44 @@ export function buildTimingViewModel(
   return {
     decisionType,
     optimalTiming: advice.optimalTiming.map((o) => ({
+      year: o.year,
+      month: o.month,
+      yearMonth: o.yearMonth,
       period: o.period,
       rating: o.rating,
       score: o.score,
+      scoreBreakdown: o.scoreBreakdown,
       reasons: o.reasons,
       yongsinSupport: o.yongsinSupport,
       cautions: o.cautions,
+      specificDates: o.specificDates?.map((date) => ({
+        dateLabel: `${date.date.getFullYear()}.${String(date.date.getMonth() + 1).padStart(2, "0")}.${String(date.date.getDate()).padStart(2, "0")}`,
+        score: date.score,
+        dayPillar: date.dayPillar,
+        reasons: date.reasons,
+        cautions: date.cautions,
+      })),
     })),
     timesToAvoid: advice.timesToAvoid.map((t) => ({
+      yearMonth: t.yearMonth,
       period: t.period,
+      score: t.score,
       reason: t.reason,
       severity: t.severity,
       alternatives: t.alternatives,
     })),
     monthlyForecast: advice.monthlyForecast.map((m) => ({
+      year: m.year,
+      month: m.month,
       yearMonth: m.yearMonth,
+      period: m.period,
       rating: m.rating,
       score: m.score,
+      scoreBreakdown: m.scoreBreakdown,
+      yongsinMatched: m.yongsinMatched,
       briefAdvice: m.briefAdvice,
+      reasons: m.reasons,
+      cautions: m.cautions,
     })),
     longTermOutlook: advice.longTermOutlook.map((y) => ({
       year: y.year,
@@ -787,6 +840,7 @@ export function buildTimingViewModel(
       majorChallenges: y.majorChallenges,
       daeunInfluence: y.daeunInfluence,
     })),
+    specificDateNotice: advice.specificDateNotice,
     summary: advice.summary,
   };
 }

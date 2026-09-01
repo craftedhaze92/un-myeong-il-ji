@@ -70,4 +70,13 @@ describe("FlowTab — 대운→세운 캐스케이드", () => {
       screen.getByRole("heading", { level: 2, name: /세운 —/ }),
     ).toHaveTextContent("세운 — 올해를 중심으로");
   });
+
+  it("결정 항목을 고르면 월별 그래프 없이 연도별 큰 흐름을 유지한다", async () => {
+    renderFlowTab();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "계약" }));
+
+    expect(screen.queryByText("향후 3년 시기 흐름")).not.toBeInTheDocument();
+    expect(screen.getByText("연도별 큰 흐름")).toBeInTheDocument();
+  });
 });
