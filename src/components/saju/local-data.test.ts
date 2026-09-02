@@ -45,11 +45,11 @@ describe("로컬 프로필과 일지", () => {
 
   it("프로필·날짜별 일지를 저장하고 빈 내용으로 삭제한다", () => {
     const storage = memoryStorage();
-    saveJournalEntry(storage, "1997-01-16", "2026-09-01", "  중요한 미팅  ");
-    expect(loadJournalEntry(storage, "1997-01-16", "2026-09-01")?.text).toBe(
+    saveJournalEntry(storage, "fixture-profile", "2026-09-01", "  중요한 미팅  ");
+    expect(loadJournalEntry(storage, "fixture-profile", "2026-09-01")?.text).toBe(
       "중요한 미팅",
     );
-    saveJournalEntry(storage, "1997-01-16", "2026-09-01", " ");
-    expect(loadJournalEntry(storage, "1997-01-16", "2026-09-01")).toBeNull();
+    saveJournalEntry(storage, "fixture-profile", "2026-09-01", " ");
+    expect(loadJournalEntry(storage, "fixture-profile", "2026-09-01")).toBeNull();
   });
 });

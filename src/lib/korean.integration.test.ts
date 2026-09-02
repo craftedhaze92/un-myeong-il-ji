@@ -84,7 +84,7 @@ function collectStrings(value: unknown, out: string[] = []): string[] {
 
 // 일간·월지의 받침 조합이 서로 다른 명식들을 골라 검사 범위를 넓힌다.
 const SAMPLE_BIRTHS: Array<[string, string, 'male' | 'female']> = [
-  ['1992-05-05', '17:50', 'male'],   // 일간 경금(받침 O) — 원본 버그 리포트 명식
+  ['1990-05-15', '14:30', 'male'],   // 받침 조사를 함께 검증하는 대표 명식
   ['1990-03-15', '09:30', 'female'], // 일간 무토(받침 X) 대조군
   ['1988-11-02', '22:10', 'male'],
   ['1985-07-20', '03:45', 'female'],
@@ -123,7 +123,7 @@ describe('여러 명식에서 생성된 서술 문장에 조사 오류가 없다
 });
 
 describe('세운 세부 점수가 결정론적이다 (Math.random/해시 기반 가짜 결정론 회귀 방지 — 십성 기반 계산이므로 항상 동일해야 함)', () => {
-  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
 
   it('같은 해를 두 번 분석해도 keyAspects가 완전히 동일하다', () => {
     const first = analyzeSeyun(saju, 2026);

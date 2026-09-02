@@ -9,7 +9,7 @@ describe('CareerMatcher.matchCareers — yongSinOverride가 실제로 쓰인다'
   // 이 옵션이 없으면 CareerMatcher가 내부 YongSinSelector(별개의 4-알고리즘 레지스트리)로
   // 용신을 다시 계산해, "용신 — 필요한 것" 카드와 직업 탭이 다른 용신을 말하는 불일치가
   // 생길 수 있었다 — override가 실제로 그 재계산을 건너뛰는지 확인한다.
-  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
   const settings = DEFAULT_PRESETS.modern_professional;
 
   it('override로 넘긴 오행이 실제 매칭 점수(yongSinMatch)에 반영된다 — 다른 오행을 넘기면 점수가 달라진다', () => {

@@ -9,8 +9,8 @@ import { MyeongsikTab } from "./myeongsik-tab";
 
 function buildFixture() {
   const saju = calculateSaju(
-    "1992-05-05",
-    "17:50",
+    "1990-05-15",
+    "14:30",
     "solar",
     false,
     "male",
@@ -55,8 +55,8 @@ describe("MyeongsikTab — 지지 관계", () => {
 
   it("출생 시간이 미상이면 시지 제외 안내를 표시한다", () => {
     const saju = calculateSaju(
-      "1992-05-05",
-      "17:50",
+      "1990-05-15",
+      "14:30",
       "solar",
       false,
       "male",

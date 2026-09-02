@@ -4,12 +4,39 @@ import { determineGyeokGuk } from './gyeok_guk';
 import type { SajuData } from '../types/index';
 
 describe('월지 지장간 투출법 회귀 — 사주 전체 십성 최빈값이 아니라 월지 지장간을 봐야 한다', () => {
-  // 1992-05-05 17:50 양력 남성: 일간 辛(음금), 월지 巳(정기 丙·중기 庚·여기 戊).
-  // 연간 壬(상관)이 사주 전체 십성 가중합에서 근소하게 1위(申 중기 壬까지 합쳐 1.1)라
-  // 예전 구현("사주 전체 최빈 십성")은 상관격을 냈다. 하지만 월지 巳의 지장간(丙·庚·戊)
-  // 중 어느 것도 연간(壬)·월간(乙)·시간(丁)에 투출하지 않으므로, 무투용본기 원칙대로
-  // 정기 丙 → 일간 辛과의 관계(화극금, 음양 다름) → 정관격이 맞다.
-  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  // 일간 辛(음금), 월지 巳(정기 丙·중기 庚·여기 戊). 연간 壬(상관)이
+  // 사주 전체 십성 가중합의 최빈값이지만 월지 지장간은 하나도 투출하지 않은
+  // 합성 픽스처다. 무투용본기 원칙대로 정기 丙 → 정관격이 되어야 한다.
+  const base = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
+  const saju: SajuData = {
+    ...base,
+    year: { ...base.year, stem: '임', branch: '신' },
+    month: { ...base.month, stem: '을', branch: '사' },
+    day: { ...base.day, stem: '신', branch: '사' },
+    hour: { ...base.hour, stem: '정', branch: '유' },
+    jiJangGan: {
+      year: base.jiJangGan!.year,
+      month: {
+        primary: { stem: '병', strength: 54 },
+        secondary: { stem: '경', strength: 23 },
+        residual: { stem: '무', strength: 23 },
+      },
+      day: base.jiJangGan!.day,
+      hour: base.jiJangGan!.hour,
+    },
+    tenGodsDistribution: {
+      비견: 0.5,
+      겁재: 0.4,
+      식신: 0.6,
+      상관: 1.1,
+      편재: 0.3,
+      정재: 0.4,
+      편관: 0.5,
+      정관: 0.7,
+      편인: 0.2,
+      정인: 0.3,
+    },
+  };
 
   it('전제: 일간은 辛, 월지는 巳다', () => {
     expect(saju.day.stem).toBe('신');

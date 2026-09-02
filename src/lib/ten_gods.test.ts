@@ -63,7 +63,7 @@ describe('calculateTenGodsDistribution — includeDayMaster 옵션 회귀 가드
   // element_distribution.ts#calculateElementDistribution이 오행 파이차트용으로
   // { includeDayMaster: true }를 새로 도입했다. 옵션을 안 넘기는 기존 호출부
   // (saju.ts의 sajuData.tenGodsDistribution 등)의 결과가 이 옵션 추가로 바뀌면 안 된다.
-  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
 
   it('옵션을 생략하면 { includeDayMaster: false }와 완전히 같은 값을 낸다', () => {
     const withoutOption = calculateTenGodsDistribution(saju);

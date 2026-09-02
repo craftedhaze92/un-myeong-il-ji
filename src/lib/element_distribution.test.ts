@@ -86,7 +86,7 @@ describe('calculateElementDistribution — 실제 계산에서도 total은 항�
 });
 
 describe('calculateElementDistribution — 오행 pct는 그 오행에 속한 십성 2개 pct의 합과 같다 (단일 소스 검증)', () => {
-  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
   const { counts, groups } = calculateElementDistribution(saju);
   const distribution = calculateTenGodsDistribution(saju, { includeDayMaster: true });
 

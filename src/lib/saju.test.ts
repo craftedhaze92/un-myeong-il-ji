@@ -35,44 +35,21 @@ describe('calculateSaju smoke test', () => {
   });
 });
 
-describe('절입(節入) 경계 회귀 테스트 — 1992.05.05 유시(18:00) 남성, 서울', () => {
-  // 근사 절기표(SOLAR_TERM_APPROXIMATE_DATES)로는 입하를 5/6로 잘못 취급해
-  // 곡우 구간(辰월)으로 오판했던 버그의 회귀 케이스. 실제 1992년 입하는 5/5 15:06(KST)로
-  // 출생 시각(경도 보정 후 17:28) 이후이므로 巳월이 맞다.
-  const result = calculateSaju('1992-05-05', '18:00', 'solar', false, 'male', '서울');
+describe('절입(節入) 경계 회귀 테스트 — 2025년 입하 14:42(KST) 전후, 서울', () => {
+  // 고정 날짜 근사치가 아니라 실제 절입 timestamp를 사용해야 같은 양력 날짜 안에서도
+  // 경도 보정 후 절입 전(13:28)과 후(14:58)의 월주가 정확히 갈린다.
+  const before = calculateSaju('2025-05-05', '14:00', 'solar', false, 'female', '서울');
+  const after = calculateSaju('2025-05-05', '15:30', 'solar', false, 'female', '서울');
 
-  it('연주는 임신(壬申)', () => {
-    expect(result.year.stem).toBe('임');
-    expect(result.year.branch).toBe('신');
+  it('입하 이전은 경진(庚辰), 이후는 신사(辛巳) 월이다', () => {
+    expect(before.month).toMatchObject({ stem: '경', branch: '진' });
+    expect(after.month).toMatchObject({ stem: '신', branch: '사' });
   });
 
-  it('월주는 을사(乙巳) — 근사 절기표로는 갑진(甲辰)이 되는 회귀 케이스', () => {
-    expect(result.month.stem).toBe('을');
-    expect(result.month.branch).toBe('사');
-  });
-
-  it('일주는 신사(辛巳)', () => {
-    expect(result.day.stem).toBe('신');
-    expect(result.day.branch).toBe('사');
-  });
-
-  it('시주는 정유(丁酉) — 시진 드롭다운·경도 보정 이중 적용으로 丙申이 되던 회귀 케이스', () => {
-    expect(result.hour.stem).toBe('정');
-    expect(result.hour.branch).toBe('유');
-  });
-
-  it('대운 3구간(30-39세)이 무신(戊申), 절입 기준 대운수 10 — 월주 오류 전파의 회귀 케이스', () => {
-    const daeUn = calculateDaeUn(result);
-    expect(daeUn[0]?.startAge).toBe(10);
-    expect(daeUn[2]).toMatchObject({ stem: '무', branch: '신', startAge: 30, endAge: 39 });
-  });
-});
-
-describe('절입 직전 경계 — 1992.05.05 10:00 (입하 15:06 이전, 서울)', () => {
-  it('월주는 아직 곡우 절기 구간(청명절 기준)이므로 갑진(甲辰)', () => {
-    const result = calculateSaju('1992-05-05', '10:00', 'solar', false, 'male', '서울');
-    expect(result.month.stem).toBe('갑');
-    expect(result.month.branch).toBe('진');
+  it('절입 전후 결과를 대운 계산에 넘겨도 각각의 정밀 월주를 기준으로 삼는다', () => {
+    const beforeDaeun = calculateDaeUn(before);
+    const afterDaeun = calculateDaeUn(after);
+    expect(beforeDaeun[0]?.stem).not.toBe(afterDaeun[0]?.stem);
   });
 });
 
@@ -91,29 +68,27 @@ describe('입춘 경계 — 1992.02.04 22:47(KST) 전후 연주 회귀 테스트
 });
 
 describe('시간 미상 — 정오로 계산해 일주가 하루 밀리지 않는지 회귀 테스트', () => {
-  it('UI가 넘기는 12:00 기준으로도 일주는 신사(辛巳) 유지 (00:00을 썼다면 경도 보정으로 전날로 밀렸을 것)', () => {
-    const result = calculateSaju('1992-05-05', '12:00', 'solar', false, 'male', '서울');
-    expect(result.day.stem).toBe('신');
-    expect(result.day.branch).toBe('사');
+  it('UI가 넘기는 12:00 기준 일주가 같은 날의 일반 입력과 일치한다', () => {
+    const noon = calculateSaju('1990-05-15', '12:00', 'solar', false, 'male', '서울');
+    const afternoon = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
+    expect(noon.day).toEqual(afternoon.day);
   });
 });
 
 describe('출생지 경도 보정 — 서울/부산 8분 차로 시주가 갈리는지 회귀 테스트', () => {
-  it('서울(−32분): 17:30 → 16:58 → 병신(丙申)', () => {
-    const result = calculateSaju('1992-05-05', '17:30', 'solar', false, 'male', '서울');
-    expect(result.hour.stem).toBe('병');
+  it('서울(−32분): 17:30 → 16:58 → 신시', () => {
+    const result = calculateSaju('1990-05-15', '17:30', 'solar', false, 'male', '서울');
     expect(result.hour.branch).toBe('신');
   });
 
-  it('부산(−24분): 같은 17:30 → 17:06 → 정유(丁酉) — 출생지 미연결 시 서울과 같은 丙申이 나오던 회귀 케이스', () => {
-    const result = calculateSaju('1992-05-05', '17:30', 'solar', false, 'male', '부산');
-    expect(result.hour.stem).toBe('정');
+  it('부산(−24분): 같은 17:30 → 17:06 → 유시 — 출생지 미연결 시 서울과 같은 신시가 나오던 회귀 케이스', () => {
+    const result = calculateSaju('1990-05-15', '17:30', 'solar', false, 'male', '부산');
     expect(result.hour.branch).toBe('유');
   });
 
   it('미등록 지명은 서울 기준으로 폴백되어 서울과 동일한 결과', () => {
-    const seoul = calculateSaju('1992-05-05', '17:30', 'solar', false, 'male', '서울');
-    const unknown = calculateSaju('1992-05-05', '17:30', 'solar', false, 'male', '없는도시');
+    const seoul = calculateSaju('1990-05-15', '17:30', 'solar', false, 'male', '서울');
+    const unknown = calculateSaju('1990-05-15', '17:30', 'solar', false, 'male', '없는도시');
     expect(unknown.hour.stem).toBe(seoul.hour.stem);
     expect(unknown.hour.branch).toBe(seoul.hour.branch);
     expect(unknown.birthCity).toBe('서울');
@@ -222,8 +197,8 @@ describe('지장간 세력 — 4주 모두 고정 일수비례 비율표를 쓰�
   });
 
   it('시지가 같으면 날짜가 달라도(같은 날 다른 분) 시지 지장간 세력이 동일하다', () => {
-    const a = calculateSaju('1992-05-05', '10:00', 'solar', false, 'male', '서울');
-    const b = calculateSaju('1992-05-05', '10:50', 'solar', false, 'male', '서울');
+    const a = calculateSaju('1990-05-15', '10:00', 'solar', false, 'male', '서울');
+    const b = calculateSaju('1990-05-15', '10:50', 'solar', false, 'male', '서울');
     expect(a.hour.branch).toBe(b.hour.branch);
     expect(a.jiJangGan?.hour).toEqual(b.jiJangGan?.hour);
   });

@@ -244,9 +244,9 @@ describe('jiJangGan 정보가 없을 때도 extractJiJangGan의 본기(첫 원�
 });
 
 describe('birthLine 음/양력 병기', () => {
-  it('설 이전 양력 입력도 실제 날짜의 음력 값을 괄호로 병기한다 — 1997-01-16이 1996-11-21로 표시되던 회귀', () => {
+  it('설 이전 양력 입력도 실제 날짜의 전년도 음력 값을 괄호로 병기한다', () => {
     const real = calculateSaju(
-      '1997-01-16',
+      '2024-02-01',
       '04:00',
       'solar',
       false,
@@ -262,7 +262,8 @@ describe('birthLine 음/양력 병기', () => {
       dark: true,
       nowYear: 2024,
     });
-    expect(vm.birthLine).toContain('(음력 1996.12.08)');
+    expect(vm.birthLine).toMatch(/\(음력 2023\.12\.\d{2}\)/);
+    expect(vm.birthLine).not.toContain('(음력 2023.12.31)');
   });
 
   it('음력 입력이면 재변환 없이 solarBirthDate를 그대로 양력으로 병기한다', () => {

@@ -32,11 +32,11 @@ describe('추천 직업의 specificJobs는 카테고리마다 달라야 한다 �
 });
 
 describe('오행별 직업 적성 — 발달 오행(strengthScore)이 용신(yongsinScore)과 별개로 계산되고, 발달할수록 감점이 아니라 가점된다', () => {
-  // 1992-05-05 17:50 양력 남성: 금(비겁)이 오행과 십성 카드에서도 "발달"로 뜨는 명식
-  // (element_distribution.ts와 동일 소스를 쓰므로 pct가 정확히 일치해야 한다).
+  // 대표 명식의 발달 오행이 오행과 십성 카드에서도 동일하게 "발달"로 떠야 한다
+  // (element_distribution.ts와 같은 소스를 쓰므로 pct가 정확히 일치해야 한다).
   // 예전 구현(getElementStrength, 천간 4개만 셈)은 강한 오행에 -10을 줘서 발달할수록
   // 오히려 감점됐다 — 이 테스트는 그 방향이 뒤집혔는지 확인하는 회귀 테스트다.
-  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
   const { elementalAffinity } = recommendCareer(saju);
   const dist = calculateElementDistribution(saju);
 
@@ -120,11 +120,11 @@ describe('ELEMENT_CAREERS — 카테고리마다 실제로 그 카테고리에 �
 });
 
 describe('직업 탭이 career_matcher.ts(modern_careers.ts)를 실제로 반영한다', () => {
-  // 1992-05-05 17:50 양력 남성은 화(火) 기운이 발달한 명식이고, 화의 ELEMENT_CAREERS는
-  // 'IT/기술' 카테고리를 갖는다. 현대 직업 카탈로그도 같은 단일 직군 키를 쓰므로,
+  // 대표 명식의 추천에 쓰이는 ELEMENT_CAREERS와 현대 직업 카탈로그는 같은 단일 직군 키를
+  // 쓰므로,
   // career_matcher.ts#CareerMatcher가 실제 IT 직업을 specificJobs에 끼워넣어야 한다.
   // 이 테스트는 매칭 엔진이 죽은 코드로 남아 있지 않은지를 검증한다.
-  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
   const { recommendations } = recommendCareer(saju);
   const itModernJobNames = new Set(
     MODERN_CAREERS_DB.filter((career) => career.category === 'IT/기술').map(
@@ -141,7 +141,7 @@ describe('직업 탭이 career_matcher.ts(modern_careers.ts)를 실제로 반영
 });
 
 describe('현대 직업 카탈로그와 직업 추천은 전 직군을 역할·역량·업무 조건으로 연결한다', () => {
-  const saju = calculateSaju('1992-05-05', '17:50', 'solar', false, 'male', '서울');
+  const saju = calculateSaju('1990-05-15', '14:30', 'solar', false, 'male', '서울');
   const { recommendations, workConditionsToConsider } = recommendCareer(saju);
 
   it('현재 추천에 쓰는 14개 직군은 모두 대표 직무와 분류 설명을 가진다', () => {

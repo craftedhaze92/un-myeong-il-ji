@@ -7,8 +7,8 @@ import { LifeTab } from "./life-tab";
 
 function buildVm(unknownHour = false) {
   const saju = calculateSaju(
-    "1992-05-05",
-    unknownHour ? "12:00" : "17:50",
+    "1990-05-15",
+    unknownHour ? "12:00" : "14:30",
     "solar",
     false,
     "male",

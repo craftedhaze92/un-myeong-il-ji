@@ -6,8 +6,8 @@ import { analyzeLifetime } from "./lifetime_analysis";
 
 function sampleSaju(unknownHour = false) {
   return calculateSaju(
-    "1992-05-05",
-    unknownHour ? "12:00" : "17:50",
+    "1990-05-15",
+    unknownHour ? "12:00" : "14:30",
     "solar",
     false,
     "male",
@@ -27,7 +27,7 @@ function score(saju: ReturnType<typeof sampleSaju>, period: DaeUnPeriod) {
   }).fortune.score;
 }
 
-describe("analyzeLifetime — 1992-05-05 17:50 양력 남성 대표 명식", () => {
+describe("analyzeLifetime — 일반 양력 남성 대표 명식", () => {
   const saju = sampleSaju();
   const daeUn = calculateDaeUn(saju);
 

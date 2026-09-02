@@ -7,8 +7,8 @@ import { CareerTab } from "./career-tab";
 
 function buildVm() {
   const saju = calculateSaju(
-    "1992-05-05",
-    "17:50",
+    "1990-05-15",
+    "14:30",
     "solar",
     false,
     "male",

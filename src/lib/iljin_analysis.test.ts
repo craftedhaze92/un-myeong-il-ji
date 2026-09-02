@@ -5,11 +5,11 @@ import { getDayPillar } from "./helpers";
 import { EARTHLY_BRANCHES, TWELVE_GODS, TWELVE_GODS_INFO } from "./constants";
 
 describe("analyzeIljin 십이신살 — 절기 기준 월지 회귀 테스트", () => {
-  // saju.test.ts의 절입 경계 케이스(1992-05-05)를 재사용한다: 근사 계산(date.getMonth() 기반)으로는
-  // 이 날짜를 午월로 오판하지만, 실제 입하 절입은 5/5 15:06(KST)이라 자정 시점은 아직 곡우 구간(辰월)이다.
+  // saju.test.ts의 절입 경계 케이스를 재사용한다: 근사 계산(date.getMonth() 기반)으로는
+  // 이 날짜를 午월로 오판하지만, 실제 2025년 입하는 5/5 14:42(KST)라 자정은 아직 곡우 구간(辰월)이다.
   // 예전엔 calculateTwelveGods가 date.getMonth()로 월지를 근사해 이런 절입 경계 날짜에서
   // 십이신살이 최대 보름 어긋났다.
-  const date = new Date(1992, 4, 5); // 로컬 자정
+  const date = new Date(2025, 4, 5); // 로컬 자정
   const saju = calculateSaju(
     "1990-01-01",
     "12:00",

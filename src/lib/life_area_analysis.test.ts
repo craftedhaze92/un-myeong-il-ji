@@ -17,8 +17,8 @@ const TEN_GODS: TenGod[] = [
 ];
 
 const baseSaju = calculateSaju(
-  "1992-05-05",
-  "17:50",
+  "1990-05-15",
+  "14:30",
   "solar",
   false,
   "male",
